@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Data files (too large for git)
+data/raw/*
+data/processed/*
+*.json
+*.pt
+*.pth
+*.safetensors
+*.bin
+
+# Model caches
+models/
+*.model
+
+# Outputs
+outputs/activations/*
+outputs/features/*
+outputs/logs/*.log
+
+# Environment
+.env
+*.ipynb_checkpoints/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Keep directory structure but ignore contents
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+!outputs/activations/.gitkeep
+!outputs/features/.gitkeep
+!outputs/logs/.gitkeep
+
+# Keep small example/config files
+!configs/*.py
+!scripts/*.py
+!utils/*.py
