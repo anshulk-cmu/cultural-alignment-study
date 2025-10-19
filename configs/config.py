@@ -1,9 +1,9 @@
 """
 Configuration file for RQ1 Cultural Features Discovery
-Verified model names from Hugging Face on 2025-10-19
 """
 import os
 from pathlib import Path
+import torch
 
 # Base paths
 PROJECT_ROOT = Path("/mnt/nfs-shared-centralus/anshulk/rq1_cultural_features")
@@ -15,37 +15,27 @@ MODEL_CACHE = Path("/datadrive/anshulk/models")
 for path in [PROJECT_ROOT, DATA_ROOT, ACTIVATION_ROOT, MODEL_CACHE]:
     path.mkdir(parents=True, exist_ok=True)
 
-# Model configurations - VERIFIED from HuggingFace
+# Model configurations
 MODELS = {
-    "base": "Qwen/Qwen1.5-1.8B",           # Base model (pre-training only)
-    "chat": "Qwen/Qwen1.5-1.8B-Chat"       # Chat model (post-training with RLHF/SFT)
+    "base": "Qwen/Qwen1.5-1.8B",
+    "chat": "Qwen/Qwen1.5-1.8B-Chat"
 }
 
-# Important: Requires transformers >= 4.37.0 for Qwen1.5
-# No trust_remote_code needed for Qwen1.5
-
 # Target layers for activation extraction
-TARGET_LAYERS = [6, 12, 18]  # early, middle, late
+TARGET_LAYERS = [6, 12, 18]  # early (25%), middle (50%), late (75%)
 
 # Dataset configurations
 DATASETS = {
     "updesh_beta": {
         "path": DATA_ROOT / "updesh_beta.json",
-        "size": 30000,
-        "distribution": {
-            "festivals": 0.30,
-            "names": 0.20,
-            "food": 0.20,
-            "regional": 0.20,
-            "honorifics": 0.10
-        }
+        "size": 30000
     },
-    "dosa": {
-        "path": DATA_ROOT / "dosa_dataset.json",
-        "size": 615
-    },
-    "control": {
+    "snli_control": {
         "path": DATA_ROOT / "snli_control.json",
+        "size": 5000
+    },
+    "hindi_control": {
+        "path": DATA_ROOT / "hindi_control.json",
         "size": 5000
     }
 }
@@ -54,7 +44,7 @@ DATASETS = {
 SAE_CONFIG = {
     "reconstruction_loss_threshold": 0.05,
     "sparsity_ratio_target": 10,
-    "dictionary_size": 16384,  # Will tune this
+    "dictionary_size": 16384,
     "batch_size": 256,
     "learning_rate": 1e-4,
     "num_epochs": 100
@@ -71,16 +61,26 @@ VALIDATION_THRESHOLDS = {
     "cross_validation_stability": 0.80
 }
 
-# Hardware configuration
+# Hardware configuration - OPTIMIZED FOR MEMORY
 DEVICE = "cuda"
-NUM_GPUS = 4
-BATCH_SIZE_PER_GPU = 64
-NUM_WORKERS = 8
+NUM_GPUS = torch.cuda.device_count()
 
-# Hugging Face cache - set environment variables
+# Memory-optimized batch sizes
+# For Qwen-1.8B on A100 80GB: conservative settings to avoid OOM
+BATCH_SIZE_PER_GPU = 32  # Reduced from 64 for safety
+TOTAL_BATCH_SIZE = BATCH_SIZE_PER_GPU * NUM_GPUS if NUM_GPUS > 1 else BATCH_SIZE_PER_GPU
+NUM_WORKERS = 4  # Reduced to prevent CPU bottleneck
+
+# Activation extraction settings
+MAX_LENGTH = 256  # Reduced from 512 - most sentences are shorter
+SAVE_EVERY_N_BATCHES = 50  # Save intermediate results to prevent memory buildup
+
+# Memory management
+USE_FP16 = True  # Mixed precision for memory efficiency
+EMPTY_CACHE_EVERY_N = 10  # Clear GPU cache every N batches
+GRADIENT_CHECKPOINTING = False  # Not needed for inference
+
+# Hugging Face cache
 os.environ['HF_HOME'] = str(MODEL_CACHE)
 os.environ['TRANSFORMERS_CACHE'] = str(MODEL_CACHE / "transformers")
-os.environ['HF_HUB_CACHE'] = str(MODEL_CACHE / "hub")
-
-# Minimum transformers version required
-MIN_TRANSFORMERS_VERSION = "4.37.0"
+os.environ['TOKENIZERS_PARALLELISM'] = 'false'  # Avoid tokenizer warnings
