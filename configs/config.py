@@ -74,19 +74,19 @@ GRADIENT_CHECKPOINTING = False
 # ============================================================================
 
 # --- SAE Architecture ---
-SAE_DICT_SIZE = 16384  # Dictionary size (e.g., 8x, 16x, 32x hidden_dim)
+SAE_DICT_SIZE = 8192  # Dictionary size (e.g., 8x, 16x, 32x hidden_dim)
 
 # --- New Sparsity Control (Top-K) ---
 # We now control sparsity directly by keeping the top K features per sample.
 # This replaces the L1 'SAE_SPARSITY_COEF'.
 # Target L0 = 128 / 16384 = 0.0078 (approx 128x sparsity)
 # This is a tunable parameter.
-SAE_SPARSITY_K = 128
+SAE_SPARSITY_K = 256
 
 # --- Dead Neuron Resetting (Best Practice) ---
 # Parameters for the trainer to monitor and reset dead neurons.
 SAE_DEAD_NEURON_MONITOR_STEPS = 1000  # Track activations for this many steps
-SAE_DEAD_NEURON_CHECK_EVERY = 5000     # Check for dead neurons every N global steps
+SAE_DEAD_NEURON_CHECK_EVERY = 3000     # Check for dead neurons every N global steps
 SAE_DEAD_NEURON_THRESHOLD = 0.001      # Fraction of monitor steps a neuron must fire to be 'alive'
 
 # --- Training Hyperparameters ---
