@@ -13,18 +13,23 @@ import logging
 from utils.activation_dataset import create_activation_dataloaders, collate_activations
 from torch.utils.data import ConcatDataset, DataLoader
 
+# Updated config imports
 from configs.config import (
     ACTIVATION_ROOT,
     SAE_OUTPUT_ROOT,
     SAE_HIDDEN_DIM,
     SAE_DICT_SIZE,
-    SAE_SPARSITY_COEF,
+    SAE_SPARSITY_K,  # <-- NEW: Using K for sparsity
     SAE_BATCH_SIZE,
     SAE_NUM_EPOCHS,
     SAE_GPUS,
     SAE_NUM_WORKERS,
     TARGET_LAYERS,
-    setup_logger
+    setup_logger,
+    # NEW: Dead neuron params to pass to trainer
+    SAE_DEAD_NEURON_CHECK_EVERY,
+    SAE_DEAD_NEURON_MONITOR_STEPS,
+    SAE_DEAD_NEURON_THRESHOLD
 )
 from utils.sae_model import SparseAutoencoder
 from utils.activation_dataset import create_activation_dataloaders
@@ -113,20 +118,27 @@ def train_sae_for_model(
     
     # Create model
     logger.info("\nInitializing SAE model...")
+    # --- UPDATED MODEL CREATION ---
+    # We now pass sparsity_k instead of sparsity_coef
     model = SparseAutoencoder(
         input_dim=SAE_HIDDEN_DIM,
         dict_size=SAE_DICT_SIZE,
-        sparsity_coef=SAE_SPARSITY_COEF
+        sparsity_k=SAE_SPARSITY_K  # <-- NEW
     )
     
     # Create trainer
     logger.info("\nInitializing trainer...")
+    # --- UPDATED TRAINER CREATION ---
+    # We pass the new dead neuron parameters
     trainer = SAETrainer(
         model=model,
         train_loader=train_loader,
         val_loader=val_loader,
         device_ids=SAE_GPUS,
-        save_dir=save_dir
+        save_dir=save_dir,
+        dead_neuron_check_every=SAE_DEAD_NEURON_CHECK_EVERY,
+        dead_neuron_monitor_steps=SAE_DEAD_NEURON_MONITOR_STEPS,
+        dead_neuron_threshold=SAE_DEAD_NEURON_THRESHOLD
     )
     
     # Train
@@ -143,7 +155,7 @@ def main():
     
     try:
         logger.info("="*80)
-        logger.info("PHASE 2: TRIPLE SAE TRAINING")
+        logger.info("PHASE 2: TRIPLE SAE TRAINING (TOP-K)")
         logger.info("="*80)
         
         # System info
@@ -159,7 +171,8 @@ def main():
         logger.info(f"\nConfiguration:")
         logger.info(f"  Hidden dim: {SAE_HIDDEN_DIM}")
         logger.info(f"  Dictionary size: {SAE_DICT_SIZE}")
-        logger.info(f"  Sparsity coefficient: {SAE_SPARSITY_COEF}")
+        # --- UPDATED LOGGING ---
+        logger.info(f"  Sparsity K: {SAE_SPARSITY_K}")
         logger.info(f"  Batch size: {SAE_BATCH_SIZE}")
         logger.info(f"  Epochs: {SAE_NUM_EPOCHS}")
         logger.info(f"  Target layers: {TARGET_LAYERS}")

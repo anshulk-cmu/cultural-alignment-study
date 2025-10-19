@@ -28,6 +28,8 @@ MODELS = {
     "chat": "Qwen/Qwen1.5-1.8B-Chat"
 }
 
+# The hidden dimension of the Qwen-1.8B model's layers
+SAE_HIDDEN_DIM = 2048
 TARGET_LAYERS = [6, 12, 18]
 
 # ============================================================================
@@ -71,32 +73,45 @@ GRADIENT_CHECKPOINTING = False
 # PHASE 2: SAE TRAINING
 # ============================================================================
 
-SAE_HIDDEN_DIM = 2048
-SAE_DICT_SIZE = 16384
-SAE_SPARSITY_COEF = 1e-2
+# --- SAE Architecture ---
+SAE_DICT_SIZE = 16384  # Dictionary size (e.g., 8x, 16x, 32x hidden_dim)
 
+# --- New Sparsity Control (Top-K) ---
+# We now control sparsity directly by keeping the top K features per sample.
+# This replaces the L1 'SAE_SPARSITY_COEF'.
+# Target L0 = 128 / 16384 = 0.0078 (approx 128x sparsity)
+# This is a tunable parameter.
+SAE_SPARSITY_K = 128
+
+# --- Dead Neuron Resetting (Best Practice) ---
+# Parameters for the trainer to monitor and reset dead neurons.
+SAE_DEAD_NEURON_MONITOR_STEPS = 1000  # Track activations for this many steps
+SAE_DEAD_NEURON_CHECK_EVERY = 5000     # Check for dead neurons every N global steps
+SAE_DEAD_NEURON_THRESHOLD = 0.001      # Fraction of monitor steps a neuron must fire to be 'alive'
+
+# --- Training Hyperparameters ---
 SAE_BATCH_SIZE = 256
 SAE_LEARNING_RATE = 1e-4
 SAE_NUM_EPOCHS = 100
 SAE_WARMUP_STEPS = 1000
 SAE_WEIGHT_DECAY = 0.01
 
-SAE_GPUS = [0, 1, 2]
+# --- Hardware & Checkpointing ---
+SAE_GPUS = [0, 1, 2]  # GPUs to use for DataParallel
 SAE_NUM_WORKERS = 8
-
-SAE_CHECKPOINT_EVERY = 10
-SAE_EVAL_EVERY = 5
+SAE_CHECKPOINT_EVERY = 10  # Save checkpoint every N epochs
+SAE_EVAL_EVERY = 5       # Run validation every N epochs
 
 SAE_OUTPUT_ROOT = PROJECT_ROOT / "outputs" / "sae_models"
 SAE_OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
 
 # ============================================================================
-# VALIDATION THRESHOLDS
+# VALIDATION THRESHOLDS (from your project plan)
 # ============================================================================
 
 VALIDATION_THRESHOLDS = {
     "reconstruction_loss": 0.05,
-    "l0_sparsity_ratio": 10,
+    "l0_sparsity_ratio": 10,  # This is L0_baseline / L0_SAE
     "saebench_score": 0.70,
     "cohens_d": 0.8,
     "algorithmic_coherence": 0.60,
@@ -123,9 +138,11 @@ def setup_logger(name: str, log_file: str = None, level=logging.INFO):
     logger = logging.getLogger(name)
     logger.setLevel(level)
     
+    # Avoid adding duplicate handlers
     if logger.handlers:
         return logger
     
+    # Console handler
     console_handler = logging.StreamHandler()
     console_handler.setLevel(logging.INFO)
     console_formatter = logging.Formatter(
@@ -135,6 +152,7 @@ def setup_logger(name: str, log_file: str = None, level=logging.INFO):
     console_handler.setFormatter(console_formatter)
     logger.addHandler(console_handler)
     
+    # File handler
     if log_file:
         file_handler = logging.FileHandler(LOG_DIR / log_file)
         file_handler.setLevel(logging.DEBUG)
