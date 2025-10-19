@@ -2,7 +2,9 @@
 Configuration file for RQ1 Cultural Features Discovery
 """
 import os
+import logging
 from pathlib import Path
+from datetime import datetime
 import torch
 
 # Base paths
@@ -66,14 +68,13 @@ DEVICE = "cuda"
 NUM_GPUS = torch.cuda.device_count()
 
 # Memory-optimized batch sizes
-# For Qwen-1.8B on A100 80GB: conservative settings to avoid OOM
-BATCH_SIZE_PER_GPU = 32  # Reduced from 64 for safety
+BATCH_SIZE_PER_GPU = 32  # Conservative for safety
 TOTAL_BATCH_SIZE = BATCH_SIZE_PER_GPU * NUM_GPUS if NUM_GPUS > 1 else BATCH_SIZE_PER_GPU
-NUM_WORKERS = 4  # Reduced to prevent CPU bottleneck
+NUM_WORKERS = 4
 
 # Activation extraction settings
-MAX_LENGTH = 256  # Reduced from 512 - most sentences are shorter
-SAVE_EVERY_N_BATCHES = 50  # Save intermediate results to prevent memory buildup
+MAX_LENGTH = 256  # Most sentences are shorter
+SAVE_EVERY_N_BATCHES = 50  # Save intermediate results
 
 # Memory management
 USE_FP16 = True  # Mixed precision for memory efficiency
@@ -83,4 +84,53 @@ GRADIENT_CHECKPOINTING = False  # Not needed for inference
 # Hugging Face cache
 os.environ['HF_HOME'] = str(MODEL_CACHE)
 os.environ['TRANSFORMERS_CACHE'] = str(MODEL_CACHE / "transformers")
-os.environ['TOKENIZERS_PARALLELISM'] = 'false'  # Avoid tokenizer warnings
+os.environ['TOKENIZERS_PARALLELISM'] = 'false'
+
+# ============================================================================
+# LOGGING CONFIGURATION
+# ============================================================================
+
+LOG_DIR = PROJECT_ROOT / "outputs" / "logs"
+LOG_DIR.mkdir(parents=True, exist_ok=True)
+
+def setup_logger(name: str, log_file: str = None, level=logging.INFO):
+    """
+    Setup logger with console and file handlers
+    
+    Args:
+        name: Logger name
+        log_file: Optional log file name (will be placed in LOG_DIR)
+        level: Logging level
+    
+    Returns:
+        logging.Logger: Configured logger
+    """
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
+    
+    # Avoid adding handlers multiple times
+    if logger.handlers:
+        return logger
+    
+    # Console handler
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    console_formatter = logging.Formatter(
+        '%(asctime)s - %(levelname)s - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
+    console_handler.setFormatter(console_formatter)
+    logger.addHandler(console_handler)
+    
+    # File handler
+    if log_file:
+        file_handler = logging.FileHandler(LOG_DIR / log_file)
+        file_handler.setLevel(logging.DEBUG)
+        file_formatter = logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S'
+        )
+        file_handler.setFormatter(file_formatter)
+        logger.addHandler(file_handler)
+    
+    return logger
