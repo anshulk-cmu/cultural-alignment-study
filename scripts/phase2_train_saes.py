@@ -184,7 +184,7 @@ def main():
         
         # Create output directory
         output_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_dir = SAE_OUTPUT_ROOT / f"triple_sae_{output_timestamp}"
+        output_dir = SAE_OUTPUT_ROOT / f"triple_sae_k{SAE_SPARSITY_K}_dict{SAE_DICT_SIZE}_{output_timestamp}"
         output_dir.mkdir(parents=True, exist_ok=True)
         logger.info(f"  Output directory: {output_dir}")
         
