@@ -42,78 +42,39 @@ def find_latest_run(activation_root: Path) -> Path:
     return run_dirs[-1]
 
 
-def extract_assistant_response(messages):
-    """Extract only the assistant's response from messages list."""
-    for message in reversed(messages):
-        if message.get('role') == 'assistant':
-            return message.get('content', '')
-    return None
-
-
 def load_original_datasets():
-    """Load original datasets to retrieve text content."""
-    logger.info("Loading original datasets...")
+    """Load original datasets from pre-downloaded JSON files."""
+    logger.info("Loading original datasets from JSON files...")
 
-    from datasets import load_dataset
+    # Path to pre-downloaded data
+    data_dir = Path("/datadrive/anshulk/data")
+
+    # Map dataset names to their JSON files
+    dataset_files = {
+        "updesh_beta": data_dir / "updesh_beta.json",
+        "snli_control": data_dir / "snli_control.json",
+        "hindi_control": data_dir / "hindi_control.json"
+    }
 
     datasets_loaded = {}
 
-    for dataset_name, config in DATASETS.items():
+    for dataset_name, json_file in dataset_files.items():
         try:
-            logger.info(f"  Loading {dataset_name}...")
+            logger.info(f"  Loading {dataset_name} from {json_file}...")
 
-            # Special handling for Updesh_beta (has multiple splits and special config)
-            if dataset_name == "updesh_beta":
-                all_texts = []
+            if not json_file.exists():
+                raise FileNotFoundError(f"JSON file not found: {json_file}")
 
-                # Load both English and Hindi splits
-                for split in config['split']:
-                    logger.info(f"    Loading split: {split}...")
-                    dataset = load_dataset(
-                        config['path'],
-                        config['config'],
-                        split=split
-                    )
+            # Load JSON file
+            with open(json_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
 
-                    # Extract assistant responses from messages
-                    for sample in dataset:
-                        messages = sample.get(config['text_field'], [])
-                        assistant_text = extract_assistant_response(messages)
-                        if assistant_text:
-                            all_texts.append(assistant_text)
-
-                    logger.info(f"      Extracted {len(all_texts)} texts from {split}")
-
-                # Truncate to max_samples
-                max_samples = config.get('max_samples', len(all_texts))
-                texts = all_texts[:max_samples]
-
-            else:
-                # Standard dataset loading
-                dataset = load_dataset(
-                    config['path'],
-                    split=config['split']
-                )
-
-                # Extract text field
-                if '.' in config['text_field']:
-                    # Handle nested fields like 'translation.hi'
-                    parts = config['text_field'].split('.')
-                    texts = []
-                    for sample in dataset:
-                        value = sample
-                        for part in parts:
-                            value = value[part]
-                        texts.append(value)
-                else:
-                    texts = [sample[config['text_field']] for sample in dataset]
-
-                # Truncate to max_samples
-                max_samples = config.get('max_samples', len(texts))
-                texts = texts[:max_samples]
+            # Extract texts from JSON
+            # All three datasets have the same format: list of dicts with 'text' field
+            texts = [item['text'] for item in data]
 
             datasets_loaded[dataset_name] = texts
-            logger.info(f"    ✓ Loaded {len(texts)} texts for {dataset_name}")
+            logger.info(f"    ✓ Loaded {len(texts)} texts")
 
         except Exception as e:
             logger.error(f"    ✗ Failed to load {dataset_name}: {e}")
