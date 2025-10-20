@@ -233,12 +233,33 @@ if __name__ == "__main__":
     prioritized_file = SAE_OUTPUT_ROOT / "features_prioritized.json"
     examples_dir = SAE_OUTPUT_ROOT / "feature_examples"
     output_file = SAE_OUTPUT_ROOT / "FEATURE_DICTIONARY_FINAL.json"
-    
+
     logger.info("=" * 80)
-    logger.info("Creating final feature dictionary")
-    logger.info(f"Input: {prioritized_file}")
+    logger.info("PHASE 2.5: CREATE FINAL FEATURE DICTIONARY")
+    logger.info("=" * 80)
+
+    # Validate prerequisites
+    missing_files = []
+    if not prioritized_file.exists():
+        missing_files.append(str(prioritized_file))
+    if not examples_dir.exists():
+        missing_files.append(str(examples_dir))
+
+    if missing_files:
+        logger.error("\nPrerequisite files/directories not found:")
+        for f in missing_files:
+            logger.error(f"  - {f}")
+        logger.error("\nExpected workflow:")
+        logger.error("  1. python scripts/phase2_5_extract_examples.py")
+        logger.error("  2. python scripts/phase2_5_qwen_label.py")
+        logger.error("  3. python scripts/phase2_5_qwen_validate.py")
+        logger.error("  4. python scripts/phase2_5_prioritize_cultural.py")
+        logger.error("  5. python scripts/phase2_5_create_dictionary.py  <-- You are here")
+        sys.exit(1)
+
+    logger.info(f"\nInput: {prioritized_file}")
+    logger.info(f"Examples: {examples_dir}")
     logger.info(f"Output: {output_file}")
-    logger.info("=" * 80)
     
     # Create dictionary with minimum priority score of 5
     dictionary = create_final_dictionary(
