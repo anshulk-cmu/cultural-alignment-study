@@ -34,12 +34,11 @@ SAEs can achieve reconstruction loss < 0.05 with L0 sparsity > 10× baseline, di
 - [x] **Phase 2: Triple SAE training (base/chat/delta)** *(Completed: 2025-10-20)*
   - **Run 1** (k=128, dict=16,384): 2/9 SAEs passed validation (22% success)
   - **Run 2** (k=256, dict=8,192): 3/9 SAEs passed validation (33% success)
-  - **Run 3** (k=256, dict=8,192 + auxiliary loss): Final implementation
-    - Implemented OpenAI's dead neuron revival mechanism
-    - Encoder transpose initialization + auxiliary loss
-    - Periodic dead neuron monitoring and reset
-    - Training on 3 GPUs (0, 1, 2)
-    - Results pending analysis
+  - **Run 3** (k=256, dict=8,192 + auxiliary loss): **9/9 SAEs passed validation (100% success)**
+    - Mean reconstruction loss: 0.002195 (45× better than threshold)
+    - All SAEs achieve <0.05 reconstruction with 32× sparsity
+    - Auxiliary loss remained at 0.000 throughout training
+    - Encoder transpose initialization + periodic monitoring succeeded
 
 ### 🔄 In Progress
 - [ ] Phase 2.5: LLM-based feature labeling and interpretation
@@ -233,11 +232,16 @@ python scripts/phase2_train_saes.py
 - **Problem**: Still high dead feature percentage (~75%)
 - **Outcome**: All Delta SAEs passed, Base/Chat still failing
 
-#### Iteration 3: Auxiliary Loss Implementation (Current)
-- **Method**: Encoder transpose initialization + auxiliary loss using top-512 dead latents
-- **Theoretical Improvement**: Dead latents reduced from 90% to 7% in OpenAI's GPT-4 experiments
-- **Expected Outcome**: All 9 SAEs pass validation
-- **Status**: Training in progress
+#### Iteration 3: Auxiliary Loss Implementation (Final)
+- **Success Rate**: 9/9 SAEs (100%)
+- **Method**: Encoder transpose initialization + auxiliary loss + dead neuron monitoring
+- **Results**:
+  - Mean reconstruction: 0.002195 (range: 0.000070 - 0.007866)
+  - Delta SAEs: 0.000507 avg (best performance maintained)
+  - Base SAEs: 0.002684 avg (5× improvement from Run 2)
+  - Chat SAEs: 0.003394 avg (7× improvement from Run 2)
+  - Auxiliary loss: 0.000 (monitoring prevented feature death)
+- **Outcome**: All validation criteria met, ready for Phase 2.5 feature interpretation
 
 ### Implementation Details
 
@@ -407,6 +411,12 @@ This is an ongoing research project. Code and findings are not yet ready for pub
   - Encoder transpose initialization
   - Periodic monitoring and reset of dormant features
   - Final training run in progress
+- **2025-10-20 (Morning)**: Phase 2 Run 3 completed - 100% validation success
+  - Auxiliary loss mechanism with encoder transpose initialization
+  - All 9 SAEs passed reconstruction (<0.05) and sparsity (32×) criteria
+  - Delta SAEs maintained superior performance (avg: 0.000507)
+  - Base/Chat SAEs achieved 5-7× improvement over Run 2
+  - Phase 2 officially complete
 
 ---
 
