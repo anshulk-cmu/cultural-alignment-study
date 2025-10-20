@@ -33,9 +33,11 @@ SAVE_EVERY_N_BATCHES = 50
 DATASETS = {
     "updesh_beta": {
         "path": "microsoft/Updesh_beta",
-        "split": "train",
-        "text_field": "assistant",
-        "max_samples": 30000
+        "config": "cultural_multihop_reasoning",
+        "split": ["eng_Latn", "hin_Deva"],  # Load both English and Hindi
+        "text_field": "messages",  # Extract from messages
+        "max_samples": 30000,
+        "process_fn": "extract_assistant_response"  # Need special processing
     },
     "snli_control": {
         "path": "stanfordnlp/snli",

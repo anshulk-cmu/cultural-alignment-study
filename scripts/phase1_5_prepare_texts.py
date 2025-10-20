@@ -42,6 +42,14 @@ def find_latest_run(activation_root: Path) -> Path:
     return run_dirs[-1]
 
 
+def extract_assistant_response(messages):
+    """Extract only the assistant's response from messages list."""
+    for message in reversed(messages):
+        if message.get('role') == 'assistant':
+            return message.get('content', '')
+    return None
+
+
 def load_original_datasets():
     """Load original datasets to retrieve text content."""
     logger.info("Loading original datasets...")
@@ -53,31 +61,59 @@ def load_original_datasets():
     for dataset_name, config in DATASETS.items():
         try:
             logger.info(f"  Loading {dataset_name}...")
-            dataset = load_dataset(
-                config['path'],
-                split=config['split'],
-                trust_remote_code=True
-            )
 
-            # Extract text field
-            if '.' in config['text_field']:
-                # Handle nested fields like 'translation.hi'
-                parts = config['text_field'].split('.')
-                texts = []
-                for sample in dataset:
-                    value = sample
-                    for part in parts:
-                        value = value[part]
-                    texts.append(value)
+            # Special handling for Updesh_beta (has multiple splits and special config)
+            if dataset_name == "updesh_beta":
+                all_texts = []
+
+                # Load both English and Hindi splits
+                for split in config['split']:
+                    logger.info(f"    Loading split: {split}...")
+                    dataset = load_dataset(
+                        config['path'],
+                        config['config'],
+                        split=split
+                    )
+
+                    # Extract assistant responses from messages
+                    for sample in dataset:
+                        messages = sample.get(config['text_field'], [])
+                        assistant_text = extract_assistant_response(messages)
+                        if assistant_text:
+                            all_texts.append(assistant_text)
+
+                    logger.info(f"      Extracted {len(all_texts)} texts from {split}")
+
+                # Truncate to max_samples
+                max_samples = config.get('max_samples', len(all_texts))
+                texts = all_texts[:max_samples]
+
             else:
-                texts = [sample[config['text_field']] for sample in dataset]
+                # Standard dataset loading
+                dataset = load_dataset(
+                    config['path'],
+                    split=config['split']
+                )
 
-            # Truncate to max_samples
-            max_samples = config.get('max_samples', len(texts))
-            texts = texts[:max_samples]
+                # Extract text field
+                if '.' in config['text_field']:
+                    # Handle nested fields like 'translation.hi'
+                    parts = config['text_field'].split('.')
+                    texts = []
+                    for sample in dataset:
+                        value = sample
+                        for part in parts:
+                            value = value[part]
+                        texts.append(value)
+                else:
+                    texts = [sample[config['text_field']] for sample in dataset]
+
+                # Truncate to max_samples
+                max_samples = config.get('max_samples', len(texts))
+                texts = texts[:max_samples]
 
             datasets_loaded[dataset_name] = texts
-            logger.info(f"    ✓ Loaded {len(texts)} texts")
+            logger.info(f"    ✓ Loaded {len(texts)} texts for {dataset_name}")
 
         except Exception as e:
             logger.error(f"    ✗ Failed to load {dataset_name}: {e}")
