@@ -161,6 +161,8 @@ class SAETrainer:
             loss_dict = self.model.module.compute_loss(x, x_recon, z, aux_loss) if isinstance(self.model, nn.DataParallel) else self.model.compute_loss(x, x_recon, z, aux_loss)
             
             loss = loss_dict['total_loss']
+            if loss.dim() > 0:
+                loss = loss.mean()
             loss.backward()
             
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
@@ -169,9 +171,9 @@ class SAETrainer:
             self._log_activations(z)
             
             total_loss += loss.item()
-            total_recon_loss += loss_dict['recon_loss'].item()
-            total_aux_loss += loss_dict['aux_loss'].item()
-            total_l0 += loss_dict['l0_sparsity'].item()
+            total_recon_loss += loss_dict['recon_loss'].item() if loss_dict['recon_loss'].dim() == 0 else loss_dict['recon_loss'].mean().item()
+            total_aux_loss += loss_dict['aux_loss'].item() if loss_dict['aux_loss'].dim() == 0 else loss_dict['aux_loss'].mean().item()
+            total_l0 += loss_dict['l0_sparsity'].item() if loss_dict['l0_sparsity'].dim() == 0 else loss_dict['l0_sparsity'].mean().item()
             num_batches += 1
             
             self.current_step += 1
@@ -182,9 +184,9 @@ class SAETrainer:
             
             pbar.set_postfix({
                 'loss': f"{loss.item():.6f}",
-                'recon': f"{loss_dict['recon_loss'].item():.6f}",
-                'aux': f"{loss_dict['aux_loss'].item():.6f}",
-                'l0': f"{loss_dict['l0_sparsity'].item():.4f}"
+                'recon': f"{loss_dict['recon_loss'].mean().item() if loss_dict['recon_loss'].dim() > 0 else loss_dict['recon_loss'].item():.6f}",
+                'aux': f"{loss_dict['aux_loss'].mean().item() if loss_dict['aux_loss'].dim() > 0 else loss_dict['aux_loss'].item():.6f}",
+                'l0': f"{loss_dict['l0_sparsity'].mean().item() if loss_dict['l0_sparsity'].dim() > 0 else loss_dict['l0_sparsity'].item():.4f}"
             })
         
         return {
@@ -210,10 +212,14 @@ class SAETrainer:
             x_recon, z, aux_loss = self.model(x, compute_aux_loss=False)
             loss_dict = self.model.module.compute_loss(x, x_recon, z, aux_loss) if isinstance(self.model, nn.DataParallel) else self.model.compute_loss(x, x_recon, z, aux_loss)
             
-            total_loss += loss_dict['total_loss'].item()
-            total_recon_loss += loss_dict['recon_loss'].item()
-            total_aux_loss += loss_dict['aux_loss'].item()
-            total_l0 += loss_dict['l0_sparsity'].item()
+            loss = loss_dict['total_loss']
+            if loss.dim() > 0:
+                loss = loss.mean()
+            
+            total_loss += loss.item()
+            total_recon_loss += loss_dict['recon_loss'].item() if loss_dict['recon_loss'].dim() == 0 else loss_dict['recon_loss'].mean().item()
+            total_aux_loss += loss_dict['aux_loss'].item() if loss_dict['aux_loss'].dim() == 0 else loss_dict['aux_loss'].mean().item()
+            total_l0 += loss_dict['l0_sparsity'].item() if loss_dict['l0_sparsity'].dim() == 0 else loss_dict['l0_sparsity'].mean().item()
             num_batches += 1
         
         return {

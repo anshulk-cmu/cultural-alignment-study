@@ -55,12 +55,27 @@ def train_sae_for_model(
     logger.info(f"{'='*80}")
     
     logger.info("\nLoading activation datasets...")
-    train_loaders, val_loaders = create_activation_dataloaders(
+    
+    dataset_names = ['updesh_beta', 'snli_control', 'hindi_control']
+    
+    train_loaders = create_activation_dataloaders(
         run_dir=run_dir,
-        model_type=model_type,
+        dataset_names=dataset_names,
         layer_idx=layer_idx,
+        model_type=model_type,
         batch_size=SAE_BATCH_SIZE,
-        num_workers=SAE_NUM_WORKERS
+        num_workers=SAE_NUM_WORKERS,
+        shuffle=True
+    )
+    
+    val_loaders = create_activation_dataloaders(
+        run_dir=run_dir,
+        dataset_names=dataset_names,
+        layer_idx=layer_idx,
+        model_type=model_type,
+        batch_size=SAE_BATCH_SIZE,
+        num_workers=SAE_NUM_WORKERS,
+        shuffle=False
     )
     
     train_dataset = ConcatDataset([loader.dataset for loader in train_loaders.values()])
