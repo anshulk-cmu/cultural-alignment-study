@@ -14,7 +14,21 @@ ACTIVATION_ROOT.mkdir(parents=True, exist_ok=True)
 MODEL_NAME_BASE = "Qwen/Qwen1.5-1.8B"
 MODEL_NAME_CHAT = "Qwen/Qwen1.5-1.8B-Chat"
 
+# Model dictionary for Phase 1 compatibility
+MODELS = {
+    "base": MODEL_NAME_BASE,
+    "chat": MODEL_NAME_CHAT
+}
+
 TARGET_LAYERS = [6, 12, 18]
+
+# Phase 1 specific configs
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+NUM_GPUS = torch.cuda.device_count() if torch.cuda.is_available() else 0
+BATCH_SIZE_PER_GPU = 64
+USE_FP16 = True
+EMPTY_CACHE_EVERY_N = 10
+SAVE_EVERY_N_BATCHES = 50
 
 DATASETS = {
     "updesh_beta": {

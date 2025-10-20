@@ -173,12 +173,24 @@ def prioritize_cultural(validated_file, output_file):
 if __name__ == "__main__":
     validated_file = SAE_OUTPUT_ROOT / "labels_qwen_validated.json"
     output_file = SAE_OUTPUT_ROOT / "features_prioritized.json"
-    
+
     logger.info("=" * 80)
-    logger.info("Starting cultural feature prioritization")
-    logger.info(f"Input file: {validated_file}")
+    logger.info("PHASE 2.5: PRIORITIZE CULTURAL FEATURES")
+    logger.info("=" * 80)
+
+    # Check prerequisite files exist
+    if not validated_file.exists():
+        logger.error(f"\nPrerequisite file not found: {validated_file}")
+        logger.error("Please run phase2_5_qwen_validate.py first to create validated labels.")
+        logger.error("\nExpected workflow:")
+        logger.error("  1. python scripts/phase2_5_extract_examples.py")
+        logger.error("  2. python scripts/phase2_5_qwen_label.py")
+        logger.error("  3. python scripts/phase2_5_qwen_validate.py")
+        logger.error("  4. python scripts/phase2_5_prioritize_cultural.py  <-- You are here")
+        sys.exit(1)
+
+    logger.info(f"\nInput file: {validated_file}")
     logger.info(f"Output file: {output_file}")
-    logger.info("=" * 80)
     
     cultural = prioritize_cultural(validated_file, output_file)
     
