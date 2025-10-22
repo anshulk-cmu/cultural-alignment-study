@@ -3,8 +3,8 @@ from pathlib import Path
 import torch
 import logging
 
-PROJECT_ROOT = Path("/mnt/nfs-shared-centralus/anshulk/rq1_cultural_features")
-DATA_ROOT = Path("/datadrive/anshulk")
+PROJECT_ROOT = Path("/home/anshulk/cultural-alignment-study")
+DATA_ROOT = Path("/user_data/anshulk/data")
 MODEL_CACHE = DATA_ROOT / "models"
 ACTIVATION_ROOT = DATA_ROOT / "activations"
 

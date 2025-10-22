@@ -12,7 +12,7 @@ This is a one-time CPU/single-GPU operation that avoids re-running expensive Pha
 """
 
 import sys
-sys.path.append('/mnt/nfs-shared-centralus/anshulk/rq1_cultural_features')
+sys.path.append('/home/anshulk/cultural-alignment-study')
 
 import torch
 import numpy as np
@@ -47,7 +47,7 @@ def load_original_datasets():
     logger.info("Loading original datasets from JSON files...")
 
     # Path to pre-downloaded data
-    data_dir = Path("/datadrive/anshulk/data")
+    data_dir = Path("/user_data/anshulk/data")
 
     # Map dataset names to their JSON files
     dataset_files = {

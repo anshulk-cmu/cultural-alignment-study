@@ -19,7 +19,7 @@ SAEs can achieve reconstruction loss < 0.05 with L0 sparsity > 10× baseline, di
 ## Current Status
 
 ### ✅ Completed
-- [x] Environment setup on Azure A100 VM
+- [x] Environment setup on CMU Babel HPC
 - [x] Updesh_beta dataset downloaded (30K samples)
 - [x] SNLI control set downloaded (5K English samples)
 - [x] IITB Hindi control set downloaded (5K Hindi samples)
@@ -28,7 +28,7 @@ SAEs can achieve reconstruction loss < 0.05 with L0 sparsity > 10× baseline, di
   - Base model activations extracted (40K samples, layers 6/12/18)
   - Chat model activations extracted (40K samples, layers 6/12/18)
   - Delta activations computed (chat - base)
-  - Output: 27 activation sets saved to `/datadrive/anshulk/activations/run_20251019_192554/`
+  - Output: 27 activation sets saved to `/user_data/anshulk/data/activations/run_20251019_192554/`
 
 ### ✅ Phase 2 Complete
 - [x] **Phase 2: Triple SAE training (base/chat/delta)** *(Completed: 2025-10-20)*
@@ -73,7 +73,7 @@ rq1_cultural_features/
 │   ├── activation_dataset.py       # Activation data loading
 │   ├── sae_model.py                # SAE architecture
 │   └── sae_trainer.py              # Multi-GPU training
-├── data/             # Data storage (on /datadrive, gitignored)
+├── data/             # Data storage (on /user_data, gitignored)
 ├── outputs/          # Results and activations (gitignored)
 │   ├── activations/  # Phase 1 outputs
 │   ├── sae_models/   # Phase 2 outputs
@@ -176,12 +176,12 @@ python scripts/phase2_train_saes.py
 
 ## Hardware Configuration
 
-- **VM**: Azure A100-Machine-004 (NeuLab Bridge Compute)
-- **GPUs**: 4x NVIDIA A100 80GB PCIe
-- **Storage**: 
-  - `/datadrive` (8TB) - Data and activations
-  - `/mnt/nfs-shared-centralus` (5TB) - Code and environments
-- **Location**: `/mnt/nfs-shared-centralus/anshulk/rq1_cultural_features`
+- **HPC**: CMU Babel HPC Cluster
+- **GPUs**: Multiple NVIDIA GPUs available on compute nodes
+- **Storage**:
+  - `/home/anshulk` (~93GB) - Code and configurations (login node)
+  - `/user_data/anshulk` (10TB) - Data, models, and activations (compute nodes)
+- **Location**: `/home/anshulk/cultural-alignment-study`
 
 ---
 
@@ -194,7 +194,7 @@ python scripts/phase2_train_saes.py
 - **Delta Computation**: Automated chat - base differences
 - **Memory Usage**: Peak 3.5GB/80GB per GPU
 - **Output Format**: Sentence-level activations [N, 2048] saved as compressed .npz chunks
-- **Storage Location**: `/datadrive/anshulk/activations/run_20251019_192554/`
+- **Storage Location**: `/user_data/anshulk/data/activations/run_20251019_192554/`
 
 ### Activation Statistics
 - **Shape**: [batch_size, 2048] per layer (mean-pooled over sequence length)
@@ -367,7 +367,7 @@ We gratefully acknowledge:
 - **Stanford NLP Group** for the SNLI corpus
 - **IIT Bombay CFILT** for the English-Hindi parallel corpus
 - **Alibaba Cloud** for the Qwen model family
-- **NeuLab (CMU)** for providing Azure compute resources
+- **CMU Computing Resources** for providing Babel HPC access
 
 ---
 

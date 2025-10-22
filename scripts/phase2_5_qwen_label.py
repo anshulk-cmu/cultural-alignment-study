@@ -4,7 +4,7 @@ Phase 2.5: Parallel Qwen Labeling with GPU 2 & 3
 GPU isolation using subprocess with environment variables
 """
 import sys
-sys.path.append('/mnt/nfs-shared-centralus/anshulk/rq1_cultural_features')
+sys.path.append('/home/anshulk/cultural-alignment-study')
 
 import json
 import subprocess
@@ -20,7 +20,7 @@ def create_worker_script():
     worker_code = '''#!/usr/bin/env python3
 import sys
 import os
-sys.path.append('/mnt/nfs-shared-centralus/anshulk/rq1_cultural_features')
+sys.path.append('/home/anshulk/cultural-alignment-study')
 
 import json
 import torch
@@ -33,7 +33,7 @@ def load_qwen():
     """Load Qwen2.5-72B with 8-bit quantization."""
     from transformers import BitsAndBytesConfig
     
-    model_path = "/mnt/nfs-shared-centralus/anshulk/models/qwen2.5-72b-instruct"
+    model_path = "/user_data/anshulk/models/qwen2.5-72b-instruct"
     
     # Verify which GPU we're actually on
     if torch.cuda.is_available():
@@ -206,7 +206,7 @@ if __name__ == "__main__":
 
 
 def main():
-    model_path = "/mnt/nfs-shared-centralus/anshulk/models/qwen2.5-72b-instruct"
+    model_path = "/user_data/anshulk/models/qwen2.5-72b-instruct"
     examples_dir = SAE_OUTPUT_ROOT / "feature_examples"
     output_dir = SAE_OUTPUT_ROOT
     final_output_file = output_dir / "labels_qwen_initial.json"

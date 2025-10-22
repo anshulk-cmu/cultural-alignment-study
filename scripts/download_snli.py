@@ -2,7 +2,7 @@
 Download SNLI control set - 5000 generic non-cultural sentences
 """
 import sys
-sys.path.append('/mnt/nfs-shared-centralus/anshulk/rq1_cultural_features')
+sys.path.append('/home/anshulk/cultural-alignment-study')
 
 from datasets import load_dataset
 import json

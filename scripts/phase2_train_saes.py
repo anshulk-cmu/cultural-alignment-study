@@ -1,5 +1,5 @@
 import sys
-sys.path.append('/mnt/nfs-shared-centralus/anshulk/rq1_cultural_features')
+sys.path.append('/home/anshulk/cultural-alignment-study')
 
 import torch
 from pathlib import Path
