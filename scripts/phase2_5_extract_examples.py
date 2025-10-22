@@ -1,6 +1,6 @@
 # scripts/phase2_5_extract_examples.py
 import sys
-sys.path.append('/mnt/nfs-shared-centralus/anshulk/rq1_cultural_features')
+sys.path.append('/home/anshulk/cultural-alignment-study')
 import torch
 import json
 from pathlib import Path
@@ -57,7 +57,7 @@ def load_activation_data(sae_dir, layer_idx, model_type):
     """
     # Navigate from SAE dir to activation root
     # SAE dir structure: outputs/sae_models/triple_sae_*/model_type_layerX
-    # Need to get to: /datadrive/anshulk/activations/run_*/
+    # Need to get to: /user_data/anshulk/data/activations/run_*/
 
     # Find activation root using config
     runs = sorted(ACTIVATION_ROOT.glob("run_*"))

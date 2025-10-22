@@ -1,6 +1,6 @@
 # scripts/phase2_5_create_dictionary.py
 import sys
-sys.path.append('/mnt/nfs-shared-centralus/anshulk/rq1_cultural_features')
+sys.path.append('/home/anshulk/cultural-alignment-study')
 import json
 from pathlib import Path
 from configs.config import SAE_OUTPUT_ROOT, setup_logger

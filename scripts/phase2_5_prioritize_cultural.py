@@ -1,6 +1,6 @@
 # scripts/phase2_5_prioritize_cultural.py
 import sys
-sys.path.append('/mnt/nfs-shared-centralus/anshulk/rq1_cultural_features')
+sys.path.append('/home/anshulk/cultural-alignment-study')
 import json
 import torch
 import numpy as np

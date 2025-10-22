@@ -4,7 +4,7 @@ Extract 5000 generic Hindi sentences (10-50 words each)
 """
 
 import sys
-sys.path.append('/mnt/nfs-shared-centralus/anshulk/rq1_cultural_features')
+sys.path.append('/home/anshulk/cultural-alignment-study')
 
 import json
 import random
