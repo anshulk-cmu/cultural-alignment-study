@@ -47,7 +47,7 @@ def load_original_datasets():
     logger.info("Loading original datasets from JSON files...")
 
     # Path to pre-downloaded data
-    data_dir = Path("/user_data/anshulk/data")
+    data_dir = DATA_ROOT
 
     # Map dataset names to their JSON files
     dataset_files = {

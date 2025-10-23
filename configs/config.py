@@ -4,15 +4,15 @@ import torch
 import logging
 
 PROJECT_ROOT = Path("/home/anshulk/cultural-alignment-study")
-DATA_ROOT = Path("/user_data/anshulk/data")
-MODEL_CACHE = DATA_ROOT / "models"
+DATA_ROOT = Path("/data/user_data/anshulk/data")
+MODEL_CACHE = Path("/data/models/huggingface")
 ACTIVATION_ROOT = DATA_ROOT / "activations"
 
 MODEL_CACHE.mkdir(parents=True, exist_ok=True)
 ACTIVATION_ROOT.mkdir(parents=True, exist_ok=True)
 
-MODEL_NAME_BASE = "Qwen/Qwen1.5-1.8B"
-MODEL_NAME_CHAT = "Qwen/Qwen1.5-1.8B-Chat"
+MODEL_NAME_BASE = "/data/models/huggingface/qwen/Qwen1.5-1.8B"
+MODEL_NAME_CHAT = "/data/models/huggingface/qwen/Qwen1.5-1.8B-Chat"
 
 # Model dictionary for Phase 1 compatibility
 MODELS = {
@@ -32,30 +32,22 @@ SAVE_EVERY_N_BATCHES = 50
 
 DATASETS = {
     "updesh_beta": {
-        "path": "microsoft/Updesh_beta",
-        "config": "cultural_multihop_reasoning",
-        "split": ["eng_Latn", "hin_Deva"],  # Load both English and Hindi
-        "text_field": "messages",  # Extract from messages
-        "max_samples": 30000,
-        "process_fn": "extract_assistant_response"  # Need special processing
+        "path": DATA_ROOT / "updesh_beta.json",
+        "max_samples": 30000
     },
     "snli_control": {
-        "path": "stanfordnlp/snli",
-        "split": "train",
-        "text_field": "hypothesis",
+        "path": DATA_ROOT / "snli_control.json",
         "max_samples": 5000
     },
     "hindi_control": {
-        "path": "cfilt/iitb-english-hindi",
-        "split": "train",
-        "text_field": "translation.hi",
+        "path": DATA_ROOT / "hindi_control.json",
         "max_samples": 5000
     }
 }
 
 BATCH_SIZE = 64
 MAX_LENGTH = 512
-NUM_WORKERS = 8
+NUM_WORKERS = 4
 
 SAE_HIDDEN_DIM = 2048
 SAE_DICT_SIZE = 8192
