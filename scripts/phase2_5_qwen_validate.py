@@ -440,7 +440,7 @@ if __name__ == "__main__":
 
 def main():
     # Set Model Path to the downloaded Qwen3 model
-    model_path = "/data/user_data/anshulk/models/Qwen3-30B-A3B-Instruct-2507"
+    model_path = "/data/user_data/anshulk/data/models/Qwen3-30B-A3B-Instruct-2507"
 
     # Define input/output paths using the symlinks in /home
     home_base = Path("/home/anshulk/cultural-alignment-study/outputs")
