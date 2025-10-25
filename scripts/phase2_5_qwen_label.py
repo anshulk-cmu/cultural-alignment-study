@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Phase 2.5: Parallel Qwen Labeling with 4x A100 80GB GPUs
+Phase 2.5: Parallel Qwen Labeling with 4x 48GB-class GPUs (e.g., L40S)
 Optimized for memory efficiency and OOM prevention
 """
 import sys
@@ -91,7 +91,7 @@ def load_qwen():
     model = AutoModelForCausalLM.from_pretrained(
         model_path,
         quantization_config=quantization_config,
-        device_map={"": 0},  # All on single GPU (A100 has 80GB)
+        device_map={"": 0},  # All on single GPU (fits in 48GB)
         trust_remote_code=True,
         torch_dtype=torch.float16,
         low_cpu_mem_usage=True
@@ -318,7 +318,7 @@ def main():
     
     logger.info("=" * 80)
     logger.info("PARALLEL QWEN1.5-72B-CHAT FEATURE LABELING")
-    logger.info(f"Using GPUs: {FREE_GPUS} (4x A100 80GB)")
+    logger.info(f"Using GPUs: {FREE_GPUS} (4x 48GB-class GPUs)")
     logger.info("=" * 80)
     logger.info(f"Input directory: {examples_dir}")
     logger.info(f"Output file: {final_output_file}")
@@ -363,7 +363,7 @@ def main():
             logger.info(f"    - {Path(f).name}")
     
     # Create worker script
-    worker_script_path = Path("/tmp/qwen_worker_a100.py")
+    worker_script_path = Path("/tmp/qwen_worker_4bit.py") # Renamed for clarity
     with open(worker_script_path, 'w') as f:
         f.write(create_worker_script())
     
