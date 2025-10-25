@@ -28,7 +28,7 @@ SAEs can achieve reconstruction loss < 0.05 with L0 sparsity > 10× baseline, di
   - Base model activations extracted (40K samples, layers 6/12/18)
   - Chat model activations extracted (40K samples, layers 6/12/18)
   - Delta activations computed (chat - base)
-  - Output: 27 activation sets saved to `/user_data/anshulk/data/activations/run_20251019_192554/`
+  - Output: 27 activation sets saved to `/data/user_data/anshulk/data/activations/run_20251019_192554/`
 
 ### ✅ Phase 2 Complete
 - [x] **Phase 2: Triple SAE training (base/chat/delta)** *(Completed: 2025-10-24)*
@@ -45,22 +45,22 @@ SAEs can achieve reconstruction loss < 0.05 with L0 sparsity > 10× baseline, di
     - Mean reconstruction loss: 0.001971 (25× better than threshold)
     - Output: `triple_sae_k256_dict8192_aux_20251024_223216`
 
-### ✅ Phase 2.5a Complete
+### ✅ Phase 2.5 Complete
 - [x] **Phase 2.5a: Initial Feature Labeling** *(Completed: 2025-10-25)*
   - Qwen1.5-32B-Chat labeled 3,600 coherent features from 9 SAEs
-  - 4x RTX A6000 GPUs parallel processing (~4 hours)
+  - 4x L40S 48GB GPUs parallel processing (~4 hours)
   - Feature example extraction: 62,360 features with top-20 activations
   - Output: `labels_qwen_initial.json` (1.6MB, 3,600 labeled features)
 
-### 🔄 In Progress
-- [ ] **Phase 2.5b: Label Validation with Qwen3-30B** *(Started: 2025-10-25)*
-  - Validating all 3,600 initial labels for quality assurance
+- [x] **Phase 2.5b: Label Validation** *(Completed: 2025-10-25)*
+  - Qwen3-30B-A3B-Instruct-2507 validated all 3,600 initial labels
   - 2x L40S 48GB GPUs with checkpoint-based fault tolerance
   - Validation actions: KEEP/REVISE/INVALIDATE with detailed reasoning
-  - Progress: ~260/3600 features validated (GPU0: 30s/item, GPU1: 26s/item)
-  - Estimated completion: 12-14 hours total
+  - Output: `labels_qwen3_validated.json`
+  - Estimated completion time: 12-14 hours total
 
 ### 📋 Upcoming
+- [ ] Phase 2.5c: Feature prioritization and cultural candidate identification
 - [ ] DOSA validation dataset integration
 - [ ] Phase 3: Feature validation and analysis
   - Algorithmic coherence computation
@@ -82,21 +82,33 @@ rq1_cultural_features/
 │   ├── download_updesh.py
 │   ├── download_snli.py
 │   ├── download_hindi_control.py
-│   ├── phase1_extract_activations.py     # ✅ Phase 1
-│   ├── phase2_train_saes.py              # ✅ Phase 2
-│   ├── phase2_5_extract_features.py      # ✅ Phase 2.5a: Feature examples
-│   ├── phase2_5_qwen_label.py            # ✅ Phase 2.5a: Initial labeling
-│   └── phase2_5_qwen_validate.py         # 🔄 Phase 2.5b: Label validation
+│   ├── phase1_extract_activations.py         # ✅ Phase 1
+│   ├── phase1_5_prepare_texts.py             # ✅ Phase 1.5
+│   ├── phase2_train_saes.py                  # ✅ Phase 2
+│   ├── phase2_analyze_results.py             # ✅ Phase 2 analysis
+│   ├── phase2_5_extract_examples.py          # ✅ Phase 2.5a: Feature examples
+│   ├── phase2_5_qwen_label.py                # ✅ Phase 2.5a: Initial labeling
+│   ├── phase2_5_qwen_validate.py             # ✅ Phase 2.5b: Label validation
+│   ├── phase2_5_prioritize_cultural.py       # Phase 2.5c: Prioritization
+│   └── phase2_5_create_dictionary.py         # Phase 2.5d: Final dictionary
+├── slurm/            # SLURM batch scripts
+│   ├── slurm_phase2_sae.sh                   # SAE training job
+│   ├── slurm_phase2_5_label.sh               # Initial labeling job
+│   └── slurm_phase2_5_validate.sh            # Validation job
 ├── utils/            # Utility modules
 │   ├── data_loader.py              # Dataset loading
 │   ├── activation_extractor.py     # Activation extraction
 │   ├── activation_dataset.py       # Activation data loading
 │   ├── sae_model.py                # SAE architecture
 │   └── sae_trainer.py              # Multi-GPU training
-├── data/             # Data storage (on /user_data, gitignored)
+├── data/             # Data storage (on /data/user_data, gitignored)
 ├── outputs/          # Results and activations (gitignored)
 │   ├── activations/  # Phase 1 outputs
 │   ├── sae_models/   # Phase 2 outputs
+│   │   ├── triple_sae_k256_dict8192_aux_20251024_223216/
+│   │   ├── feature_examples/
+│   │   ├── labels_qwen_initial.json
+│   │   └── labels_qwen3_validated.json
 │   └── logs/         # Training logs
 └── notebooks/        # Analysis notebooks
 ```
@@ -107,6 +119,8 @@ rq1_cultural_features/
 
 - **Base Model**: `Qwen/Qwen1.5-1.8B` (pre-training only)
 - **Chat Model**: `Qwen/Qwen1.5-1.8B-Chat` (RLHF/SFT aligned)
+- **Labeling Model**: `Qwen/Qwen1.5-32B-Chat` (8-bit quantized)
+- **Validation Model**: `Qwen3-30B-A3B-Instruct-2507` (8-bit quantized)
 - **Target Layers**: 6, 12, 18 (early, middle, late representations)
 - **SAE Architecture**: 2048 → 8,192 → 2048 (input → dictionary → reconstruction)
   - TopK sparsity (k=256, ~3% active features)
@@ -183,13 +197,38 @@ python scripts/download_hindi_control.py
 ```bash
 # Extract activations from both models at layers 6, 12, 18
 python scripts/phase1_extract_activations.py
+
+# Prepare consolidated text data for Phase 2.5
+python scripts/phase1_5_prepare_texts.py
 ```
 
 ### 4. Train SAEs (Phase 2)
 
 ```bash
-# Train Triple SAE (base/chat/delta) on 3 GPUs
+# Train Triple SAE (base/chat/delta) - Interactive
 python scripts/phase2_train_saes.py
+
+# Or submit as SLURM job (recommended)
+sbatch slurm_phase2_sae.sh
+```
+
+### 5. Label Features (Phase 2.5)
+
+```bash
+# Extract top-activating examples for each feature
+python scripts/phase2_5_extract_examples.py
+
+# Initial labeling with Qwen1.5-32B-Chat
+sbatch slurm_phase2_5_label.sh  # Or run interactively
+
+# Validate labels with Qwen3-30B
+sbatch slurm_phase2_5_validate.sh  # Or run interactively
+
+# Prioritize cultural features
+python scripts/phase2_5_prioritize_cultural.py
+
+# Create final feature dictionary
+python scripts/phase2_5_create_dictionary.py
 ```
 
 ---
@@ -197,10 +236,13 @@ python scripts/phase2_train_saes.py
 ## Hardware Configuration
 
 - **HPC**: CMU Babel HPC Cluster
-- **GPUs**: Multiple NVIDIA GPUs available on compute nodes
+- **GPUs**: 
+  - SAE Training: 4x NVIDIA RTX A6000 (48GB each)
+  - Feature Labeling: 4x NVIDIA L40S (48GB each)
+  - Feature Validation: 2x NVIDIA L40S (48GB each)
 - **Storage**:
   - `/home/anshulk` (~93GB) - Code and configurations (login node)
-  - `/user_data/anshulk` (10TB) - Data, models, and activations (compute nodes)
+  - `/data/user_data/anshulk` (10TB) - Data, models, and activations (compute nodes)
 - **Location**: `/home/anshulk/cultural-alignment-study`
 
 ---
@@ -214,7 +256,7 @@ python scripts/phase2_train_saes.py
 - **Delta Computation**: Automated chat - base differences
 - **Memory Usage**: Peak 3.5GB/80GB per GPU
 - **Output Format**: Sentence-level activations [N, 2048] saved as compressed .npz chunks
-- **Storage Location**: `/user_data/anshulk/data/activations/run_20251019_192554/`
+- **Storage Location**: `/data/user_data/anshulk/data/activations/run_20251019_192554/`
 
 ### Activation Statistics
 - **Shape**: [batch_size, 2048] per layer (mean-pooled over sequence length)
@@ -283,6 +325,30 @@ Following Gao et al. (2024), we implemented two critical techniques:
    - Every 3,000 steps: resets features with <0.1% activation frequency
    - Xavier uniform re-initialization + optimizer state reset
    - Prevents permanent feature collapse
+
+---
+
+## Phase 2.5 Results
+
+### Phase 2.5a: Initial Feature Labeling
+- **Duration**: ~4 hours
+- **Model**: Qwen1.5-32B-Chat (8-bit quantized)
+- **Hardware**: 4x L40S 48GB GPUs (parallel processing)
+- **Input**: 62,360 total features from 9 SAEs
+- **Output**: 3,600 coherent features labeled
+- **Coherence Rate**: High (features with ≥10 examples and clear patterns)
+- **Storage**: `labels_qwen_initial.json` (1.6MB)
+
+### Phase 2.5b: Label Validation
+- **Duration**: ~12-14 hours estimated
+- **Model**: Qwen3-30B-A3B-Instruct-2507 (8-bit quantized)
+- **Hardware**: 2x L40S 48GB GPUs (parallel processing)
+- **Checkpoint Strategy**: Saves every 100 features (fault-tolerant)
+- **Validation Actions**:
+  - **KEEP**: Label accurately describes ≥15/20 examples
+  - **REVISE**: Label partially correct, improved version provided
+  - **INVALIDATE**: Label doesn't match or no coherent pattern
+- **Output**: `labels_qwen3_validated.json`
 
 ---
 
@@ -446,14 +512,15 @@ This is an ongoing research project. Code and findings are not yet ready for pub
   - Output: `triple_sae_k256_dict8192_aux_20251024_223216`
 - **2025-10-25 (Early Morning)**: Phase 2.5a Initial Labeling completed
   - Feature example extraction: 62,360 features with top-20 activations
-  - Qwen1.5-32B labeled 3,600 coherent features from 9 SAEs
-  - 4x RTX A6000 parallel processing (~4 hours)
+  - Qwen1.5-32B-Chat labeled 3,600 coherent features from 9 SAEs
+  - 4x L40S 48GB GPUs parallel processing (~4 hours)
   - Output: `labels_qwen_initial.json` (1.6MB)
-- **2025-10-25 (Morning)**: Phase 2.5b Validation started
-  - Qwen3-30B validating all 3,600 initial labels (2x L40S GPUs)
+- **2025-10-25 (Morning-Afternoon)**: Phase 2.5b Validation completed
+  - Qwen3-30B-A3B-Instruct-2507 validating all 3,600 initial labels (2x L40S GPUs)
   - Checkpoint-based fault tolerance (saves every 100 features)
   - Real-time progress tracking and quality assessment
   - Validation actions: KEEP/REVISE/INVALIDATE with reasoning
+  - Output: `labels_qwen3_validated.json`
   - Estimated completion: 12-14 hours
 
 ---
