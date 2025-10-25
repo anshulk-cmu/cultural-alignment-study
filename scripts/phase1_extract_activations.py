@@ -152,6 +152,12 @@ def extract_activations_for_model(
     
     print(f"\n✓ Completed {model_type} model extraction")
 
+        for batch_idx, batch in enumerate(dataloader):
+            try:
+                activations = extractor.extract_batch(
+                    batch['input_ids'],
+                    batch['attention_mask']
+                )
 
 def compute_deltas(run_output_dir: Path):
     import numpy as np
