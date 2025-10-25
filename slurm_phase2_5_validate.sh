@@ -11,19 +11,45 @@
 #SBATCH --mail-user=anshulk@andrew.cmu.edu
 #SBATCH --requeue
 
-set -e
+# ============================================================================
+# PHASE 2.5: QWEN3 FEATURE VALIDATION
+# Validating feature labels using Qwen3-30B-A3B-Instruct-2507
+# Expected duration: 3-5 hours
+# Resources: 2x L40S 48GB GPUs, 32 CPUs, All available memory
+# ============================================================================
 
+set -e  # Exit on error
+
+# Create logs directory
 mkdir -p /home/anshulk/cultural-alignment-study/outputs/logs
 
+# Print job information
 echo "=================================="
 echo "SLURM Job Information"
 echo "=================================="
 echo "Job ID: $SLURM_JOB_ID"
+echo "Job Name: $SLURM_JOB_NAME"
+echo "Partition: $SLURM_JOB_PARTITION"
 echo "Node: $(hostname)"
 echo "Started: $(date)"
-echo "GPUs: $CUDA_VISIBLE_DEVICES"
+echo "Working Directory: $(pwd)"
 echo ""
 
+# Print resource allocation
+echo "=================================="
+echo "Resource Allocation"
+echo "=================================="
+echo "GPUs: $CUDA_VISIBLE_DEVICES"
+echo "GPUs allocated: $(echo $CUDA_VISIBLE_DEVICES | tr ',' ' ' | wc -w)"
+echo "CPUs per task: $SLURM_CPUS_PER_TASK"
+echo "Memory: All available on node"
+echo "Time limit: $SLURM_JOB_TIME"
+echo ""
+
+# Activate conda environment
+echo "=================================="
+echo "Environment Setup"
+echo "=================================="
 source ~/.bashrc
 conda activate rq1
 
@@ -32,17 +58,22 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-echo "=================================="
-echo "Environment"
-echo "=================================="
+echo "Conda environment: $CONDA_DEFAULT_ENV"
 echo "Python: $(which python)"
-echo "PyTorch: $(python -c 'import torch; print(torch.__version__)')"
+echo "Python version: $(python --version)"
+echo "PyTorch version: $(python -c 'import torch; print(torch.__version__)')"
 echo "CUDA available: $(python -c 'import torch; print(torch.cuda.is_available())')"
+echo "Transformers installed: $(python -c 'import transformers; print(transformers.__version__)')"
 echo ""
 
-nvidia-smi --query-gpu=index,name,memory.total --format=csv,noheader
+# Print GPU information
+echo "=================================="
+echo "GPU Information"
+echo "=================================="
+nvidia-smi --query-gpu=index,name,memory.total,memory.free,temperature.gpu --format=csv,noheader
 echo ""
 
+# Set environment variables
 export HF_HOME=/data/hf_cache
 export HF_DATASETS_CACHE=/data/hf_cache/datasets
 export TRANSFORMERS_CACHE=/data/hf_cache/transformers
@@ -50,63 +81,119 @@ export CUDA_LAUNCH_BLOCKING=0
 export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
 export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 
+echo "Environment Variables:"
+echo "  HF_HOME: $HF_HOME"
+echo "  HF_DATASETS_CACHE: $HF_DATASETS_CACHE"
+echo "  CUDA_LAUNCH_BLOCKING: $CUDA_LAUNCH_BLOCKING"
+echo "  OMP_NUM_THREADS: $OMP_NUM_THREADS"
+echo ""
+
+# Navigate to project directory
 cd /home/anshulk/cultural-alignment-study
 
+# Validate prerequisites
 echo "=================================="
 echo "Pre-flight Validation"
 echo "=================================="
 
+echo "Checking Qwen3 model..."
 MODEL_PATH="/data/user_data/anshulk/models/Qwen3-30B-A3B-Instruct-2507"
 if [ -d "$MODEL_PATH" ]; then
-    echo "Model found: $MODEL_PATH"
+    echo "✓ Model found: $MODEL_PATH"
 else
     echo "ERROR: Model not found at $MODEL_PATH"
     exit 1
 fi
 
+echo ""
+echo "Checking initial labels..."
 python -c "
 import sys
 sys.path.append('/home/anshulk/cultural-alignment-study')
 from configs.config import SAE_OUTPUT_ROOT
 from pathlib import Path
+import json
 
 labels_file = SAE_OUTPUT_ROOT / 'labels_qwen_initial.json'
 if not labels_file.exists():
     print(f'ERROR: Initial labels not found: {labels_file}')
     sys.exit(1)
 
+with open(labels_file, 'r') as f:
+    labels = json.load(f)
+print(f'✓ Initial labels found: {len(labels)} features')
+
 examples_dir = SAE_OUTPUT_ROOT / 'feature_examples'
 if not examples_dir.exists():
     print(f'ERROR: Examples directory not found: {examples_dir}')
     sys.exit(1)
 
-print('Validation prerequisites complete')
+example_files = list(examples_dir.glob('*_examples.json'))
+print(f'✓ Examples directory found: {len(example_files)} files')
 "
 
-if [ $? -ne 0 ]; then
-    echo "Pre-flight validation failed"
+VALIDATION_STATUS=$?
+if [ $VALIDATION_STATUS -ne 0 ]; then
+    echo ""
+    echo "ERROR: Pre-flight validation failed!"
+    echo "Please ensure Phase 2.5 labeling completed successfully."
     exit 1
 fi
 
+# Check for existing checkpoints
+echo ""
+echo "Checking for existing checkpoints..."
+python -c "
+import sys
+sys.path.append('/home/anshulk/cultural-alignment-study')
+from configs.config import SAE_OUTPUT_ROOT
+from pathlib import Path
+import json
+
+output_dir = SAE_OUTPUT_ROOT
+checkpoints_found = False
+
+for gpu_id in [0, 1]:
+    checkpoint_file = output_dir / f'labels_qwen3_validated_gpu{gpu_id}_checkpoint.json'
+    if checkpoint_file.exists():
+        with open(checkpoint_file, 'r') as f:
+            data = json.load(f)
+        print(f'  ✓ GPU {gpu_id} checkpoint exists: {len(data)} features already validated')
+        checkpoints_found = True
+
+if not checkpoints_found:
+    print('  No existing checkpoints found - starting fresh')
+else:
+    print('  Will resume from checkpoints')
+"
+
 echo ""
 echo "=================================="
-echo "Phase 2.5: Qwen3 Validation"
+echo "Starting Phase 2.5: Feature Validation"
 echo "=================================="
-echo "Model: Qwen3-30B-A3B-Instruct-2507"
-echo "GPUs: 2x L40S (8-bit quantization)"
-echo "Input: labels_qwen_initial.json"
-echo "Output: labels_qwen3_validated.json"
-echo "Estimated time: 3-5 hours"
+echo "Configuration:"
+echo "  Model: Qwen3-30B-A3B-Instruct-2507 (8-bit quantized)"
+echo "  GPUs: 2x L40S 48GB (parallel workers)"
+echo "  Input: labels_qwen_initial.json"
+echo "  Output: labels_qwen3_validated.json"
+echo "  Checkpoint saves: Every 100 features"
+echo "  Memory cleanup: Every 50 features"
+echo "  Resume supported: Rerun if interrupted"
+echo "  Estimated time: 3-5 hours"
 echo ""
 
+# Record start time
 START_TIME=$(date +%s)
-echo "Started: $(date)"
+echo "Job started at: $(date)"
 echo ""
 
+# Run Phase 2.5 validation with error handling
 python scripts/phase2_5_qwen_validate.py 2>&1 | tee -a /home/anshulk/cultural-alignment-study/outputs/logs/phase2_5_validate_${SLURM_JOB_ID}.log
 
+# Capture exit status
 EXIT_STATUS=${PIPESTATUS[0]}
 
+# Record end time
 END_TIME=$(date +%s)
 DURATION=$((END_TIME - START_TIME))
 HOURS=$((DURATION / 3600))
@@ -117,17 +204,23 @@ echo ""
 echo "=================================="
 echo "Job Summary"
 echo "=================================="
+echo "Job ID: $SLURM_JOB_ID"
 echo "Exit status: $EXIT_STATUS"
 echo "Duration: ${HOURS}h ${MINUTES}m ${SECONDS}s"
+echo "Started: $(date -d @$START_TIME)"
+echo "Completed: $(date -d @$END_TIME)"
 echo ""
 
+# Print output location if successful
 if [ $EXIT_STATUS -eq 0 ]; then
-    echo "Validation completed successfully"
-    
+    echo "=================================="
+    echo "Validation Completed Successfully!"
+    echo "=================================="
     python -c "
 import sys
 sys.path.append('/home/anshulk/cultural-alignment-study')
 from configs.config import SAE_OUTPUT_ROOT
+from pathlib import Path
 import json
 
 output_file = SAE_OUTPUT_ROOT / 'labels_qwen3_validated.json'
@@ -139,24 +232,121 @@ if output_file.exists():
         'KEEP': sum(1 for r in results if r.get('validation_action') == 'KEEP'),
         'REVISE': sum(1 for r in results if r.get('validation_action') == 'REVISE'),
         'INVALIDATE': sum(1 for r in results if r.get('validation_action') == 'INVALIDATE'),
+        'ERROR': sum(1 for r in results if r.get('validation_action') == 'ERROR'),
     }
     
-    print(f'Results: {output_file}')
-    print(f'Total: {len(results)}')
-    print(f'KEEP: {stats[\"KEEP\"]} ({stats[\"KEEP\"]/len(results)*100:.1f}%)')
-    print(f'REVISE: {stats[\"REVISE\"]} ({stats[\"REVISE\"]/len(results)*100:.1f}%)')
-    print(f'INVALIDATE: {stats[\"INVALIDATE\"]} ({stats[\"INVALIDATE\"]/len(results)*100:.1f}%)')
-    print(f'Valid: {stats[\"KEEP\"] + stats[\"REVISE\"]} ({(stats[\"KEEP\"] + stats[\"REVISE\"])/len(results)*100:.1f}%)')
+    final_valid = stats['KEEP'] + stats['REVISE']
+    
+    print(f'Labels saved to:')
+    print(f'  {output_file}')
+    print(f'')
+    print(f'Summary:')
+    print(f'  Total features validated: {len(results):,}')
+    print(f'  KEEP:       {stats[\"KEEP\"]:>6,} ({stats[\"KEEP\"]/len(results)*100:>5.1f}%)')
+    print(f'  REVISE:     {stats[\"REVISE\"]:>6,} ({stats[\"REVISE\"]/len(results)*100:>5.1f}%)')
+    print(f'  INVALIDATE: {stats[\"INVALIDATE\"]:>6,} ({stats[\"INVALIDATE\"]/len(results)*100:>5.1f}%)')
+    print(f'  ERROR:      {stats[\"ERROR\"]:>6,} ({stats[\"ERROR\"]/len(results)*100:>5.1f}%)')
+    print(f'  ---')
+    print(f'  Final Valid (Keep+Revise): {final_valid:>6,} ({final_valid/len(results)*100:>5.1f}%)')
+    print(f'')
+    print(f'GPU outputs:')
+    for gpu_id in [0, 1]:
+        gpu_file = SAE_OUTPUT_ROOT / f'labels_qwen3_validated_gpu{gpu_id}.json'
+        if gpu_file.exists():
+            with open(gpu_file, 'r') as gf:
+                gpu_results = json.load(gf)
+            print(f'  ✓ GPU {gpu_id}: {len(gpu_results):,} features')
+        else:
+            print(f'  ✗ GPU {gpu_id}: output file missing')
+else:
+    print('WARNING: No output file found')
+    print(f'Expected: {output_file}')
 "
 else
-    echo "Validation failed or incomplete"
-    echo "Check logs:"
-    echo "  /home/anshulk/cultural-alignment-study/outputs/logs/phase2_5_validate_${SLURM_JOB_ID}.err"
-    echo "  /home/anshulk/cultural-alignment-study/outputs/logs/phase2_5_validate_${SLURM_JOB_ID}.log"
+    echo "=================================="
+    echo "Validation Failed or Incomplete"
+    echo "=================================="
+    echo "Exit status: $EXIT_STATUS"
+    echo ""
+    echo "Checking for checkpoint files..."
+    python -c "
+import sys
+sys.path.append('/home/anshulk/cultural-alignment-study')
+from configs.config import SAE_OUTPUT_ROOT
+from pathlib import Path
+import json
+
+checkpoints_found = False
+total_checkpointed = 0
+
+for gpu_id in [0, 1]:
+    checkpoint_file = SAE_OUTPUT_ROOT / f'labels_qwen3_validated_gpu{gpu_id}_checkpoint.json'
+    if checkpoint_file.exists():
+        with open(checkpoint_file, 'r') as f:
+            data = json.load(f)
+        print(f'  ✓ GPU {gpu_id} checkpoint: {len(data):,} features')
+        total_checkpointed += len(data)
+        checkpoints_found = True
+
+if checkpoints_found:
+    print(f'')
+    print(f'Total checkpointed: {total_checkpointed:,} features')
+    print(f'')
+    print('Checkpoint files exist - you can resume by rerunning:')
+    print('  sbatch slurm_phase2_5_validate.sh')
+    print('')
+    print('The script will automatically:')
+    print('  - Load existing checkpoints')
+    print('  - Skip already validated features')
+    print('  - Continue from where it left off')
+else:
+    print('  No checkpoint files found')
+    print('  This was likely an early failure (model loading, etc.)')
+"
+    echo ""
+    echo "Check logs for details:"
+    echo "  Error log: /home/anshulk/cultural-alignment-study/outputs/logs/phase2_5_validate_${SLURM_JOB_ID}.err"
+    echo "  Full log: /home/anshulk/cultural-alignment-study/outputs/logs/phase2_5_validate_${SLURM_JOB_ID}.log"
+    echo ""
+    echo "Individual GPU logs:"
+    for i in 0 1; do
+        echo "  GPU $i: /home/anshulk/cultural-alignment-study/outputs/logs/phase2_5_validate_gpu${i}.log"
+    done
 fi
 
+# Print final GPU state
 echo ""
-nvidia-smi --query-gpu=index,name,memory.used,utilization.gpu --format=csv
+echo "=================================="
+echo "Final GPU State"
+echo "=================================="
+nvidia-smi --query-gpu=index,name,memory.used,memory.free,utilization.gpu,temperature.gpu --format=csv
 echo ""
 
+# Print resource usage statistics
+echo "=================================="
+echo "Job Resource Usage"
+echo "=================================="
+sstat --format=JobID,MaxRSS,MaxVMSize,AveCPU -j $SLURM_JOB_ID 2>/dev/null || echo "Resource stats will be available after job completion (use: sacct -j $SLURM_JOB_ID --format=JobID,Elapsed,MaxRSS,MaxVMSize,AveCPU)"
+
+echo ""
+echo "For detailed efficiency report after completion, run:"
+echo "  seff $SLURM_JOB_ID"
+echo ""
+
+if [ $EXIT_STATUS -eq 0 ]; then
+    echo "=================================="
+    echo "Next Steps"
+    echo "=================================="
+    echo "1. Review validation results:"
+    echo "   less /home/anshulk/cultural-alignment-study/outputs/sae_models/labels_qwen3_validated.json"
+    echo ""
+    echo "2. Analyze validated features:"
+    echo "   python scripts/analyze_validated_features.py"
+    echo ""
+    echo "3. Export final feature labels:"
+    echo "   python scripts/export_final_labels.py"
+    echo ""
+fi
+
+# Exit with the status from the Python script
 exit $EXIT_STATUS
