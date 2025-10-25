@@ -1,9 +1,9 @@
 #!/bin/bash
 #SBATCH --job-name=phase2_5_qwen_label
 #SBATCH --partition=general
-#SBATCH --gres=gpu:A100:4
-#SBATCH --cpus-per-task=64
-#SBATCH --mem=400G
+#SBATCH --gres=gpu:A100_80GB:4
+#SBATCH --cpus-per-task=48
+#SBATCH --mem=0
 #SBATCH --time=24:00:00
 #SBATCH --output=/home/anshulk/cultural-alignment-study/outputs/logs/phase2_5_label_%j.out
 #SBATCH --error=/home/anshulk/cultural-alignment-study/outputs/logs/phase2_5_label_%j.err
@@ -15,7 +15,7 @@
 # PHASE 2.5: QWEN FEATURE LABELING
 # Labeling ~3,600 features using Qwen1.5-72B-Chat
 # Expected duration: 6-10 hours
-# Resources: 4x A100 80GB GPUs, 64 CPUs, 400GB RAM
+# Resources: 4x A100 80GB GPUs, 48 CPUs, All available memory
 # ============================================================================
 
 set -e  # Exit on error
@@ -42,7 +42,7 @@ echo "=================================="
 echo "GPUs: $CUDA_VISIBLE_DEVICES"
 echo "GPUs allocated: $(echo $CUDA_VISIBLE_DEVICES | tr ',' ' ' | wc -w)"
 echo "CPUs per task: $SLURM_CPUS_PER_TASK"
-echo "Memory: $SLURM_MEM_PER_NODE MB"
+echo "Memory: All available on node"
 echo "Time limit: $SLURM_JOB_TIME"
 echo ""
 
@@ -328,7 +328,7 @@ if [ $EXIT_STATUS -eq 0 ]; then
     echo "Next Steps"
     echo "=================================="
     echo "1. Review labeling results:"
-    echo "   cat /home/anshulk/cultural-alignment-study/outputs/sae_models/labels_qwen_initial.json"
+    echo "   less /home/anshulk/cultural-alignment-study/outputs/sae_models/labels_qwen_initial.json"
     echo ""
     echo "2. Run validation script:"
     echo "   sbatch slurm_phase2_5_validate.sh"
