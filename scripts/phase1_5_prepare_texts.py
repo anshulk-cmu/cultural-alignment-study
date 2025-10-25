@@ -26,6 +26,7 @@ from configs.config import (
     ACTIVATION_ROOT,
     TARGET_LAYERS,
     DATASETS,
+    DATA_ROOT,
     setup_logger
 )
 from utils.data_loader import load_all_datasets
