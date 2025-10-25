@@ -14,7 +14,7 @@ import gc
 from pathlib import Path
 from configs.config import SAE_OUTPUT_ROOT, setup_logger
 
-# GPU configuration - 4x A100 80GB
+# GPU configuration - 4x GPUs
 FREE_GPUS = [0, 1, 2, 3]
 
 
@@ -52,7 +52,7 @@ def get_gpu_memory_usage():
 
 
 def load_qwen():
-    """Load Qwen1.5-72B-Chat with 8-bit quantization and memory optimization."""
+    """Load Qwen1.5-72B-Chat with 4-bit quantization and memory optimization."""
     from transformers import BitsAndBytesConfig
     
     # CORRECTED PATH
@@ -79,12 +79,13 @@ def load_qwen():
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     
-    print("Loading model with 8-bit quantization...")
-    # Optimized 8-bit quantization config
+    print("Loading model with 4-bit quantization...")
+    # Optimized 4-bit quantization config
     quantization_config = BitsAndBytesConfig(
-        load_in_8bit=True,
-        llm_int8_threshold=6.0,
-        llm_int8_has_fp16_weight=False
+        load_in_4bit=True,
+        bnb_4bit_quant_type="nf4",
+        bnb_4bit_compute_dtype=torch.float16,
+        bnb_4bit_use_double_quant=True
     )
     
     model = AutoModelForCausalLM.from_pretrained(
