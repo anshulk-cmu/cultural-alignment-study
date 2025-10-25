@@ -273,15 +273,18 @@ def main():
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('--gpu_id', type=int, required=True, help="Assigned physical GPU ID")
-    parser.add_argument('--labels_data', type=str, required=True)
-    parser.add_argument('--examples_map', type=str, required=True)
+    parser.add_argument('--labels_file', type=str, required=True)
+    parser.add_argument('--examples_file', type=str, required=True)
     parser.add_argument('--output_file', type=str, required=True)
     args = parser.parse_args()
 
-    label_subset = json.loads(args.labels_data)
-    # Deserialize the map values as well
-    examples_map_serial = json.loads(args.examples_map)
-    examples_map = {k: v for k, v in examples_map_serial.items()}
+    # Read labels from file instead of command-line arg
+    with open(args.labels_file, 'r', encoding='utf-8') as f:
+        label_subset = json.load(f)
+
+    # Read examples from file instead of command-line arg
+    with open(args.examples_file, 'r', encoding='utf-8') as f:
+        examples_map = json.load(f)
 
     gpu_id = args.gpu_id # This is the assigned physical GPU ID
     output_file = Path(args.output_file)
@@ -588,33 +591,39 @@ def main():
     # Launch subprocesses with CUDA_VISIBLE_DEVICES set correctly
     processes = []
 
-    # Serialize examples map once
+    # Write examples map to a single temp file (read by all workers)
+    examples_temp_file = Path("/tmp") / f"qwen3_validate_examples_{os.getpid()}.json"
     try:
-        examples_map_serial = json.dumps({k: v for k, v in examples_map.items()})
+        with open(examples_temp_file, 'w', encoding='utf-8') as f:
+            json.dump(examples_map, f, ensure_ascii=False)
+        logger.info(f"Examples map written to {examples_temp_file}")
     except Exception as e:
-        logger.error(f"Failed to serialize examples map: {e}")
+        logger.error(f"Failed to write examples map: {e}")
         return
 
     for assigned_gpu_id, label_list in label_splits:
         output_file = output_dir / f"labels_qwen3_validated_gpu{assigned_gpu_id}.json"
 
+        # Write labels for this GPU to a temp file
+        labels_temp_file = Path("/tmp") / f"qwen3_validate_labels_gpu{assigned_gpu_id}_{os.getpid()}.json"
+        try:
+            with open(labels_temp_file, 'w', encoding='utf-8') as f:
+                json.dump(label_list, f, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"Failed to write labels for GPU {assigned_gpu_id}: {e}")
+            continue
+
         # Create environment with CUDA_VISIBLE_DEVICES set for this specific worker
         env = os.environ.copy()
         env['CUDA_VISIBLE_DEVICES'] = str(assigned_gpu_id)
 
-        # Prepare arguments, passing serialized data
-        try:
-             labels_data_serial = json.dumps(label_list)
-        except Exception as e:
-            logger.error(f"Failed to serialize labels for GPU {assigned_gpu_id}: {e}")
-            continue # Skip this worker
-
+        # Pass file paths instead of data
         cmd = [
-            sys.executable, # Use the same python interpreter
+            sys.executable,
             str(worker_script_path),
             '--gpu_id', str(assigned_gpu_id),
-            '--labels_data', labels_data_serial,
-            '--examples_map', examples_map_serial,
+            '--labels_file', str(labels_temp_file),
+            '--examples_file', str(examples_temp_file),
             '--output_file', str(output_file)
         ]
 
@@ -772,6 +781,19 @@ def main():
     logger.info("=" * 80)
     logger.info("✓ PHASE 2.5 VALIDATION COMPLETE")
     logger.info("=" * 80)
+
+    # Clean up temp files
+    try:
+        examples_temp_file = Path("/tmp") / f"qwen3_validate_examples_{os.getpid()}.json"
+        if examples_temp_file.exists():
+            examples_temp_file.unlink()
+        for gpu_id, _ in label_splits:
+            labels_temp_file = Path("/tmp") / f"qwen3_validate_labels_gpu{gpu_id}_{os.getpid()}.json"
+            if labels_temp_file.exists():
+                labels_temp_file.unlink()
+        logger.info("Temp files cleaned up")
+    except Exception as e:
+        logger.warning(f"Failed to clean up temp files: {e}")
 
 
 if __name__ == "__main__":
