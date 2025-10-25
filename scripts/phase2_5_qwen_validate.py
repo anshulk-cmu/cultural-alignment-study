@@ -2,6 +2,7 @@
 """
 Phase 2.5: Parallel Qwen3 Validation with 2x 48GB-class GPUs (e.g., L40S)
 Using Qwen3-30B-A3B-Instruct-2507 model
+WITH CHECKPOINT SUPPORT for fault tolerance
 """
 import sys
 # Ensure the project root is in the path
@@ -75,7 +76,6 @@ def load_qwen3_30b():
             total_memory = torch.cuda.get_device_properties(internal_gpu_id).total_memory / 1024**3
         except Exception as e:
             print(f"Error getting CUDA device info: {e}")
-
 
     print(f"Worker assigned physical GPU {assigned_gpu_id}, mapped to internal ID {internal_gpu_id}: {device_name} ({total_memory:.1f} GB)")
 
@@ -245,12 +245,28 @@ def parse_validation_response(response):
              if len(parts) > 1 and parts[1].strip():
                  revised_label = parts[1].strip().split('\\n')[0].strip()
 
-
     # Ensure revised_label is None if action is not REVISE
     if action != 'REVISE':
         revised_label = None
 
     return action, revised_label, reason
+
+
+def save_checkpoint(results, output_file, gpu_id):
+    """Save intermediate results as checkpoint."""
+    checkpoint_file = output_file.parent / f"{output_file.stem}_checkpoint.json"
+    with open(checkpoint_file, 'w', encoding='utf-8') as f:
+        json.dump(results, f, indent=2, ensure_ascii=False)
+    print(f"[GPU {gpu_id}] Checkpoint saved: {len(results)} results")
+
+
+def load_checkpoint(output_file):
+    """Load checkpoint if exists."""
+    checkpoint_file = output_file.parent / f"{output_file.stem}_checkpoint.json"
+    if checkpoint_file.exists():
+        with open(checkpoint_file, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    return []
 
 
 def main():
@@ -268,12 +284,21 @@ def main():
     examples_map = {k: v for k, v in examples_map_serial.items()}
 
     gpu_id = args.gpu_id # This is the assigned physical GPU ID
+    output_file = Path(args.output_file)
 
     logger = setup_logger(f'qwen3_validate_gpu{gpu_id}', f'phase2_5_validate_gpu{gpu_id}.log')
 
     logger.info(f"[GPU {gpu_id}] Worker started")
     logger.info(f"[GPU {gpu_id}] Validating {len(label_subset)} labels")
+    logger.info(f"[GPU {gpu_id}] Output: {output_file}")
 
+    # Check for checkpoint and resume
+    validated = load_checkpoint(output_file)
+    processed_features = set(v['feature_id'] for v in validated)
+    
+    if validated:
+        logger.info(f"[GPU {gpu_id}] Resuming from checkpoint: {len(validated)} features already validated")
+    
     # Load model
     try:
         tokenizer, model = load_qwen3_30b()
@@ -282,21 +307,30 @@ def main():
         # Attempt to save partial results indicating failure
         error_results = []
         for label_data in label_subset:
-             label_data['validation_action'] = 'ERROR'
-             label_data['validation_reason'] = f"Model loading failed: {e}"
-             label_data['final_label'] = None
-             label_data['validated_by_gpu'] = gpu_id
-             error_results.append(label_data)
-        output_file = Path(args.output_file)
-        with open(output_file, 'w', encoding='utf-8') as f:
-            json.dump(error_results, f, indent=2, ensure_ascii=False)
+             if label_data.get('feature_id') not in processed_features:
+                 label_data['validation_action'] = 'ERROR'
+                 label_data['validation_reason'] = f"Model loading failed: {e}"
+                 label_data['final_label'] = None
+                 label_data['validated_by_gpu'] = gpu_id
+                 error_results.append(label_data)
+        
+        if error_results:
+            validated.extend(error_results)
+            with open(output_file, 'w', encoding='utf-8') as f:
+                json.dump(validated, f, indent=2, ensure_ascii=False)
         sys.exit(1) # Ensure the main script knows this worker failed
 
-    validated = []
-
+    # Process labels
+    features_processed_this_run = 0
+    
     for idx, label_data in enumerate(tqdm(label_subset, desc=f"GPU {gpu_id} - Validating")):
         try:
             feature_id = label_data.get('feature_id', 'unknown')
+            
+            # Skip if already processed in checkpoint
+            if feature_id in processed_features:
+                continue
+            
             initial_label = label_data.get('label_qwen', '')
 
             # Skip incoherent/invalid features more robustly
@@ -306,6 +340,8 @@ def main():
                 label_data['final_label'] = None
                 label_data['validated_by_gpu'] = gpu_id
                 validated.append(label_data)
+                processed_features.add(feature_id)
+                features_processed_this_run += 1
                 continue
 
             # Get examples for this feature
@@ -318,6 +354,8 @@ def main():
                 label_data['final_label'] = None
                 label_data['validated_by_gpu'] = gpu_id
                 validated.append(label_data)
+                processed_features.add(feature_id)
+                features_processed_this_run += 1
                 continue
 
             # Create validation prompt
@@ -351,12 +389,18 @@ def main():
                 label_data['final_label'] = None
 
             validated.append(label_data)
+            processed_features.add(feature_id)
+            features_processed_this_run += 1
 
-            # Periodic cleanup (more frequent for potentially larger models/caches)
-            if (idx + 1) % 25 == 0:
+            # Memory cleanup every 50 features
+            if features_processed_this_run % 50 == 0:
                 clear_gpu_memory()
                 alloc, reserved = get_gpu_memory_usage()
-                logger.info(f"[GPU {gpu_id}] Progress: {idx+1}/{len(label_subset)} | Memory: {alloc:.1f}GB / {reserved:.1f}GB")
+                logger.info(f"[GPU {gpu_id}] Progress: {len(validated)}/{len(label_subset)} | Memory: {alloc:.1f}GB / {reserved:.1f}GB")
+
+            # Checkpoint save every 100 features
+            if features_processed_this_run % 100 == 0:
+                save_checkpoint(validated, output_file, gpu_id)
 
         except Exception as e:
             logger.error(f"[GPU {gpu_id}] Error validating feature {feature_id}: {e}", exc_info=True)
@@ -367,6 +411,7 @@ def main():
                 label_data['final_label'] = None
                 label_data['validated_by_gpu'] = gpu_id
                 validated.append(label_data) # Append even on error
+                processed_features.add(feature_id)
             else:
                  logger.error(f"[GPU {gpu_id}] Invalid label_data format during error handling: {label_data}")
 
@@ -374,12 +419,11 @@ def main():
             clear_gpu_memory()
             continue # Move to next feature
 
-    # Save results for this worker
-    output_file = Path(args.output_file)
+    # Save final results for this worker
     try:
         with open(output_file, 'w', encoding='utf-8') as f:
             json.dump(validated, f, indent=2, ensure_ascii=False)
-        logger.info(f"[GPU {gpu_id}] Saved {len(validated)} validation results to {output_file}")
+        logger.info(f"[GPU {gpu_id}] ✓ Complete: {len(validated)} validation results saved to {output_file}")
     except Exception as e:
          logger.error(f"[GPU {gpu_id}] Failed to save final results to {output_file}: {e}")
 
@@ -408,13 +452,15 @@ def main():
     logger = setup_logger('qwen3_validate_parallel', 'phase2_5_validate_parallel.log')
 
     logger.info("=" * 80)
-    logger.info("PARALLEL QWEN3-30B LABEL VALIDATION")
+    logger.info("PARALLEL QWEN3-30B LABEL VALIDATION (WITH CHECKPOINTS)")
     logger.info(f"Expecting {REQUESTED_GPUS} GPUs (e.g., 2x L40S)")
     logger.info("=" * 80)
     logger.info(f"Input file: {initial_labels_file}")
     logger.info(f"Examples directory: {examples_dir}")
     logger.info(f"Output file: {final_output_file}")
     logger.info(f"Model path: {model_path}")
+    logger.info("Checkpoint saves: Every 100 features")
+    logger.info("Memory cleanup: Every 50 features")
 
     # Verify model exists at the new path
     if not Path(model_path).exists():
@@ -442,7 +488,6 @@ def main():
     if not initial_labels:
         logger.warning("No labels loaded. Nothing to validate.")
         return
-
 
     # Load all examples into a map
     if not examples_dir.exists():
@@ -497,7 +542,6 @@ def main():
         logger.error("No GPUs available or assigned. Cannot proceed.")
         return
 
-
     # Split labels between the *available* GPUs
     labels_per_gpu = len(initial_labels) // num_gpus
     remainder = len(initial_labels) % num_gpus
@@ -525,9 +569,8 @@ def main():
         total_distributed += len(labels)
     logger.info(f"Total labels distributed: {total_distributed}")
 
-
     # Create worker script
-    worker_script_path = Path("/tmp/qwen3_validate_worker.py") # Renamed for clarity
+    worker_script_path = Path("/tmp/qwen3_validate_worker_checkpoints.py")
     try:
         with open(worker_script_path, 'w') as f:
             f.write(create_worker_script())
@@ -536,7 +579,11 @@ def main():
         logger.error(f"Failed to write worker script: {e}")
         return
 
-    logger.info("\nStarting parallel validation with subprocess approach...")
+    logger.info("\n" + "=" * 80)
+    logger.info("STARTING PARALLEL VALIDATION")
+    logger.info("=" * 80)
+    logger.info("Estimated time: 3-5 hours")
+    logger.info("")
 
     # Launch subprocesses with CUDA_VISIBLE_DEVICES set correctly
     processes = []
@@ -549,14 +596,11 @@ def main():
         return
 
     for assigned_gpu_id, label_list in label_splits:
-        output_file = output_dir / f"labels_qwen3_validated_gpu{assigned_gpu_id}.json" # Use assigned ID for file name
+        output_file = output_dir / f"labels_qwen3_validated_gpu{assigned_gpu_id}.json"
 
         # Create environment with CUDA_VISIBLE_DEVICES set for this specific worker
         env = os.environ.copy()
         env['CUDA_VISIBLE_DEVICES'] = str(assigned_gpu_id)
-        # Pass TORCH_USE_CUDA_DSA=1 for potentially better debugging if needed
-        # env['TORCH_USE_CUDA_DSA'] = '1'
-        # env['CUDA_LAUNCH_BLOCKING'] = '1' # Uncomment for debugging CUDA errors
 
         # Prepare arguments, passing serialized data
         try:
@@ -568,9 +612,9 @@ def main():
         cmd = [
             sys.executable, # Use the same python interpreter
             str(worker_script_path),
-            '--gpu_id', str(assigned_gpu_id), # Pass assigned ID for logging
+            '--gpu_id', str(assigned_gpu_id),
             '--labels_data', labels_data_serial,
-            '--examples_map', examples_map_serial, # Pass serialized map
+            '--examples_map', examples_map_serial,
             '--output_file', str(output_file)
         ]
 
@@ -580,99 +624,90 @@ def main():
                 cmd,
                 env=env,
                 stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT, # Redirect stderr to stdout
-                text=True, # Decode output as text
-                encoding='utf-8', # Specify encoding
-                errors='replace', # Handle potential decoding errors
-                bufsize=1 # Line buffered
+                stderr=subprocess.STDOUT,
+                text=True,
+                encoding='utf-8',
+                errors='replace',
+                bufsize=1
             )
             processes.append((assigned_gpu_id, proc))
-            logger.info(f"  Started worker for GPU {assigned_gpu_id} (PID: {proc.pid})")
+            logger.info(f"  ✓ Started worker for GPU {assigned_gpu_id} (PID: {proc.pid})")
         except Exception as e:
             logger.error(f"Failed to start worker for GPU {assigned_gpu_id}: {e}")
-            continue # Skip this worker
-
+            continue
 
     if not processes:
         logger.error("No worker processes were started successfully.")
         return
 
+    logger.info("")
+
     # Monitor processes and stream output
-    logger.info("\n--- Worker Output Start ---")
     active_processes = list(processes)
     while active_processes:
-        for gpu_id, proc in active_processes[:]: # Iterate over a copy
+        for gpu_id, proc in active_processes[:]:
             if proc.poll() is None:  # Process still running
                 try:
                     line = proc.stdout.readline()
                     if line:
-                        print(f"[GPU {gpu_id}] {line.rstrip()}") # Log with assigned GPU ID
+                        print(f"[GPU {gpu_id}] {line.rstrip()}")
                     else:
-                        # If readline returns empty but poll is None, wait briefly
                         time.sleep(0.05)
                 except Exception as e:
-                    logger.warning(f"Error reading stdout for GPU {gpu_id} (PID {proc.pid}): {e}")
-                    # Consider removing process if read fails persistently?
+                    logger.warning(f"Error reading stdout for GPU {gpu_id}: {e}")
             else: # Process finished
-                logger.info(f"Worker for GPU {gpu_id} (PID {proc.pid}) finished with code {proc.returncode}")
                 # Process any remaining output
                 try:
                     for line in proc.stdout:
                          print(f"[GPU {gpu_id}] {line.rstrip()}")
                 except Exception as e:
-                     logger.warning(f"Error reading remaining stdout for GPU {gpu_id} (PID {proc.pid}): {e}")
+                     logger.warning(f"Error reading remaining stdout for GPU {gpu_id}: {e}")
                 active_processes.remove((gpu_id, proc))
-        # time.sleep(0.1) # Reduce busy-waiting if needed, but readline should block
-
-    logger.info("--- Worker Output End ---")
-
 
     # Check final return codes
+    logger.info("\n" + "=" * 80)
+    logger.info("WORKER STATUS")
+    logger.info("=" * 80)
     all_success = True
     for gpu_id, proc in processes:
         if proc.returncode != 0:
-            logger.error(f"GPU {gpu_id} worker (PID {proc.pid}) failed with exit code {proc.returncode}")
+            logger.error(f"✗ GPU {gpu_id} worker failed with exit code {proc.returncode}")
             all_success = False
         else:
-            logger.info(f"GPU {gpu_id} worker (PID {proc.pid}) completed successfully")
+            logger.info(f"✓ GPU {gpu_id} worker completed successfully")
 
     if not all_success:
-        logger.warning("Some workers failed. Check logs above for details. Merging results anyway...")
-        # Decide if partial merge is acceptable or should halt. For now, continue.
+        logger.warning("\n⚠️  Some workers failed. Check individual GPU logs for details.")
+        logger.warning("Checkpoint files are saved - you can resume by rerunning this script.")
 
-
-    logger.info("\nMerging results...")
+    logger.info("\n" + "=" * 80)
+    logger.info("MERGING RESULTS")
+    logger.info("=" * 80)
 
     # Merge results from all GPUs
     all_validated = []
-    for gpu_id, _ in label_splits: # Iterate through the assigned GPU IDs
-        gpu_output_file = output_dir / f"labels_qwen3_validated_gpu{gpu_id}.json" # Match filename
+    for gpu_id, _ in label_splits:
+        gpu_output_file = output_dir / f"labels_qwen3_validated_gpu{gpu_id}.json"
         if gpu_output_file.exists():
             try:
                 with open(gpu_output_file, 'r', encoding='utf-8') as f:
                     results = json.load(f)
-                    # Basic validation of results structure
                     if isinstance(results, list):
                         all_validated.extend(results)
                         logger.info(f"  GPU {gpu_id}: Merged {len(results)} features")
                     else:
-                        logger.error(f"  GPU {gpu_id}: Invalid format in result file {gpu_output_file} (expected list, got {type(results)})")
-            except json.JSONDecodeError as e:
-                 logger.error(f"  GPU {gpu_id}: Error decoding JSON from {gpu_output_file}: {e}")
+                        logger.error(f"  GPU {gpu_id}: Invalid format in {gpu_output_file}")
             except Exception as e:
-                 logger.error(f"  GPU {gpu_id}: Error reading results from {gpu_output_file}: {e}")
+                 logger.error(f"  GPU {gpu_id}: Error reading {gpu_output_file}: {e}")
         else:
-            # This is expected if a worker failed before saving. Log appropriately.
              worker_failed = any(p.returncode != 0 for gid, p in processes if gid == gpu_id)
              if worker_failed:
-                  logger.warning(f"  GPU {gpu_id}: output file not found ({gpu_output_file}), likely due to worker failure.")
+                  logger.warning(f"  GPU {gpu_id}: output file not found, likely due to worker failure")
              else:
-                  logger.error(f"  GPU {gpu_id}: output file not found ({gpu_output_file}) but worker seemed successful?")
-
+                  logger.error(f"  GPU {gpu_id}: output file not found but worker seemed successful?")
 
     if not all_validated:
-        logger.error("No results were successfully merged. Final output file will be empty or incomplete.")
-        # Create an empty file to avoid downstream errors
+        logger.error("\nNo results were successfully merged. Final output file will be empty.")
         try:
             with open(final_output_file, 'w', encoding='utf-8') as f:
                  json.dump([], f)
@@ -681,42 +716,39 @@ def main():
             logger.error(f"Failed to create empty results file: {e}")
         return
 
-
     # Save merged results
     try:
         with open(final_output_file, 'w', encoding='utf-8') as f:
             json.dump(all_validated, f, indent=2, ensure_ascii=False)
-        logger.info(f"\nMerged results saved to {final_output_file} ({len(all_validated)} total entries)")
+        logger.info(f"\n✓ Merged results saved to {final_output_file}")
     except Exception as e:
         logger.error(f"Failed to save final merged results: {e}")
         return
-
 
     # Compute statistics
     stats = {
         'KEEP': 0, 'REVISE': 0, 'INVALIDATE': 0, 'ERROR': 0
     }
-    action_key = 'validation_action' # Key where action is stored
-
+    
     for v in all_validated:
-        action = v.get(action_key, 'ERROR') # Default to ERROR if key missing
+        action = v.get('validation_action', 'ERROR')
         if action in stats:
             stats[action] += 1
         else:
             logger.warning(f"Unknown validation action '{action}' found in results.")
             stats['ERROR'] += 1
 
-
     total = len(all_validated)
     if total == 0:
-        logger.warning("Total validated features is zero after merge. Cannot compute statistics.")
+        logger.warning("Total validated features is zero after merge.")
         return
 
     final_valid = stats['KEEP'] + stats['REVISE']
 
-    logger.info("=" * 80)
+    logger.info("\n" + "=" * 80)
     logger.info("VALIDATION COMPLETE - FINAL SUMMARY")
-    logger.info(f"Total features processed (incl. errors): {total}")
+    logger.info("=" * 80)
+    logger.info(f"Total features processed: {total}")
     logger.info(f"KEEP:       {stats['KEEP']:>6} ({stats['KEEP']/total*100:>5.1f}%)")
     logger.info(f"REVISE:     {stats['REVISE']:>6} ({stats['REVISE']/total*100:>5.1f}%)")
     logger.info(f"INVALIDATE: {stats['INVALIDATE']:>6} ({stats['INVALIDATE']/total*100:>5.1f}%)")
@@ -724,21 +756,21 @@ def main():
     logger.info("-" * 40)
     logger.info(f"Final Valid (Keep+Revise): {final_valid:>6} ({final_valid/total*100:>5.1f}%)")
 
-    # GPU distribution check
-    logger.info("\nProcessing distribution (by assigned GPU ID):")
+    # GPU distribution
+    logger.info("\nProcessing distribution:")
     gpu_counts = {}
-    gpu_key = 'validated_by_gpu' # Key where assigned GPU ID is stored
     for v in all_validated:
-        gid = v.get(gpu_key, 'Unknown')
+        gid = v.get('validated_by_gpu', 'Unknown')
         gpu_counts[gid] = gpu_counts.get(gid, 0) + 1
 
-    for gpu_id in assigned_gpu_ids: # Iterate through the IDs actually used
+    for gpu_id in assigned_gpu_ids:
         count = gpu_counts.get(gpu_id, 0)
         logger.info(f"  GPU {gpu_id}: {count:>6} features")
     if 'Unknown' in gpu_counts:
-         logger.warning(f"  Unknown GPU: {gpu_counts['Unknown']:>6} features (check worker logs)")
+         logger.warning(f"  Unknown GPU: {gpu_counts['Unknown']:>6} features")
 
-
+    logger.info("=" * 80)
+    logger.info("✓ PHASE 2.5 VALIDATION COMPLETE")
     logger.info("=" * 80)
 
 
