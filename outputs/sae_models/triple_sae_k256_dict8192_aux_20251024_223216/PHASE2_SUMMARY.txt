@@ -1,0 +1,137 @@
+================================================================================
+PHASE 2: TRIPLE SAE TRAINING WITH AUXILIARY LOSS - RESULTS
+================================================================================
+
+Training Run: triple_sae_k256_dict8192_aux_20251024_223216
+Generated: 2025-10-24 23:59:33
+
+================================================================================
+OVERALL STATISTICS
+================================================================================
+
+Total SAEs Trained: 9
+SAEs Passing Validation: 9/9
+Success Rate: 100.0%
+
+Reconstruction Loss (Threshold: <0.05):
+  Mean: 0.001971
+  Median: 0.001038
+  Min: 0.000065
+  Max: 0.006898
+  SAEs Meeting Threshold: 9/9
+
+Auxiliary Loss:
+  Mean: 0.000000
+  Median: 0.000000
+
+L0 Sparsity:
+  Mean L0: 0.0312
+  Mean Sparsity Ratio: 32.00×
+
+================================================================================
+PER-MODEL TYPE SUMMARY
+================================================================================
+
+BASE Model:
+  Avg Reconstruction Loss: 0.002448
+  Avg Auxiliary Loss: 0.000000
+  Avg L0 Sparsity: 0.0312
+  Passing Validation: 3/3
+
+CHAT Model:
+  Avg Reconstruction Loss: 0.003035
+  Avg Auxiliary Loss: 0.000000
+  Avg L0 Sparsity: 0.0312
+  Passing Validation: 3/3
+
+DELTA Model:
+  Avg Reconstruction Loss: 0.000429
+  Avg Auxiliary Loss: 0.000000
+  Avg L0 Sparsity: 0.0312
+  Passing Validation: 3/3
+
+================================================================================
+INDIVIDUAL SAE DETAILS
+================================================================================
+
+BASE Layer 6:
+  Epochs: 100
+  Best Val Loss: 0.000554
+  Final Val Recon: 0.000554
+  Final Val Aux: 0.000000
+  Final Val L0: 0.0312
+  Sparsity Ratio: 32.00×
+  Passes Validation: ✓
+
+BASE Layer 12:
+  Epochs: 100
+  Best Val Loss: 0.001250
+  Final Val Recon: 0.001250
+  Final Val Aux: 0.000000
+  Final Val L0: 0.0312
+  Sparsity Ratio: 32.00×
+  Passes Validation: ✓
+
+BASE Layer 18:
+  Epochs: 100
+  Best Val Loss: 0.005541
+  Final Val Recon: 0.005541
+  Final Val Aux: 0.000000
+  Final Val L0: 0.0312
+  Sparsity Ratio: 32.00×
+  Passes Validation: ✓
+
+CHAT Layer 6:
+  Epochs: 100
+  Best Val Loss: 0.000641
+  Final Val Recon: 0.000641
+  Final Val Aux: 0.000000
+  Final Val L0: 0.0312
+  Sparsity Ratio: 32.00×
+  Passes Validation: ✓
+
+CHAT Layer 12:
+  Epochs: 100
+  Best Val Loss: 0.001565
+  Final Val Recon: 0.001565
+  Final Val Aux: 0.000000
+  Final Val L0: 0.0312
+  Sparsity Ratio: 32.00×
+  Passes Validation: ✓
+
+CHAT Layer 18:
+  Epochs: 100
+  Best Val Loss: 0.006898
+  Final Val Recon: 0.006898
+  Final Val Aux: 0.000000
+  Final Val L0: 0.0312
+  Sparsity Ratio: 32.00×
+  Passes Validation: ✓
+
+DELTA Layer 6:
+  Epochs: 100
+  Best Val Loss: 0.000065
+  Final Val Recon: 0.000065
+  Final Val Aux: 0.000000
+  Final Val L0: 0.0312
+  Sparsity Ratio: 32.00×
+  Passes Validation: ✓
+
+DELTA Layer 12:
+  Epochs: 100
+  Best Val Loss: 0.000184
+  Final Val Recon: 0.000184
+  Final Val Aux: 0.000000
+  Final Val L0: 0.0312
+  Sparsity Ratio: 32.00×
+  Passes Validation: ✓
+
+DELTA Layer 18:
+  Epochs: 100
+  Best Val Loss: 0.001038
+  Final Val Recon: 0.001038
+  Final Val Aux: 0.000000
+  Final Val L0: 0.0312
+  Sparsity Ratio: 32.00×
+  Passes Validation: ✓
+
