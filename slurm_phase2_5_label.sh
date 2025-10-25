@@ -1,10 +1,10 @@
 #!/bin/bash
 #SBATCH --job-name=phase2_5_qwen_label
 #SBATCH --partition=general
-#SBATCH --gres=gpu:A100_80GB:4
+#SBATCH --gres=gpu:L40S:4
 #SBATCH --cpus-per-task=48
 #SBATCH --mem=0
-#SBATCH --time=24:00:00
+#SBATCH --time=48:00:00
 #SBATCH --output=/home/anshulk/cultural-alignment-study/outputs/logs/phase2_5_label_%j.out
 #SBATCH --error=/home/anshulk/cultural-alignment-study/outputs/logs/phase2_5_label_%j.err
 #SBATCH --mail-type=BEGIN,END,FAIL
@@ -15,7 +15,7 @@
 # PHASE 2.5: QWEN FEATURE LABELING
 # Labeling ~3,600 features using Qwen1.5-72B-Chat
 # Expected duration: 6-10 hours
-# Resources: 4x A100 80GB GPUs, 48 CPUs, All available memory
+# Resources: 4x L40S 48GB GPUs, 48 CPUs, All available memory
 # ============================================================================
 
 set -e  # Exit on error
@@ -184,8 +184,8 @@ echo "=================================="
 echo "Starting Phase 2.5: Feature Labeling"
 echo "=================================="
 echo "Configuration:"
-echo "  Model: Qwen1.5-72B-Chat (8-bit quantized)"
-echo "  GPUs: 4x A100 80GB (parallel workers)"
+echo "  Model: Qwen1.5-72B-Chat (4-bit quantized)"
+echo "  GPUs: 4x L40S 48GB (parallel workers)"
 echo "  Features per file: ~400 (top features)"
 echo "  Total files: 9 (split across 4 GPUs)"
 echo "  Checkpoint saves: Every 100 features"
