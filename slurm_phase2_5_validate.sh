@@ -97,7 +97,7 @@ echo "Pre-flight Validation"
 echo "=================================="
 
 echo "Checking Qwen3 model..."
-MODEL_PATH="/data/user_data/anshulk/models/Qwen3-30B-A3B-Instruct-2507"
+MODEL_PATH="/data/user_data/anshulk/data/models/Qwen3-30B-A3B-Instruct-2507"
 if [ -d "$MODEL_PATH" ]; then
     echo "✓ Model found: $MODEL_PATH"
 else
