@@ -62,7 +62,7 @@ def load_qwen3_30b():
     """Load Qwen3-30B-A3B-Instruct-2507 with 8-bit quantization."""
 
     # Set model path to where you downloaded it
-    model_path = "/data/user_data/anshulk/models/Qwen3-30B-A3B-Instruct-2507"
+    model_path = "/data/user_data/anshulk/data/models/Qwen3-30B-A3B-Instruct-2507"
 
     # Verify which GPU we're actually on (should be ID 0 due to CUDA_VISIBLE_DEVICES)
     assigned_gpu_id = os.environ.get('CUDA_VISIBLE_DEVICES', 'unknown')
