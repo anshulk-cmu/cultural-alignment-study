@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Phase 2.5: Parallel Qwen Labeling with 4x 48GB-class GPUs (e.g., L40S)
-Optimized for memory efficiency and OOM prevention
+Using Qwen1.5-32B-Chat model
 """
 import sys
 sys.path.append('/home/anshulk/cultural-alignment-study')
@@ -52,11 +52,11 @@ def get_gpu_memory_usage():
 
 
 def load_qwen():
-    """Load Qwen1.5-72B-Chat with 4-bit quantization and memory optimization."""
+    """Load Qwen1.5-32B-Chat with 8-bit quantization and memory optimization."""
     from transformers import BitsAndBytesConfig
     
-    # CORRECTED PATH
-    model_path = "/data/models/huggingface/qwen/Qwen1.5-72B-Chat"
+    # Use 32B Model
+    model_path = "/data/models/huggingface/qwen/Qwen1.5-32B-Chat"
     
     # Verify GPU
     if torch.cuda.is_available():
@@ -79,13 +79,10 @@ def load_qwen():
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     
-    print("Loading model with 4-bit quantization...")
-    # Optimized 4-bit quantization config
+    print("Loading model with 8-bit quantization...")
+    # 8-bit quantization config
     quantization_config = BitsAndBytesConfig(
-        load_in_4bit=True,
-        bnb_4bit_quant_type="nf4",
-        bnb_4bit_compute_dtype=torch.float16,
-        bnb_4bit_use_double_quant=True
+        load_in_8bit=True
     )
     
     model = AutoModelForCausalLM.from_pretrained(
@@ -94,7 +91,8 @@ def load_qwen():
         device_map={"": 0},  # All on single GPU (fits in 48GB)
         trust_remote_code=True,
         torch_dtype=torch.float16,
-        low_cpu_mem_usage=True
+        low_cpu_mem_usage=True,
+        local_files_only=True # Prevent hanging
     )
     
     model.eval()  # Set to evaluation mode
@@ -110,6 +108,7 @@ def load_qwen():
 def create_labeling_prompt(feature_data):
     """Create a prompt for feature labeling with top examples."""
     examples_text = ""
+    # Use 20 examples
     num_examples = min(20, len(feature_data['examples']))
     
     for i, ex in enumerate(feature_data['examples'][:num_examples], 1):
@@ -307,8 +306,8 @@ if __name__ == "__main__":
 
 
 def main():
-    # CORRECTED PATH
-    model_path = "/data/models/huggingface/qwen/Qwen1.5-72B-Chat"
+    # Use 32B Model
+    model_path = "/data/models/huggingface/qwen/Qwen1.5-32B-Chat"
     examples_dir = SAE_OUTPUT_ROOT / "feature_examples"
     output_dir = SAE_OUTPUT_ROOT
     final_output_file = output_dir / "labels_qwen_initial.json"
@@ -317,7 +316,7 @@ def main():
     logger = setup_logger('qwen_label_parallel', 'phase2_5_qwen_parallel.log')
     
     logger.info("=" * 80)
-    logger.info("PARALLEL QWEN1.5-72B-CHAT FEATURE LABELING")
+    logger.info("PARALLEL QWEN1.5-32B-CHAT FEATURE LABELING")
     logger.info(f"Using GPUs: {FREE_GPUS} (4x 48GB-class GPUs)")
     logger.info("=" * 80)
     logger.info(f"Input directory: {examples_dir}")
@@ -363,7 +362,7 @@ def main():
             logger.info(f"    - {Path(f).name}")
     
     # Create worker script
-    worker_script_path = Path("/tmp/qwen_worker_4bit.py") # Renamed for clarity
+    worker_script_path = Path("/tmp/qwen_worker_32b_8bit.py") # Renamed for clarity
     with open(worker_script_path, 'w') as f:
         f.write(create_worker_script())
     
