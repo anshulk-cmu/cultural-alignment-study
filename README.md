@@ -31,7 +31,7 @@ SAEs can achieve reconstruction loss < 0.05 with L0 sparsity > 10× baseline, di
   - Output: 27 activation sets saved to `/user_data/anshulk/data/activations/run_20251019_192554/`
 
 ### ✅ Phase 2 Complete
-- [x] **Phase 2: Triple SAE training (base/chat/delta)** *(Completed: 2025-10-20)*
+- [x] **Phase 2: Triple SAE training (base/chat/delta)** *(Completed: 2025-10-24)*
   - **Run 1** (k=128, dict=16,384): 2/9 SAEs passed validation (22% success)
   - **Run 2** (k=256, dict=8,192): 3/9 SAEs passed validation (33% success)
   - **Run 3** (k=256, dict=8,192 + auxiliary loss): **9/9 SAEs passed validation (100% success)**
@@ -39,9 +39,26 @@ SAEs can achieve reconstruction loss < 0.05 with L0 sparsity > 10× baseline, di
     - All SAEs achieve <0.05 reconstruction with 32× sparsity
     - Auxiliary loss remained at 0.000 throughout training
     - Encoder transpose initialization + periodic monitoring succeeded
+  - **Final Run** (CMU Babel HPC): **9/9 SAEs passed validation (100% success)**
+    - Migrated from Azure VM to Babel HPC infrastructure
+    - Fresh activation extraction: `run_20251024_211228`
+    - Mean reconstruction loss: 0.001971 (25× better than threshold)
+    - Output: `triple_sae_k256_dict8192_aux_20251024_223216`
+
+### ✅ Phase 2.5a Complete
+- [x] **Phase 2.5a: Initial Feature Labeling** *(Completed: 2025-10-25)*
+  - Qwen1.5-32B-Chat labeled 3,600 coherent features from 9 SAEs
+  - 4x RTX A6000 GPUs parallel processing (~4 hours)
+  - Feature example extraction: 62,360 features with top-20 activations
+  - Output: `labels_qwen_initial.json` (1.6MB, 3,600 labeled features)
 
 ### 🔄 In Progress
-- [ ] Phase 2.5: LLM-based feature labeling and interpretation
+- [ ] **Phase 2.5b: Label Validation with Qwen3-30B** *(Started: 2025-10-25)*
+  - Validating all 3,600 initial labels for quality assurance
+  - 2x L40S 48GB GPUs with checkpoint-based fault tolerance
+  - Validation actions: KEEP/REVISE/INVALIDATE with detailed reasoning
+  - Progress: ~260/3600 features validated (GPU0: 30s/item, GPU1: 26s/item)
+  - Estimated completion: 12-14 hours total
 
 ### 📋 Upcoming
 - [ ] DOSA validation dataset integration
@@ -66,7 +83,10 @@ rq1_cultural_features/
 │   ├── download_snli.py
 │   ├── download_hindi_control.py
 │   ├── phase1_extract_activations.py     # ✅ Phase 1
-│   └── phase2_train_saes.py              # ✅ Phase 2
+│   ├── phase2_train_saes.py              # ✅ Phase 2
+│   ├── phase2_5_extract_features.py      # ✅ Phase 2.5a: Feature examples
+│   ├── phase2_5_qwen_label.py            # ✅ Phase 2.5a: Initial labeling
+│   └── phase2_5_qwen_validate.py         # 🔄 Phase 2.5b: Label validation
 ├── utils/            # Utility modules
 │   ├── data_loader.py              # Dataset loading
 │   ├── activation_extractor.py     # Activation extraction
@@ -417,6 +437,24 @@ This is an ongoing research project. Code and findings are not yet ready for pub
   - Delta SAEs maintained superior performance (avg: 0.000507)
   - Base/Chat SAEs achieved 5-7× improvement over Run 2
   - Phase 2 officially complete
+- **2025-10-24**: Migration to CMU Babel HPC completed
+  - Migrated entire workflow from Azure VM to Babel HPC cluster
+  - Phase 2 SAE training on Babel infrastructure (4x RTX A6000)
+  - Fresh activation extraction: `run_20251024_211228` (40K samples)
+  - Results: 9/9 SAEs passed validation (100% success)
+  - Mean reconstruction: 0.001971 (25× better than threshold)
+  - Output: `triple_sae_k256_dict8192_aux_20251024_223216`
+- **2025-10-25 (Early Morning)**: Phase 2.5a Initial Labeling completed
+  - Feature example extraction: 62,360 features with top-20 activations
+  - Qwen1.5-32B labeled 3,600 coherent features from 9 SAEs
+  - 4x RTX A6000 parallel processing (~4 hours)
+  - Output: `labels_qwen_initial.json` (1.6MB)
+- **2025-10-25 (Morning)**: Phase 2.5b Validation started
+  - Qwen3-30B validating all 3,600 initial labels (2x L40S GPUs)
+  - Checkpoint-based fault tolerance (saves every 100 features)
+  - Real-time progress tracking and quality assessment
+  - Validation actions: KEEP/REVISE/INVALIDATE with reasoning
+  - Estimated completion: 12-14 hours
 
 ---
 
