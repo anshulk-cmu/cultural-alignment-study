@@ -22,8 +22,9 @@ models/
 *.model
 
 # Outputs
-outputs/activations/*
-outputs/features/*
+outputs/activations
+outputs/features
+outputs/sae_models
 outputs/logs/*.log
 
 # Environment
