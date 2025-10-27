@@ -84,37 +84,27 @@ cultural-alignment-study/
 │   └── config.py
 ├── scripts/
 │   ├── Phase 0-3 (Completed)
-│   │   ├── download_*.py
-│   │   ├── phase1_extract_activations.py
-│   │   ├── phase2_train_saes.py
-│   │   ├── phase2_5_*.py (labeling & validation)
-│   │   ├── analyze_label_corpus.py
-│   │   ├── cluster_semantic_themes.py
-│   │   └── build_empirical_taxonomy.py
-│   ├── Phase 4 (In Progress)
-│   │   ├── phase4_1_identifiability_scoring.py
-│   │   ├── phase4_2_feature_typing.py
-│   │   └── phase4_3_dosa_integration.py
-│   └── Phase 5 (Planned)
-│       ├── phase5_2_activation_patching.py
-│       ├── phase5_3_refusal_testing.py
-│       └── phase5_4_ccis_computation.py
+│       ├── download_*.py
+|       ├── phase1_extract_activations.py
+│       ├── phase1_5_prepare_texts.py
+│       ├── phase2_train_saes.py
+|       ├── phase2_analyze_results.py
+|       ├── phase2_5_extract_examples.py
+│       ├── phase2_5_*.py (labeling & validation)
+│       ├── analyze_label_corpus.py
+│       ├── cluster_semantic_themes.py
+│       └── build_empirical_taxonomy.py
 ├── utils/
 │   ├── data_loader.py
 │   ├── activation_extractor.py
 │   ├── sae_model.py
 │   ├── sae_trainer.py
-│   ├── patching_utils.py (Phase 5)
-│   └── identifiability_metrics.py (Phase 4)
-├── outputs/
-│   ├── labels/ (16MB - Phase 2.5)
-│   ├── analysis/ (27MB - Phase 3)
-│   │   ├── clustering/
-│   │   └── LABEL_CORPUS_ANALYSIS.txt
-│   ├── identifiable_features/ (Phase 4)
-│   └── causal_validation/ (Phase 5)
-└── protocols/
-    └── PRE_REGISTRATION.md (Phase 5)
+│   └── activation_dataset.py
+└── outputs/
+    ├── labels/ (16MB - Phase 2.5)
+    ├── analysis/ (27MB - Phase 3)
+        ├── clustering/
+        └── LABEL_CORPUS_ANALYSIS.txt
 ```
 
 ---
@@ -454,10 +444,10 @@ We gratefully acknowledge:
 ## Computational Requirements
 
 ### Training Infrastructure
-- **Phase 1 (Activation Extraction)**: ~1.5 hours on 1× A100 GPU (40GB)
-- **Phase 2 (SAE Training)**: ~3 hours on 3× A100 GPUs (total 9 SAE models)
-- **Phase 2.5 (Feature Labeling)**: ~4 hours on 4× A100 GPUs with Qwen models
-- **Storage**: ~50GB for activations, models, and analysis outputs
+- **Phase 1 (Activation Extraction)**: ~12 hours on 1× A100 GPU (40GB)
+- **Phase 2 (SAE Training)**: ~6 hours on 3× A100 GPUs (total 9 SAE models)
+- **Phase 2.5 (Feature Labeling)**: ~16 hours on 4× A100 GPUs with Qwen models
+- **Storage**: ~500GB for activations, models, and analysis outputs
 
 ### Memory Requirements
 - Activation caching: 16GB RAM minimum
