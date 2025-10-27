@@ -160,7 +160,7 @@ cultural-alignment-study/
 #### DOSA Dataset
 - **Size**: 615 samples
 - **Content**: Community-generated social artifacts from 19 Indian geographic subcultures
-- **Source**: University of Michigan DOSA project
+- **Source**: Microsoft Research India
 - **Purpose**: Cross-validation of discovered cultural features
 - **Status**: To be integrated
 
@@ -402,7 +402,7 @@ We gratefully acknowledge:
 - **IIT Bombay CFILT** for the English-Hindi parallel corpus
 - **Alibaba Cloud** for the Qwen model family
 - **CMU Computing Resources** for providing Babel HPC access
-- **University of Michigan** for the DOSA dataset
+- **Microsoft Research** for the DOSA dataset
 
 ---
 
