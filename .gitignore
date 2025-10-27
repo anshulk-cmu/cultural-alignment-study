@@ -48,3 +48,15 @@ outputs/logs/*.log
 !configs/*.py
 !scripts/*.py
 !utils/*.py
+
+# Large feature examples - handle separately
+outputs/feature_examples/feature_examples_all.tar.gz
+
+# Keep symlinks out of git
+outputs/activations
+outputs/features
+outputs/sae_models
+
+# Slurm job logs (temporary)
+outputs/logs/*.err
+outputs/logs/*.out

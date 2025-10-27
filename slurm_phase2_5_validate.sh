@@ -4,7 +4,7 @@
 #SBATCH --gres=gpu:L40S:2
 #SBATCH --cpus-per-task=32
 #SBATCH --mem=0
-#SBATCH --time=12:00:00
+#SBATCH --time=24:00:00
 #SBATCH --output=/home/anshulk/cultural-alignment-study/outputs/logs/phase2_5_validate_%j.out
 #SBATCH --error=/home/anshulk/cultural-alignment-study/outputs/logs/phase2_5_validate_%j.err
 #SBATCH --mail-type=BEGIN,END,FAIL

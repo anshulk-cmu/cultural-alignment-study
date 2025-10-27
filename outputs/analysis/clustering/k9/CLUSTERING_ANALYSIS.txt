@@ -1,0 +1,333 @@
+================================================================================
+SEMANTIC CLUSTERING ANALYSIS - EMPIRICAL TAXONOMY
+================================================================================
+
+OVERVIEW
+--------------------------------------------------------------------------------
+Total features: 2458
+Number of clusters: 9
+
+DISCOVERED THEMES
+================================================================================
+
+CLUSTER 0: Hindi & Indian & English
+--------------------------------------------------------------------------------
+Size: 134 features
+
+Top terms:
+  • hindi (104)
+  • indian (79)
+  • english (55)
+  • coherent (46)
+  • label: (44)
+  • references (41)
+  • cultural (36)
+  • linguistic (31)
+  • code-switching (30)
+  • religious (25)
+
+Sample labels:
+  • hindi honorifics and respectful address forms used in formal or deferential contexts
+  • coherent
+
+label: hindi conversational patterns and code-switching with informal register
+  • hindi linguistic structures with frequent references to government schemes, bureaucratic terminology, and regional administrative contexts, including code-switching elements in indian english
+  • cultural references and occasional code-switching between hindi and english
+  • hindi honorifics and respectful address forms in conversational contexts
+
+Distribution:
+  Base:    48 ( 35.8%)
+  Chat:    42 ( 31.3%)
+  Delta:   44 ( 32.8%)
+
+
+CLUSTER 1: Indian & Cultural & Linguistic
+--------------------------------------------------------------------------------
+Size: 371 features
+
+Top terms:
+  • indian (336)
+  • cultural (332)
+  • linguistic (253)
+  • references (224)
+  • contexts (119)
+  • regional (87)
+  • historical (58)
+  • context (58)
+  • india (42)
+  • traditions (36)
+
+Sample labels:
+  • cultural and linguistic connections in indian food, traditions, and symbolism
+  • cultural and linguistic cross-references in indian contexts
+  • cultural and linguistic references to indian contexts and history
+  • cultural and linguistic references to indian traditions, symbols, and art forms
+  • cultural and historical references in indian context
+
+Distribution:
+  Base:   140 ( 37.7%)
+  Chat:   139 ( 37.5%)
+  Delta:   92 ( 24.8%)
+
+
+CLUSTER 2: Indian & Cultural & Cinema
+--------------------------------------------------------------------------------
+Size: 514 features
+
+Top terms:
+  • indian (489)
+  • cultural (406)
+  • cinema (228)
+  • references (169)
+  • linguistic (145)
+  • film (124)
+  • cinema, (94)
+  • media (88)
+  • regional (80)
+  • artistic (77)
+
+Sample labels:
+  • cultural and historical impact of indian cinema and regional art forms
+  • influences and traditions in south indian cinematic comedy
+  • semantic themes: indian cinema and moral dilemmas in social and political contexts
+  • cultural and linguistic adaptations in indian cinema and media
+  • cultural and thematic references in indian film titles and narratives
+
+Distribution:
+  Base:   207 ( 40.3%)
+  Chat:   220 ( 42.8%)
+  Delta:   87 ( 16.9%)
+
+
+CLUSTER 3: Scenes & Cultural & Everyday
+--------------------------------------------------------------------------------
+Size: 139 features
+
+Top terms:
+  • scenes (91)
+  • cultural (74)
+  • everyday (70)
+  • activities (67)
+  • indian (67)
+  • social (46)
+  • urban (34)
+  • life (34)
+  • india (33)
+  • south (33)
+
+Sample labels:
+  • coherent
+
+label: "cycling and摩托车-related activities in india with occasional non-related cultural elements
+  • coherent
+
+label: "everyday scenes and activities in urban settings, with occasional cultural references to asia and india
+  • everyday public scenes involving traditional food preparation, markets, and informal social activities in south asian contexts
+  • coherent
+
+label: "everyday activities and work scenes in indian settings
+  • workplace and retail scenes in india
+
+Distribution:
+  Base:    29 ( 20.9%)
+  Chat:    23 ( 16.5%)
+  Delta:   87 ( 62.6%)
+
+
+CLUSTER 4: Cultural & Indian & Art,
+--------------------------------------------------------------------------------
+Size: 316 features
+
+Top terms:
+  • cultural (277)
+  • indian (254)
+  • art, (111)
+  • artistic (97)
+  • linguistic (84)
+  • references (60)
+  • literature, (57)
+  • historical (49)
+  • regional (41)
+  • traditions (41)
+
+Sample labels:
+  • cultural integration and regional influence in indian music, cinema, and art
+  • narratives of transient or fragile cultural, institutional, and artistic endeavors in indian contexts
+  • cultural and linguistic cross-cultural engagement in art, literature, and media
+  • cultural and linguistic adaptations in art, media, and religion
+  • cultural and historical signifiers in indian art, religion, and society
+
+Distribution:
+  Base:   128 ( 40.5%)
+  Chat:   142 ( 44.9%)
+  Delta:   46 ( 14.6%)
+
+
+CLUSTER 5: Indian & Cultural & India
+--------------------------------------------------------------------------------
+Size: 410 features
+
+Top terms:
+  • indian (270)
+  • cultural (252)
+  • india (124)
+  • references (91)
+  • historical (90)
+  • context (66)
+  • regional (64)
+  • semantic (60)
+  • significance (52)
+  • social (44)
+
+Sample labels:
+  • cultural references and symbolism in indian festivals, traditions, and mythology
+  • cultural and philosophical principles from indian traditions and spirituality
+  • discussions of complex socio-political, economic, cultural, and institutional dynamics in india, including media freedom, governance, identity politics, economic policy shifts, and cross-cultural or international intersections
+  • cultural and educational institutions, regional media, and community engagement in india
+  • administrative structures and titles in indian history and culture
+
+Distribution:
+  Base:   181 ( 44.1%)
+  Chat:   193 ( 47.1%)
+  Delta:   36 (  8.8%)
+
+
+CLUSTER 6: Cultural & Social & Activities
+--------------------------------------------------------------------------------
+Size: 218 features
+
+Top terms:
+  • cultural (95)
+  • social (94)
+  • activities (93)
+  • scenes (92)
+  • public (69)
+  • settings (65)
+  • people (54)
+  • group (53)
+  • involving (52)
+  • grouped: (51)
+
+Sample labels:
+  • grouped: social interactions and outdoor activities
+
+the examples seem to form a coherent group as they predominantly depict social gatherings, outdoor activities, and interactions between people, which are common across various cultures. while there are no explicit cultural markers like festivals or
+  • individuals with dual or multifaceted professional identities (e.g., public service and creative work, politics and finance, or activism and academia) whose intersecting roles shape their societal impact across cultural, institutional, and intellectual domains.
+  • social interactions and physical gestures in diverse group settings
+  • cultural fashion and performance scenes
+  • people gathering around tables or fire pits for social or mealtime activities
+
+Distribution:
+  Base:    64 ( 29.4%)
+  Chat:    70 ( 32.1%)
+  Delta:   84 ( 38.5%)
+
+
+CLUSTER 7: South & Asian & Cultural
+--------------------------------------------------------------------------------
+Size: 168 features
+
+Top terms:
+  • south (155)
+  • asian (133)
+  • cultural (107)
+  • contexts (64)
+  • indian (43)
+  • references (36)
+  • linguistic (36)
+  • cultural, (27)
+  • historical (26)
+  • regional (26)
+
+Sample labels:
+  • cultural practices, rituals, and symbolic traditions in south asian communities
+  • phonological and cultural features of south asian languages and texts
+  • exploration of dualities in cultural identity, tradition, and representation across south asian contexts
+  • south asian religious, architectural, and cultural heritage in historical and literary contexts
+  • phonological, morphological, and lexical adaptations in south asian languages and dialects
+
+Distribution:
+  Base:    65 ( 38.7%)
+  Chat:    82 ( 48.8%)
+  Delta:   21 ( 12.5%)
+
+
+CLUSTER 8: Activities & Outdoor & Semantic
+--------------------------------------------------------------------------------
+Size: 188 features
+
+Top terms:
+  • activities (98)
+  • outdoor (80)
+  • semantic (62)
+  • theme: (58)
+  • scenes (54)
+  • physical (53)
+  • involving (44)
+  • settings (36)
+  • human (28)
+  • everyday (27)
+
+Sample labels:
+  • actions involving catching or pursuing moving objects, including sports, animals, and physical movements, with a focus on ball-related or wave-related motion
+  • semantic theme: everyday human activities and social interactions
+  • semantic theme: physical activities and sports involving people of various ages and genders, including outdoor recreation and athletic competition
+  • semantic theme: children and outdoor physical activities
+  • semantic theme: outdoor activities and natural settings
+
+Distribution:
+  Base:    76 ( 40.4%)
+  Chat:    66 ( 35.1%)
+  Delta:   46 ( 24.5%)
+
+
+================================================================================
+RLHF IMPACT ANALYSIS
+================================================================================
+
+Clusters most enriched in Delta SAEs (RLHF-shifted themes):
+
+ 3. Scenes & Cultural & Everyday
+    Enrichment: 2.83x
+    Delta features: 87 (62.6%)
+
+ 6. Cultural & Social & Activities
+    Enrichment: 1.74x
+    Delta features: 84 (38.5%)
+
+ 0. Hindi & Indian & English
+    Enrichment: 1.49x
+    Delta features: 44 (32.8%)
+
+ 1. Indian & Cultural & Linguistic
+    Enrichment: 1.12x
+    Delta features: 92 (24.8%)
+
+ 8. Activities & Outdoor & Semantic
+    Enrichment: 1.11x
+    Delta features: 46 (24.5%)
+
+ 2. Indian & Cultural & Cinema
+    Enrichment: 0.77x
+    Delta features: 87 (16.9%)
+
+ 4. Cultural & Indian & Art,
+    Enrichment: 0.66x
+    Delta features: 46 (14.6%)
+
+ 7. South & Asian & Cultural
+    Enrichment: 0.57x
+    Delta features: 21 (12.5%)
+
+ 5. Indian & Cultural & India
+    Enrichment: 0.40x
+    Delta features: 36 (8.8%)
+
+
+================================================================================
+NEXT STEPS
+================================================================================
+1. Review discovered themes and their distribution
+2. Identify RLHF-shifted clusters for deeper analysis
+3. Run build_empirical_taxonomy.py to formalize hierarchy
+4. Proceed to Cohen's d calculation for priority scoring
