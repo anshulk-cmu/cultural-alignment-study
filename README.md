@@ -390,7 +390,7 @@ This pattern validated our hypothesis that RLHF creates systematic, localizable 
   title={Identifiable Latent Polynomial Causal Models Through the Lens of Change},
   author={Liu, Yuhang and Zhang, Zhen and Gong, Dong and Gong, Mingming and Huang, Biwei and van den Hengel, Anton and Zhang, Kun and Shi, Javen Qinfeng},
   booktitle={International Conference on Learning Representations (ICLR)},
-  year={2024}
+  year={2024},
   url={https://arxiv.org/abs/2310.15580}
 }
 ```
