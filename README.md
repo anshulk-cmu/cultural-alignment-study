@@ -1,6 +1,6 @@
-# Cultural Alignment Study: RLHF Impact on Cultural Representations
+# Cultural Representation Learning: Investigating RLHF Effects Using Sparse Autoencoders
 
-**Work in Progress** | Cultural Feature Discovery with Causal Validation
+**Research Project: Work in Progress** | Mechanistic Analysis of Cultural Features in Aligned Language Models with Causal Validation
 
 A research project investigating how Reinforcement Learning from Human Feedback (RLHF) systematically reshapes cultural marker representations in language models using Sparse Autoencoders (SAEs) with causal identifiability guarantees.
 
@@ -160,6 +160,7 @@ cultural-alignment-study/
 #### DOSA Dataset
 - **Size**: 615 samples
 - **Content**: Community-generated social artifacts from 19 Indian geographic subcultures
+- **Source**: University of Michigan DOSA project
 - **Purpose**: Cross-validation of discovered cultural features
 - **Status**: To be integrated
 
@@ -214,141 +215,12 @@ python scripts/phase2_train_saes.py
 # Extract examples and label features
 python scripts/phase2_5_extract_examples.py
 python scripts/phase2_5_qwen_label.py
-python scripts/phase2_5_qwen_validate.py
 
-# Analyze and cluster
-python analyze_label_corpus.py
-python cluster_semantic_themes.py
+# Analyze label corpus and cluster themes
+python scripts/analyze_label_corpus.py
+python scripts/cluster_semantic_themes.py
+python scripts/build_empirical_taxonomy.py
 ```
-
-### 6. Identifiability Gates (Phase 4)
-
-```bash
-# Install additional dependencies
-pip install sentence-transformers baukit
-
-# Download DOSA and run identifiability scoring
-python scripts/download_dosa.py
-python scripts/phase4_1_identifiability_scoring.py --top-k 30
-python scripts/phase4_3_dosa_integration.py
-```
-
----
-
-## Hardware Configuration
-
-- **HPC**: CMU Babel HPC Cluster
-- **GPUs**: Multiple NVIDIA GPUs available on compute nodes
-- **Storage**:
-  - `/home/anshulk` (~93GB) - Code and configurations (login node)
-  - `/user_data/anshulk` (10TB) - Data, models, and activations (compute nodes)
-- **Location**: `/home/anshulk/cultural-alignment-study`
-
----
-
-## Phase 1 Results
-
-### Activation Extraction
-- **Duration**: ~1.5 hours total
-- **Base Model Processing**: 40K samples across 3 datasets
-- **Chat Model Processing**: 40K samples across 3 datasets
-- **Delta Computation**: Automated chat - base differences
-- **Memory Usage**: Peak 3.5GB/80GB per GPU
-- **Output Format**: Sentence-level activations [N, 2048] saved as compressed .npz chunks
-- **Storage Location**: `/user_data/anshulk/data/activations/run_20251019_192554/`
-
-### Activation Statistics
-- **Shape**: [batch_size, 2048] per layer (mean-pooled over sequence length)
-- **Datasets Processed**:
-  - updesh_beta: 30,000 samples (cultural content)
-  - snli_control: 5,000 samples (English control)
-  - hindi_control: 5,000 samples (Hindi control)
-- **Total Activation Sets**: 27 (3 datasets × 3 model types × 3 layers)
-
----
-
-## Phase 2 Results
-
-### SAE Training Configuration
-- **Architecture**: TopK Sparse Autoencoder (2048 → 8,192 → 2048)
-- **Sparsity Method**: TopK (k=256, 3.1% active features per token)
-- **Auxiliary Loss**: 0.03 coefficient for dead neuron revival
-- **Dead Neuron Monitoring**: Check every 3,000 steps, reset if <0.1% activation
-- **Batch Size**: 256 per GPU
-- **Learning Rate**: 1e-4 with 1,000 step warmup
-- **Epochs**: 100 per SAE (early stopping when no improvement)
-- **Hardware**: Multi-GPU DataParallel (GPUs 0, 1, 2)
-- **Training Data**: updesh_beta (30K cultural samples)
-- **Validation Data**: snli_control + hindi_control (10K control samples)
-
-### Training Evolution
-
-#### Iteration 1: Pure TopK (k=128, dict=16,384)
-- **Success Rate**: 2/9 SAEs (22%)
-- **Problem**: Excessive sparsity (128× ratio) → 98% dead features
-- **Outcome**: Only Delta SAEs passed (matching pattern where difference vectors are lower-dimensional)
-
-#### Iteration 2: Relaxed Sparsity (k=256, dict=8,192)
-- **Success Rate**: 3/9 SAEs (33%)
-- **Problem**: Still high dead feature percentage (~75%)
-- **Outcome**: All Delta SAEs passed, Base/Chat still failing
-
-#### Iteration 3: Auxiliary Loss Implementation (Final)
-- **Success Rate**: 9/9 SAEs (100%)
-- **Method**: Encoder transpose initialization + auxiliary loss + dead neuron monitoring
-- **Results**:
-  - Mean reconstruction: 0.002195 (range: 0.000070 - 0.007866)
-  - Delta SAEs: 0.000507 avg (best performance maintained)
-  - Base SAEs: 0.002684 avg (5× improvement from Run 2)
-  - Chat SAEs: 0.003394 avg (7× improvement from Run 2)
-  - Auxiliary loss: 0.000 (monitoring prevented feature death)
-- **Outcome**: All validation criteria met, ready for Phase 2.5 feature interpretation
-
-### Implementation Details
-
-Following Gao et al. (2024), we implemented two critical techniques:
-
-1. **Encoder Transpose Initialization**
-   - Encoder weights initialized as decoder transpose
-   - Prevents early feature death during training
-   - Gives all features equal initial activation probability
-
-2. **Auxiliary Loss Mechanism**
-   - Models reconstruction error using top-k_aux dead latents
-   - Loss coefficient: 0.03 (3% of total gradient signal)
-   - Provides training signal to dormant features
-   - Total loss: `recon_loss + 0.03 × aux_loss`
-
-3. **Dead Neuron Monitoring**
-   - Tracks feature activations over 1,000-step windows
-   - Every 3,000 steps: resets features with <0.1% activation frequency
-   - Xavier uniform re-initialization + optimizer state reset
-   - Prevents permanent feature collapse
-
----
-
-## Phase 3 Results
-
-### Semantic Clustering Analysis
-
-**Configuration**: SentenceTransformers (all-MiniLM-L6-v2) + K-means clustering on 2,458 validated features
-
-**Optimal Clustering**: k=8 (best balance: CV=0.347, silhouette=0.0655)
-
-### Discovered Themes
-
-| Cluster | Theme | Size | Delta Enrichment | RLHF Impact |
-|---------|-------|------|------------------|-------------|
-| 2 | Scenes & Cultural & Social | 265 (10.8%) | **2.07×** | ⭐ Strong RLHF shift |
-| 3 | Indian & Hindi & Coherent | 276 (11.2%) | **1.23×** | ⭐ RLHF-shifted |
-| 1 | Indian & Cultural & Linguistic | 411 (16.7%) | 1.09× | Moderate |
-| 7 | Activities & Outdoor & Physical | 178 (7.2%) | 1.12× | Moderate |
-| 6 | Indian & Cultural & Cinema | 515 (21.0%) | 0.78× | Diminished |
-| 0 | Cultural & Indian & Art | 299 (12.2%) | 0.68× | Diminished |
-| 5 | South & Asian & Cultural | 179 (7.3%) | 0.66× | Diminished |
-| 4 | Cultural & Indian & India | 335 (13.6%) | 0.59× | Diminished |
-
-**Key Finding**: RLHF systematically amplifies social scene understanding (2.07×) and Hindi linguistic coherence (1.23×) while reducing traditional cultural domains (cinema 0.78×, art 0.68×, traditions 0.59×). This indicates alignment processes are not culturally neutral but reshape cultural marker distributions with domain-specific biases.
 
 ---
 
@@ -361,13 +233,13 @@ This study treats BASE, CHAT, and DELTA SAEs as three observational distribution
 - **CHAT**: Post-RLHF distribution (interventional)
 - **DELTA**: Intervention effect (chat - base)
 
-Analyzing features across these distributions enables identification of causal cultural mechanisms under identifiability conditions from causal representation learning (Zhang et al. 2024).
+Analyzing features across these distributions enables identification of causal cultural mechanisms under identifiability conditions from causal representation learning (Liu et al. 2024).
 
 ### Phase 4: Identifiability Gates (Weeks 1-6)
 
 **Goal**: Narrow 2,458 features → 20-30 causally identifiable features
 
-**Step 4.1 - Zhang's Identifiability Scoring**:
+**Step 4.1 - Identifiability Scoring**:
 - **Distribution Variance**: Top 10% features with highest activation variance across BASE/CHAT/DELTA
 - **Sparsity-Based Identifiability**: L0 < 20 on DOSA dataset (rare but strong activations)
 - **Causal Sufficiency**: Preliminary patching shows ΔAccuracy > 5% on predictions
@@ -475,6 +347,16 @@ This pattern validated our hypothesis that RLHF creates systematic, localizable 
 }
 ```
 
+### DOSA Dataset
+```bibtex
+@inproceedings{singh2024dosa,
+  title={DOSA: A Dataset of Social Artifacts from Different Indian Geographical Subcultures},
+  author={Singh, Manan and others},
+  booktitle={Proceedings of EMNLP},
+  year={2024}
+}
+```
+
 ### Qwen Models
 ```bibtex
 @article{qwen,
@@ -498,10 +380,10 @@ This pattern validated our hypothesis that RLHF creates systematic, localizable 
 
 ### Identifiable Causal Representation Learning
 ```bibtex
-@inproceedings{zhang2024identifiable,
+@inproceedings{liu2024identifiable,
   title={Identifiable Latent Polynomial Causal Models Through the Lens of Change},
-  author={Zhang, Yuhang and Huang, Zhijing and Scholkopf, Bernhard and Rothenhausler, Dominik},
-  booktitle={Conference on Causal Learning and Reasoning (CLeaR)},
+  author={Liu, Yuhang and Zhang, Zhen and Gong, Dong and Gong, Mingming and Huang, Biwei and van den Hengel, Anton and Zhang, Kun and Shi, Javen Qinfeng},
+  booktitle={International Conference on Learning Representations (ICLR)},
   year={2024}
 }
 ```
@@ -520,6 +402,7 @@ We gratefully acknowledge:
 - **IIT Bombay CFILT** for the English-Hindi parallel corpus
 - **Alibaba Cloud** for the Qwen model family
 - **CMU Computing Resources** for providing Babel HPC access
+- **University of Michigan** for the DOSA dataset
 
 ---
 
@@ -538,6 +421,41 @@ We gratefully acknowledge:
 4. **DOSA Alignment**: Score > 0.6 on cultural artifacts
 5. **OR-Bench Safety**: Δ refusal rate < 20%
 6. **CCIS**: ≥5 features with CCIS > 1.5, p < 0.001
+
+---
+
+## Limitations & Considerations
+
+### Methodological Limitations
+- **Seed Dependence**: SAE features show variation across random initialization seeds; reproducibility requires fixed seeds and multiple runs
+- **Reconstruction-Sparsity Tradeoff**: The balance between reconstruction quality and sparsity means some semantic information may be compressed
+- **Feature Interpretability**: Reliance on LLM-based labeling introduces subjective assessment and potential biases
+- **Single Model Family**: Validation limited to Qwen 1.5 models; generalization to other architectures remains to be tested
+
+### Scope Limitations
+- **Cultural Coverage**: Focus on Indian cultural markers; framework may need adaptation for other cultural contexts
+- **Dataset Scale**: 40K samples may not capture full diversity of cultural representations
+- **Layer Selection**: Analysis of layers 6, 12, 18 provides sampling but not complete coverage of model depth
+
+### Causal Claims
+- Phase 5 causal validation is ongoing; current findings represent correlational patterns in learned representations
+- Identifiability guarantees depend on assumptions about distribution shifts and feature independence
+- Causal sufficiency testing may not detect all confounding pathways
+
+---
+
+## Computational Requirements
+
+### Training Infrastructure
+- **Phase 1 (Activation Extraction)**: ~1.5 hours on 1× A100 GPU (40GB)
+- **Phase 2 (SAE Training)**: ~3 hours on 3× A100 GPUs (total 9 SAE models)
+- **Phase 2.5 (Feature Labeling)**: ~4 hours on 4× A100 GPUs with Qwen models
+- **Storage**: ~50GB for activations, models, and analysis outputs
+
+### Memory Requirements
+- Activation caching: 16GB RAM minimum
+- SAE training: 40GB GPU memory per SAE
+- Feature labeling: 80GB GPU memory for Qwen inference
 
 ---
 
@@ -583,9 +501,9 @@ This is an ongoing research project. Code and findings are not yet ready for pub
   - **Major finding**: 2.07× RLHF enrichment in social scenes, 1.23× in Hindi coherence
 - **2025-10-27**: Phase 4 identifiability gates initiated
   - Multi-distribution framework established
-  - Preparing Zhang's identifiability metrics
+  - Preparing identifiability metrics following Liu et al. (2024)
   - DOSA integration planned
 
 ---
 
-*This research establishes a framework for identifying and validating causal cultural mechanisms in RLHF-aligned language models with theoretical identifiability guarantees.*
+*This research explores methodologies for identifying and validating causal cultural mechanisms in RLHF-aligned language models using sparse autoencoders and multi-distribution identifiability analysis.*
