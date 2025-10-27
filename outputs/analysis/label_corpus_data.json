@@ -1,0 +1,1366 @@
+{
+  "statistics": {
+    "total_features": 3600,
+    "kept": 1621,
+    "revised": 837,
+    "invalidated": 1142,
+    "by_sae_type": {
+      "base": 938,
+      "chat": 977,
+      "delta": 543
+    }
+  },
+  "tfidf_terms": {
+    "base": {
+      "top_50_terms": [
+        [
+          "cultural",
+          0.10015469063959787
+        ],
+        [
+          "indian",
+          0.09523820060109196
+        ],
+        [
+          "references",
+          0.07088688417317508
+        ],
+        [
+          "linguistic",
+          0.06311634326433989
+        ],
+        [
+          "historical",
+          0.04943779104561846
+        ],
+        [
+          "cinema",
+          0.04552522283471951
+        ],
+        [
+          "contexts",
+          0.042597813012534874
+        ],
+        [
+          "regional",
+          0.0424367145995112
+        ],
+        [
+          "india",
+          0.039003427130577736
+        ],
+        [
+          "traditions",
+          0.03362253024945876
+        ],
+        [
+          "media",
+          0.03166555891457957
+        ],
+        [
+          "context",
+          0.03154339981999661
+        ],
+        [
+          "south",
+          0.030556290338104586
+        ],
+        [
+          "art",
+          0.029464703815083235
+        ],
+        [
+          "literature",
+          0.028073176655480533
+        ],
+        [
+          "activities",
+          0.026828936292615405
+        ],
+        [
+          "artistic",
+          0.0264969598368492
+        ],
+        [
+          "social",
+          0.025388013163662466
+        ],
+        [
+          "semantic",
+          0.023362788989227192
+        ],
+        [
+          "asian",
+          0.023297423105645775
+        ],
+        [
+          "film",
+          0.022390631811273605
+        ],
+        [
+          "society",
+          0.021275447515405436
+        ],
+        [
+          "religious",
+          0.02110348971268002
+        ],
+        [
+          "cross",
+          0.019966566230445265
+        ],
+        [
+          "identity",
+          0.01983934144694889
+        ],
+        [
+          "label",
+          0.019344774010928784
+        ],
+        [
+          "coherent",
+          0.01906379921186146
+        ],
+        [
+          "events",
+          0.018330581665132902
+        ],
+        [
+          "significance",
+          0.01827509209052007
+        ],
+        [
+          "themes",
+          0.017816638674411852
+        ],
+        [
+          "theme",
+          0.017415247638262996
+        ],
+        [
+          "settings",
+          0.01716123162866139
+        ],
+        [
+          "scenes",
+          0.017128500620238733
+        ],
+        [
+          "heritage",
+          0.016823759774976455
+        ],
+        [
+          "hindi",
+          0.015819385851003055
+        ],
+        [
+          "signifiers",
+          0.01543280188948254
+        ],
+        [
+          "practices",
+          0.015136918038076914
+        ],
+        [
+          "analysis",
+          0.01474506350400729
+        ],
+        [
+          "festivals",
+          0.014657685607637201
+        ],
+        [
+          "outdoor",
+          0.01426622380121538
+        ],
+        [
+          "music",
+          0.014180950856327805
+        ],
+        [
+          "history",
+          0.014167204495563867
+        ],
+        [
+          "adaptations",
+          0.01280402645879874
+        ],
+        [
+          "narratives",
+          0.012559747872569664
+        ],
+        [
+          "dynamics",
+          0.012524591416160203
+        ],
+        [
+          "interactions",
+          0.012308331558035158
+        ],
+        [
+          "elements",
+          0.012158927817935835
+        ],
+        [
+          "everyday",
+          0.011822584294153775
+        ],
+        [
+          "physical",
+          0.011698617317764311
+        ],
+        [
+          "language",
+          0.011600463348015098
+        ]
+      ],
+      "total_unique_terms": 500
+    },
+    "chat": {
+      "top_50_terms": [
+        [
+          "cultural",
+          0.10067705890881248
+        ],
+        [
+          "indian",
+          0.09523002760413708
+        ],
+        [
+          "references",
+          0.06582142890987519
+        ],
+        [
+          "linguistic",
+          0.06211157085871118
+        ],
+        [
+          "cinema",
+          0.047599480118702804
+        ],
+        [
+          "historical",
+          0.04715967982234708
+        ],
+        [
+          "contexts",
+          0.04505509379591716
+        ],
+        [
+          "india",
+          0.03674423310320645
+        ],
+        [
+          "context",
+          0.03615127989093723
+        ],
+        [
+          "regional",
+          0.035732061907113755
+        ],
+        [
+          "artistic",
+          0.03519870008500111
+        ],
+        [
+          "media",
+          0.03442280516203212
+        ],
+        [
+          "literature",
+          0.03226979932528296
+        ],
+        [
+          "south",
+          0.030853233792640978
+        ],
+        [
+          "traditions",
+          0.028746314918618086
+        ],
+        [
+          "art",
+          0.028424526721392784
+        ],
+        [
+          "themes",
+          0.026530597244386153
+        ],
+        [
+          "asian",
+          0.025465120249368416
+        ],
+        [
+          "society",
+          0.024906301186141653
+        ],
+        [
+          "semantic",
+          0.023197555406754455
+        ],
+        [
+          "activities",
+          0.022610159675661448
+        ],
+        [
+          "film",
+          0.02257636870237783
+        ],
+        [
+          "cross",
+          0.022338990851621547
+        ],
+        [
+          "social",
+          0.022058499470782613
+        ],
+        [
+          "significance",
+          0.020051908289085957
+        ],
+        [
+          "scenes",
+          0.019330033323036996
+        ],
+        [
+          "identity",
+          0.01897389489970947
+        ],
+        [
+          "events",
+          0.01892786806712453
+        ],
+        [
+          "music",
+          0.018479761685868307
+        ],
+        [
+          "coherent",
+          0.0181931775378019
+        ],
+        [
+          "label",
+          0.018072275523825433
+        ],
+        [
+          "settings",
+          0.01733121905458702
+        ],
+        [
+          "religious",
+          0.017086830594790492
+        ],
+        [
+          "history",
+          0.016930710758387636
+        ],
+        [
+          "festivals",
+          0.01538708565454365
+        ],
+        [
+          "practices",
+          0.015346092888265678
+        ],
+        [
+          "heritage",
+          0.014562594859725607
+        ],
+        [
+          "theme",
+          0.013648703571679148
+        ],
+        [
+          "influences",
+          0.013309925182820566
+        ],
+        [
+          "outdoor",
+          0.012842993003355273
+        ],
+        [
+          "awards",
+          0.012752094451493966
+        ],
+        [
+          "dynamics",
+          0.012594719090894645
+        ],
+        [
+          "narratives",
+          0.012535054348980978
+        ],
+        [
+          "traditional",
+          0.012317356333301053
+        ],
+        [
+          "hindi",
+          0.012244123590244734
+        ],
+        [
+          "adaptations",
+          0.012170481227443037
+        ],
+        [
+          "signifiers",
+          0.01216269249390857
+        ],
+        [
+          "interactions",
+          0.011662677201082387
+        ],
+        [
+          "sports",
+          0.010849376822768906
+        ],
+        [
+          "language",
+          0.01082115933785513
+        ]
+      ],
+      "total_unique_terms": 500
+    },
+    "delta": {
+      "top_50_terms": [
+        [
+          "cultural",
+          0.09950169377672394
+        ],
+        [
+          "indian",
+          0.09360551512431645
+        ],
+        [
+          "references",
+          0.08327721477980482
+        ],
+        [
+          "linguistic",
+          0.07496729033207766
+        ],
+        [
+          "activities",
+          0.05504857642003103
+        ],
+        [
+          "scenes",
+          0.052622733470053626
+        ],
+        [
+          "contexts",
+          0.05196924253242227
+        ],
+        [
+          "everyday",
+          0.043470354473125625
+        ],
+        [
+          "social",
+          0.04329070408135285
+        ],
+        [
+          "cinema",
+          0.04070694265815899
+        ],
+        [
+          "india",
+          0.035671210987281834
+        ],
+        [
+          "regional",
+          0.03286411262439455
+        ],
+        [
+          "traditions",
+          0.03232037495057942
+        ],
+        [
+          "settings",
+          0.03189116409024642
+        ],
+        [
+          "public",
+          0.03173786247179849
+        ],
+        [
+          "hindi",
+          0.031438473111109096
+        ],
+        [
+          "context",
+          0.030322235577514633
+        ],
+        [
+          "interactions",
+          0.02987510316487864
+        ],
+        [
+          "historical",
+          0.02725864538480244
+        ],
+        [
+          "outdoor",
+          0.026533686014004552
+        ],
+        [
+          "south",
+          0.026163320263411033
+        ],
+        [
+          "literature",
+          0.02419403713362469
+        ],
+        [
+          "english",
+          0.023649295567709745
+        ],
+        [
+          "people",
+          0.02362742163608981
+        ],
+        [
+          "coherent",
+          0.023505243665414025
+        ],
+        [
+          "urban",
+          0.023367819995089086
+        ],
+        [
+          "semantic",
+          0.02226610718564797
+        ],
+        [
+          "involving",
+          0.02211117537344994
+        ],
+        [
+          "life",
+          0.021574099703902783
+        ],
+        [
+          "media",
+          0.021172269558889196
+        ],
+        [
+          "label",
+          0.020417206437034312
+        ],
+        [
+          "artistic",
+          0.02040214523729058
+        ],
+        [
+          "theme",
+          0.020388960650379977
+        ],
+        [
+          "text",
+          0.02027391222216537
+        ],
+        [
+          "asian",
+          0.01984599562598269
+        ],
+        [
+          "art",
+          0.01979163788059143
+        ],
+        [
+          "film",
+          0.01968810341140727
+        ],
+        [
+          "occasional",
+          0.019048252614339116
+        ],
+        [
+          "music",
+          0.01897778931732236
+        ],
+        [
+          "gatherings",
+          0.01881348965031774
+        ],
+        [
+          "themes",
+          0.017079302749677523
+        ],
+        [
+          "group",
+          0.016861915006688686
+        ],
+        [
+          "elements",
+          0.015971881522469988
+        ],
+        [
+          "grouped",
+          0.01553688120484225
+        ],
+        [
+          "groups",
+          0.015097667121240221
+        ],
+        [
+          "code",
+          0.01507815542789663
+        ],
+        [
+          "events",
+          0.014980458146606002
+        ],
+        [
+          "switching",
+          0.014711782898652633
+        ],
+        [
+          "spaces",
+          0.014709964041905518
+        ],
+        [
+          "culture",
+          0.014654603658057598
+        ]
+      ],
+      "total_unique_terms": 500
+    }
+  },
+  "bigrams": {
+    "base": [
+      [
+        "cultural and",
+        384
+      ],
+      [
+        "and linguistic",
+        182
+      ],
+      [
+        "references indian",
+        160
+      ],
+      [
+        "indian cinema",
+        113
+      ],
+      [
+        "and cultural",
+        97
+      ],
+      [
+        "and regional",
+        89
+      ],
+      [
+        "and historical",
+        86
+      ],
+      [
+        "linguistic references",
+        80
+      ],
+      [
+        "cinema and",
+        72
+      ],
+      [
+        "south asian",
+        64
+      ],
+      [
+        "indian context",
+        56
+      ],
+      [
+        "and artistic",
+        54
+      ],
+      [
+        "semantic theme",
+        53
+      ],
+      [
+        "coherent label",
+        52
+      ],
+      [
+        "indian contexts",
+        47
+      ],
+      [
+        "india and",
+        42
+      ],
+      [
+        "and social",
+        40
+      ],
+      [
+        "historical and",
+        40
+      ],
+      [
+        "and society",
+        36
+      ],
+      [
+        "indian film",
+        36
+      ],
+      [
+        "literature and",
+        36
+      ],
+      [
+        "indian cultural",
+        34
+      ],
+      [
+        "and media",
+        33
+      ],
+      [
+        "historical references",
+        33
+      ],
+      [
+        "and south",
+        31
+      ],
+      [
+        "indian art",
+        31
+      ],
+      [
+        "traditions and",
+        31
+      ],
+      [
+        "indian media",
+        30
+      ],
+      [
+        "media and",
+        30
+      ],
+      [
+        "cultural historical",
+        28
+      ]
+    ],
+    "chat": [
+      [
+        "cultural and",
+        467
+      ],
+      [
+        "and linguistic",
+        196
+      ],
+      [
+        "references indian",
+        160
+      ],
+      [
+        "indian cinema",
+        125
+      ],
+      [
+        "and cultural",
+        91
+      ],
+      [
+        "and historical",
+        91
+      ],
+      [
+        "cinema and",
+        91
+      ],
+      [
+        "and artistic",
+        87
+      ],
+      [
+        "south asian",
+        78
+      ],
+      [
+        "and regional",
+        66
+      ],
+      [
+        "indian context",
+        66
+      ],
+      [
+        "linguistic references",
+        62
+      ],
+      [
+        "india and",
+        53
+      ],
+      [
+        "and society",
+        48
+      ],
+      [
+        "coherent label",
+        48
+      ],
+      [
+        "indian contexts",
+        48
+      ],
+      [
+        "and south",
+        45
+      ],
+      [
+        "and social",
+        44
+      ],
+      [
+        "literature and",
+        43
+      ],
+      [
+        "indian art",
+        42
+      ],
+      [
+        "media and",
+        41
+      ],
+      [
+        "semantic theme",
+        41
+      ],
+      [
+        "and literature",
+        34
+      ],
+      [
+        "and media",
+        34
+      ],
+      [
+        "historical and",
+        34
+      ],
+      [
+        "historical references",
+        34
+      ],
+      [
+        "semantic themes",
+        33
+      ],
+      [
+        "indian film",
+        32
+      ],
+      [
+        "asian contexts",
+        30
+      ],
+      [
+        "indian media",
+        30
+      ]
+    ],
+    "delta": [
+      [
+        "cultural and",
+        195
+      ],
+      [
+        "references indian",
+        149
+      ],
+      [
+        "and linguistic",
+        128
+      ],
+      [
+        "linguistic references",
+        93
+      ],
+      [
+        "indian cinema",
+        51
+      ],
+      [
+        "scenes and",
+        46
+      ],
+      [
+        "and cultural",
+        43
+      ],
+      [
+        "social interactions",
+        43
+      ],
+      [
+        "indian contexts",
+        41
+      ],
+      [
+        "and regional",
+        38
+      ],
+      [
+        "coherent label",
+        36
+      ],
+      [
+        "indian cultural",
+        32
+      ],
+      [
+        "cinema and",
+        31
+      ],
+      [
+        "semantic theme",
+        31
+      ],
+      [
+        "and social",
+        30
+      ],
+      [
+        "south asian",
+        30
+      ],
+      [
+        "code switching",
+        29
+      ],
+      [
+        "contexts and",
+        28
+      ],
+      [
+        "public spaces",
+        28
+      ],
+      [
+        "scenes with",
+        27
+      ],
+      [
+        "cultural scenes",
+        26
+      ],
+      [
+        "india and",
+        26
+      ],
+      [
+        "activities and",
+        25
+      ],
+      [
+        "everyday life",
+        25
+      ],
+      [
+        "indian english",
+        25
+      ],
+      [
+        "scenes involving",
+        25
+      ],
+      [
+        "and everyday",
+        24
+      ],
+      [
+        "interactions and",
+        23
+      ],
+      [
+        "activities with",
+        22
+      ],
+      [
+        "and activities",
+        22
+      ]
+    ]
+  },
+  "trigrams": {
+    "base": [
+      [
+        "cultural and linguistic",
+        166
+      ],
+      [
+        "and linguistic references",
+        80
+      ],
+      [
+        "cultural and historical",
+        74
+      ],
+      [
+        "linguistic references indian",
+        64
+      ],
+      [
+        "indian cinema and",
+        60
+      ],
+      [
+        "and historical references",
+        33
+      ],
+      [
+        "references indian cinema",
+        29
+      ],
+      [
+        "cultural and artistic",
+        28
+      ],
+      [
+        "cultural historical and",
+        26
+      ],
+      [
+        "historical references indian",
+        23
+      ],
+      [
+        "and linguistic cross",
+        22
+      ],
+      [
+        "south asian contexts",
+        22
+      ],
+      [
+        "and south asian",
+        20
+      ],
+      [
+        "art literature and",
+        18
+      ],
+      [
+        "references indian contexts",
+        18
+      ],
+      [
+        "english and hindi",
+        17
+      ],
+      [
+        "and regional identity",
+        15
+      ],
+      [
+        "cinema and literature",
+        15
+      ],
+      [
+        "form coherent group",
+        15
+      ],
+      [
+        "india and south",
+        15
+      ],
+      [
+        "indian and south",
+        15
+      ],
+      [
+        "linguistic cross references",
+        15
+      ],
+      [
+        "references indian cultural",
+        15
+      ],
+      [
+        "cultural and thematic",
+        14
+      ],
+      [
+        "indian english and",
+        14
+      ],
+      [
+        "indian media and",
+        14
+      ],
+      [
+        "and historical significance",
+        13
+      ],
+      [
+        "and regional traditions",
+        12
+      ],
+      [
+        "cross references indian",
+        12
+      ],
+      [
+        "cultural references and",
+        12
+      ]
+    ],
+    "chat": [
+      [
+        "cultural and linguistic",
+        189
+      ],
+      [
+        "cultural and historical",
+        82
+      ],
+      [
+        "indian cinema and",
+        78
+      ],
+      [
+        "and linguistic references",
+        60
+      ],
+      [
+        "cultural and artistic",
+        48
+      ],
+      [
+        "linguistic references indian",
+        46
+      ],
+      [
+        "and historical references",
+        34
+      ],
+      [
+        "and south asian",
+        31
+      ],
+      [
+        "references indian cinema",
+        29
+      ],
+      [
+        "south asian contexts",
+        29
+      ],
+      [
+        "historical references indian",
+        28
+      ],
+      [
+        "and linguistic cross",
+        26
+      ],
+      [
+        "cinema and literature",
+        26
+      ],
+      [
+        "cultural historical and",
+        20
+      ],
+      [
+        "india and south",
+        20
+      ],
+      [
+        "indian and south",
+        20
+      ],
+      [
+        "references indian context",
+        20
+      ],
+      [
+        "art literature and",
+        18
+      ],
+      [
+        "references indian contexts",
+        18
+      ],
+      [
+        "form coherent group",
+        17
+      ],
+      [
+        "linguistic cross references",
+        17
+      ],
+      [
+        "references indian art",
+        17
+      ],
+      [
+        "cross references indian",
+        16
+      ],
+      [
+        "indian media and",
+        16
+      ],
+      [
+        "examples form coherent",
+        15
+      ],
+      [
+        "cinema and media",
+        14
+      ],
+      [
+        "and linguistic signifiers",
+        13
+      ],
+      [
+        "and south asia",
+        13
+      ],
+      [
+        "cultural and religious",
+        13
+      ],
+      [
+        "english and hindi",
+        13
+      ]
+    ],
+    "delta": [
+      [
+        "cultural and linguistic",
+        123
+      ],
+      [
+        "and linguistic references",
+        93
+      ],
+      [
+        "linguistic references indian",
+        77
+      ],
+      [
+        "references indian cinema",
+        31
+      ],
+      [
+        "references indian contexts",
+        30
+      ],
+      [
+        "indian contexts and",
+        28
+      ],
+      [
+        "indian cinema and",
+        24
+      ],
+      [
+        "cultural scenes and",
+        20
+      ],
+      [
+        "scenes and activities",
+        19
+      ],
+      [
+        "cultural and historical",
+        17
+      ],
+      [
+        "social interactions and",
+        17
+      ],
+      [
+        "and social interactions",
+        15
+      ],
+      [
+        "coherent label references",
+        14
+      ],
+      [
+        "everyday life scenes",
+        14
+      ],
+      [
+        "hindi and english",
+        14
+      ],
+      [
+        "label references indian",
+        14
+      ],
+      [
+        "linguistic references india",
+        14
+      ],
+      [
+        "references india and",
+        14
+      ],
+      [
+        "and historical references",
+        13
+      ],
+      [
+        "coherent group they",
+        13
+      ],
+      [
+        "english and hindi",
+        12
+      ],
+      [
+        "indian media and",
+        12
+      ],
+      [
+        "references indian cultural",
+        12
+      ],
+      [
+        "references indian film",
+        12
+      ],
+      [
+        "activities with focus",
+        11
+      ],
+      [
+        "and everyday activities",
+        11
+      ],
+      [
+        "form coherent group",
+        11
+      ],
+      [
+        "india and south",
+        11
+      ],
+      [
+        "semantic theme everyday",
+        11
+      ],
+      [
+        "while there are",
+        11
+      ]
+    ]
+  }
+}
