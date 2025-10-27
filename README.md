@@ -364,11 +364,12 @@ This pattern validated our hypothesis that RLHF creates systematic, localizable 
 
 ### Qwen Models
 ```bibtex
-@article{qwen,
+@article{bai2023qwen,
   title={Qwen Technical Report},
-  author={Qwen Team},
-  journal={arXiv preprint},
-  year={2023}
+  author={Bai, Jinze and Bai, Shuai and Chu, Yunfei and Cui, Zeyu and others},
+  journal={arXiv preprint arXiv:2309.16609},
+  year={2023},
+  url={https://arxiv.org/abs/2309.16609}
 }
 ```
 
@@ -390,6 +391,7 @@ This pattern validated our hypothesis that RLHF creates systematic, localizable 
   author={Liu, Yuhang and Zhang, Zhen and Gong, Dong and Gong, Mingming and Huang, Biwei and van den Hengel, Anton and Zhang, Kun and Shi, Javen Qinfeng},
   booktitle={International Conference on Learning Representations (ICLR)},
   year={2024}
+  url={https://arxiv.org/abs/2310.15580}
 }
 ```
 
