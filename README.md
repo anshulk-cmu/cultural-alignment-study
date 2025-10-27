@@ -349,11 +349,16 @@ This pattern validated our hypothesis that RLHF creates systematic, localizable 
 
 ### DOSA Dataset
 ```bibtex
-@inproceedings{singh2024dosa,
-  title={DOSA: A Dataset of Social Artifacts from Different Indian Geographical Subcultures},
-  author={Singh, Manan and others},
-  booktitle={Proceedings of EMNLP},
-  year={2024}
+@inproceedings{seth-etal-2024-dosa,
+  title={{DOSA}: A Dataset of Social Artifacts from Different {I}ndian Geographical Subcultures},
+  author={Seth, Agrima and Ahuja, Sanchit and Bali, Kalika and Sitaram, Sunayana},
+  booktitle={Proceedings of the 2024 Joint International Conference on Computational Linguistics, Language Resources and Evaluation (LREC-COLING 2024)},
+  month=may,
+  year={2024},
+  address={Torino, Italia},
+  publisher={ELRA and ICCL},
+  url={https://aclanthology.org/2024.lrec-main.474},
+  pages={5323--5337}
 }
 ```
 
