@@ -24,6 +24,7 @@ UPDESH_HIN_SAMPLES = 19000
 SNLI_SAMPLES = 6000
 HINDI_CONTROL_SAMPLES = 6000
 TRAIN_SPLIT = 0.8
+CACHE_DIR = "/data/user_data/anshulk/huggingface_cache"
 
 def count_words(text):
     return len(text.strip().split())
@@ -35,7 +36,6 @@ def extract_assistant_response(messages):
     return None
 
 def split_dataset(data, train_ratio):
-    """Split single dataset into train/test maintaining ratio"""
     split_idx = int(len(data) * train_ratio)
     return data[:split_idx], data[split_idx:]
 
@@ -45,17 +45,18 @@ def download_updesh(english_samples, hindi_samples):
     english_dataset = load_dataset(
         "microsoft/Updesh_beta",
         "cultural_multihop_reasoning",
-        split="eng_Latn"
+        split="eng_Latn",
+        cache_dir=CACHE_DIR
     )
     hindi_dataset = load_dataset(
         "microsoft/Updesh_beta",
         "cultural_multihop_reasoning",
-        split="hin_Deva"
+        split="hin_Deva",
+        cache_dir=CACHE_DIR
     )
     
     print(f"   Loaded {len(english_dataset)} English, {len(hindi_dataset)} Hindi samples")
     
-    # Process English
     english_data = []
     selected_indices = random.sample(range(len(english_dataset)), min(english_samples, len(english_dataset)))
     for idx in tqdm(selected_indices, desc="   Extracting English"):
@@ -69,7 +70,6 @@ def download_updesh(english_samples, hindi_samples):
                 'source': 'updesh_eng'
             })
     
-    # Process Hindi
     hindi_data = []
     selected_indices = random.sample(range(len(hindi_dataset)), min(hindi_samples, len(hindi_dataset)))
     for idx in tqdm(selected_indices, desc="   Extracting Hindi"):
@@ -89,7 +89,7 @@ def download_updesh(english_samples, hindi_samples):
 def download_snli_control(num_samples):
     print("\n[2/3] Downloading SNLI control...")
     
-    dataset = load_dataset('stanfordnlp/snli', split='train')
+    dataset = load_dataset('stanfordnlp/snli', split='train', cache_dir=CACHE_DIR)
     print(f"   Loaded {len(dataset)} samples")
     
     valid_premises = [
@@ -111,7 +111,7 @@ def download_snli_control(num_samples):
 def download_hindi_control(num_samples, min_words=10, max_words=50):
     print("\n[3/3] Downloading Hindi control...")
     
-    dataset = load_dataset('cfilt/iitb-english-hindi', split='train')
+    dataset = load_dataset('cfilt/iitb-english-hindi', split='train', cache_dir=CACHE_DIR)
     print(f"   Loaded {len(dataset)} translation pairs")
     
     valid_sentences = []
@@ -138,51 +138,42 @@ def main():
     
     random.seed(SEED)
     
-    # Download all datasets
     updesh_data = download_updesh(UPDESH_ENG_SAMPLES, UPDESH_HIN_SAMPLES)
     snli_data = download_snli_control(SNLI_SAMPLES)
     hindi_control_data = download_hindi_control(HINDI_CONTROL_SAMPLES)
     
     print("\n[4/4] Splitting each dataset 80/20...")
     
-    # Split each dataset individually to maintain ratios
     updesh_train, updesh_test = split_dataset(updesh_data, TRAIN_SPLIT)
     snli_train, snli_test = split_dataset(snli_data, TRAIN_SPLIT)
     hindi_train, hindi_test = split_dataset(hindi_control_data, TRAIN_SPLIT)
     
-    # Combine train and test separately
     train_data = updesh_train + snli_train + hindi_train
     test_data = updesh_test + snli_test + hindi_test
     
-    # Shuffle within train and test
     random.shuffle(train_data)
     random.shuffle(test_data)
     
     print(f"   Train samples: {len(train_data)}")
     print(f"   Test samples: {len(test_data)}")
     
-    # Create data directory and subdirectories
     data_dir = DATA_ROOT / "data"
     train_dir = data_dir / "train"
     test_dir = data_dir / "test"
     train_dir.mkdir(parents=True, exist_ok=True)
     test_dir.mkdir(parents=True, exist_ok=True)
     
-    # Save train
     train_file = train_dir / "combined_data.json"
     with open(train_file, 'w', encoding='utf-8') as f:
         json.dump(train_data, f, ensure_ascii=False, indent=2)
     
-    # Save test
     test_file = test_dir / "combined_data.json"
     with open(test_file, 'w', encoding='utf-8') as f:
         json.dump(test_data, f, ensure_ascii=False, indent=2)
     
-    # Statistics
     print(f"\n✓ Train: {len(train_data)} samples → {train_file}")
     print(f"✓ Test: {len(test_data)} samples → {test_file}")
     
-    # Dataset breakdown
     def count_sources(data):
         updesh = sum(1 for x in data if x['source'].startswith('updesh'))
         snli = sum(1 for x in data if x['source'] == 'snli')
