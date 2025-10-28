@@ -11,6 +11,7 @@ import gc
 import time
 import numpy as np
 import json
+import random
 from pathlib import Path
 from datetime import datetime
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -27,6 +28,27 @@ from utils.activation_extractor import (
     MemoryEfficientActivationExtractor,
     ActivationSaver
 )
+
+# Reproducibility seed
+SEED = 42
+
+
+def set_seed(seed: int):
+    """Set all random seeds for reproducibility"""
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    
+    # Deterministic operations
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    torch.use_deterministic_algorithms(True, warn_only=True)
+    
+    # Python hash seed
+    import os
+    os.environ['PYTHONHASHSEED'] = str(seed)
 
 
 def log_gpu_memory(logger, device):
@@ -77,7 +99,7 @@ def cleanup_gpu(logger, device):
     logger.info("GPU cleanup complete")
 
 
-def extract_activations_for_model(model_name: str, model_type: str, run_output_dir: Path, logger):
+def extract_activations_for_model(model_name: str, model_type: str, run_output_dir: Path, logger, seed: int):
     device = "cuda:0"
     torch.cuda.set_device(0)
 
@@ -99,7 +121,8 @@ def extract_activations_for_model(model_name: str, model_type: str, run_output_d
     dataloaders = load_all_datasets(
         tokenizer,
         batch_size=BATCH_SIZE_PER_GPU,
-        num_workers=NUM_WORKERS
+        num_workers=NUM_WORKERS,
+        seed=seed
     )
     logger.info(f"Loaded {len(dataloaders)} datasets")
 
@@ -158,6 +181,7 @@ def extract_activations_for_model(model_name: str, model_type: str, run_output_d
     cleanup_gpu(logger, device)
 
     logger.info(f"✓ Completed {model_type} model extraction")
+
 
 def compute_deltas(run_output_dir: Path, logger):
     logger.info("\n" + "="*80)
@@ -221,12 +245,21 @@ def compute_deltas(run_output_dir: Path, logger):
 
 
 def main():
+    # Set seed for reproducibility
+    set_seed(SEED)
+    
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     logger = setup_logger('phase1_extraction', f'phase1_extraction_{timestamp}.log')
 
     logger.info("="*80)
     logger.info("PHASE 1: SEQUENTIAL ACTIVATION EXTRACTION")
     logger.info("="*80)
+    
+    logger.info(f"\nReproducibility:")
+    logger.info(f"Random seed: {SEED}")
+    logger.info(f"Deterministic operations: Enabled")
+    logger.info(f"CuDNN deterministic: True")
+    logger.info(f"CuDNN benchmark: False")
 
     logger.info(f"\nSystem Information:")
     logger.info(f"PyTorch version: {torch.__version__}")
@@ -257,7 +290,7 @@ def main():
     logger.info("STAGE 1: BASE MODEL EXTRACTION")
     logger.info("="*80)
     start_time = datetime.now()
-    extract_activations_for_model(MODELS["base"], "base", run_output_dir, logger)
+    extract_activations_for_model(MODELS["base"], "base", run_output_dir, logger, SEED)
     end_time = datetime.now()
     logger.info(f"Base model extraction completed in {end_time - start_time}")
 
@@ -268,7 +301,7 @@ def main():
     logger.info("STAGE 2: CHAT MODEL EXTRACTION")
     logger.info("="*80)
     start_time = datetime.now()
-    extract_activations_for_model(MODELS["chat"], "chat", run_output_dir, logger)
+    extract_activations_for_model(MODELS["chat"], "chat", run_output_dir, logger, SEED)
     end_time = datetime.now()
     logger.info(f"Chat model extraction completed in {end_time - start_time}")
 
