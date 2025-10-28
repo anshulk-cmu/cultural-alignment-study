@@ -12,10 +12,11 @@
 #SBATCH --requeue
 
 # ============================================================================
-# PHASE 2.5: QWEN FEATURE LABELING
-# Labeling ~3,600 features using Qwen1.5-72B-Chat
+# PHASE 2.5: QWEN FEATURE LABELING (REPRODUCIBLE)
+# Labeling ~3,600 features using Qwen1.5-32B-Chat
 # Expected duration: 6-10 hours
 # Resources: 4x L40S 48GB GPUs, 48 CPUs, All available memory
+# Generation: GREEDY DECODING (deterministic), SEED=42
 # ============================================================================
 
 set -e  # Exit on error
@@ -80,12 +81,14 @@ export TRANSFORMERS_CACHE=/data/hf_cache/transformers
 export CUDA_LAUNCH_BLOCKING=0
 export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
 export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
+export PYTHONHASHSEED=42
 
 echo "Environment Variables:"
 echo "  HF_HOME: $HF_HOME"
 echo "  HF_DATASETS_CACHE: $HF_DATASETS_CACHE"
 echo "  CUDA_LAUNCH_BLOCKING: $CUDA_LAUNCH_BLOCKING"
 echo "  OMP_NUM_THREADS: $OMP_NUM_THREADS"
+echo "  PYTHONHASHSEED: 42 (reproducibility)"
 echo ""
 
 # Navigate to project directory
@@ -97,7 +100,7 @@ echo "Pre-flight Validation"
 echo "=================================="
 
 echo "Checking Qwen model..."
-MODEL_PATH="/data/models/huggingface/qwen/Qwen1.5-72B-Chat"
+MODEL_PATH="/data/models/huggingface/qwen/Qwen1.5-32B-Chat"
 if [ -d "$MODEL_PATH" ]; then
     echo "✓ Model found: $MODEL_PATH"
 else
@@ -168,7 +171,8 @@ for f in example_files:
         data = json.load(fp)
         total_features += len(data)
 
-print(f'✓ Total features to label: {total_features:,}')
+print(f'✓ Total features extracted: {total_features:,}')
+print(f'✓ Will label top 400/file = ~3,600 features')
 "
 
 VALIDATION_STATUS=$?
@@ -184,10 +188,12 @@ echo "=================================="
 echo "Starting Phase 2.5: Feature Labeling"
 echo "=================================="
 echo "Configuration:"
-echo "  Model: Qwen1.5-72B-Chat (4-bit quantized)"
+echo "  Model: Qwen1.5-32B-Chat (8-bit quantized)"
 echo "  GPUs: 4x L40S 48GB (parallel workers)"
-echo "  Features per file: ~400 (top features)"
+echo "  Features per file: 400 (top features only)"
 echo "  Total files: 9 (split across 4 GPUs)"
+echo "  Generation: GREEDY DECODING (deterministic)"
+echo "  Seed: 42 (reproducibility)"
 echo "  Checkpoint saves: Every 100 features"
 echo "  Memory cleanup: Every 50 features"
 echo "  Estimated time: 6-10 hours"
@@ -249,6 +255,7 @@ if output_file.exists():
     print(f'  Total features labeled: {len(results):,}')
     print(f'  Coherent features: {coherent:,} ({coherent_pct:.1f}%)')
     print(f'  Incoherent features: {len(results) - coherent:,} ({100 - coherent_pct:.1f}%)')
+    print(f'  Seed: 42 (reproducible)')
     print(f'')
     print(f'GPU outputs:')
     for gpu_id in [0, 1, 2, 3]:
@@ -328,12 +335,9 @@ if [ $EXIT_STATUS -eq 0 ]; then
     echo "Next Steps"
     echo "=================================="
     echo "1. Review labeling results:"
-    echo "   less /home/anshulk/cultural-alignment-study/outputs/sae_models/labels_qwen_initial.json"
+    echo "   cat /data/user_data/anshulk/cultural-alignment-study/sae_models/labels_qwen_initial.json | head -100"
     echo ""
-    echo "2. Run validation script:"
-    echo "   sbatch slurm_phase2_5_validate.sh"
-    echo ""
-    echo "   OR interactively:"
+    echo "2. Run validation script (if needed):"
     echo "   python scripts/phase2_5_qwen_validate.py"
     echo ""
 fi
