@@ -2,10 +2,9 @@
 """
 Phase 2.5: Parallel Qwen3 Validation with 2x 48GB-class GPUs (e.g., L40S)
 Using Qwen3-30B-A3B-Instruct-2507 model
-WITH CHECKPOINT SUPPORT for fault tolerance
+WITH CHECKPOINT SUPPORT for fault tolerance and FULL REPRODUCIBILITY
 """
 import sys
-# Ensure the project root is in the path
 project_root = '/home/anshulk/cultural-alignment-study'
 if project_root not in sys.path:
     sys.path.append(project_root)
@@ -15,11 +14,16 @@ import subprocess
 import os
 import time
 import gc
+import random
+import numpy as np
 from pathlib import Path
 from configs.config import SAE_OUTPUT_ROOT, setup_logger
 
-# GPU configuration - We will request 2 GPUs from Slurm
+# GPU configuration - 2 GPUs from Slurm
 REQUESTED_GPUS = 2
+
+# REPRODUCIBILITY SEED
+SEED = 42
 
 
 def create_worker_script():
@@ -27,7 +31,6 @@ def create_worker_script():
     worker_code = '''#!/usr/bin/env python3
 import sys
 import os
-# Ensure the project root is in the path for the worker too
 project_root = '/home/anshulk/cultural-alignment-study'
 if project_root not in sys.path:
     sys.path.append(project_root)
@@ -35,10 +38,32 @@ if project_root not in sys.path:
 import json
 import torch
 import gc
+import random
+import numpy as np
 from pathlib import Path
 from tqdm import tqdm
 from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 from configs.config import SAE_OUTPUT_ROOT, setup_logger
+
+# REPRODUCIBILITY SEED
+SEED = 42
+
+
+def set_seed(seed):
+    """Set all random seeds for reproducibility."""
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    
+    # Deterministic operations
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    torch.use_deterministic_algorithms(True, warn_only=True)
+    
+    # Python hash seed
+    os.environ['PYTHONHASHSEED'] = str(seed)
 
 
 def clear_gpu_memory():
@@ -60,15 +85,13 @@ def get_gpu_memory_usage():
 
 def load_qwen3_30b():
     """Load Qwen3-30B-A3B-Instruct-2507 with 8-bit quantization."""
-
-    # Set model path to where you downloaded it
     model_path = "/data/user_data/anshulk/data/models/Qwen3-30B-A3B-Instruct-2507"
 
-    # Verify which GPU we're actually on (should be ID 0 due to CUDA_VISIBLE_DEVICES)
     assigned_gpu_id = os.environ.get('CUDA_VISIBLE_DEVICES', 'unknown')
-    internal_gpu_id = 0 # Default if CUDA_VISIBLE_DEVICES maps to a single device
+    internal_gpu_id = 0
     device_name = "CPU"
     total_memory = 0
+    
     if torch.cuda.is_available():
         try:
             internal_gpu_id = torch.cuda.current_device()
@@ -88,30 +111,27 @@ def load_qwen3_30b():
         use_fast=True
     )
 
-    # Qwen3 uses EOS token for padding
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
     print("Loading model with 8-bit quantization...")
-    # 8-bit quantization config (suitable for MoE on L40S)
     quantization_config = BitsAndBytesConfig(
         load_in_8bit=True,
-        llm_int8_threshold=6.0 # Common setting for 8-bit
+        llm_int8_threshold=6.0
     )
 
     model = AutoModelForCausalLM.from_pretrained(
         model_path,
         quantization_config=quantization_config,
-        device_map={"": internal_gpu_id},  # Map to the single visible GPU (ID 0)
+        device_map={"": internal_gpu_id},
         trust_remote_code=True,
-        torch_dtype=torch.bfloat16, # Use bfloat16 if supported, float16 otherwise
+        torch_dtype=torch.bfloat16,
         low_cpu_mem_usage=True,
-        local_files_only=True # Prevent hanging
+        local_files_only=True
     )
 
-    model.eval()  # Set to evaluation mode
+    model.eval()
 
-    # Report memory usage
     alloc, reserved = get_gpu_memory_usage()
     print(f"Model loaded successfully")
     print(f"GPU Memory - Allocated: {alloc:.2f} GB, Reserved: {reserved:.2f} GB")
@@ -122,17 +142,15 @@ def load_qwen3_30b():
 def create_validation_prompt(feature_data, initial_label, examples):
     """Create a validation prompt for label quality assessment."""
     examples_text = ""
-    num_examples = min(20, len(examples)) # Use 20 examples
+    num_examples = min(20, len(examples))
 
     for i, ex in enumerate(examples[:num_examples], 1):
         text = ex['text'][:300]
         if len(ex['text']) > 300:
             text += "..."
-        # Ensure newline characters are escaped for JSON and clarity
-        safe_text = json.dumps(text)[1:-1] # Basic escaping
+        safe_text = json.dumps(text)[1:-1]
         examples_text += f"{i}. {safe_text} (activation: {ex['activation']:.3f})\\n\\n"
 
-    # Escape initial label as well
     safe_initial_label = json.dumps(initial_label)[1:-1]
 
     prompt = f"""You are validating a feature label from sparse autoencoder analysis of Indian English and Hindi text.
@@ -149,7 +167,7 @@ EVALUATION CRITERIA:
 - REVISE: Label is partially correct but needs refinement (provide improved label)
 - INVALIDATE: Label doesn't match examples OR no coherent pattern exists (< 10 examples match)
 
-OUTPUT FORMAT (strictly follow this, use newline characters between fields):
+OUTPUT FORMAT (strictly follow this):
 ACTION: [KEEP|REVISE|INVALIDATE]
 REVISED_LABEL: [Only if ACTION is REVISE - provide the improved label here, otherwise leave empty]
 REASON: [Brief 1-2 sentence explanation of your decision]
@@ -158,14 +176,13 @@ Your response:"""
     return prompt
 
 
-def generate_validation(tokenizer, model, prompt, max_new_tokens=70): # Increased slightly for reason
-    """Generate validation response using Qwen3."""
+def generate_validation(tokenizer, model, prompt, max_new_tokens=70):
+    """Generate validation response using Qwen3 with GREEDY DECODING."""
     messages = [
         {"role": "system", "content": "You are a rigorous linguistic analyst validating feature labels for interpretability research. Strictly follow the output format."},
         {"role": "user", "content": prompt}
     ]
 
-    # Use apply_chat_template for Qwen models
     text = tokenizer.apply_chat_template(
         messages,
         tokenize=False,
@@ -178,18 +195,15 @@ def generate_validation(tokenizer, model, prompt, max_new_tokens=70): # Increase
         outputs = model.generate(
             **inputs,
             max_new_tokens=max_new_tokens,
-            eos_token_id=tokenizer.eos_token_id, # Use EOS token id
-            do_sample=False, # Use greedy decoding for consistency
-            temperature=0.1, # Low temperature for validation
-            top_p=0.9,
-            pad_token_id=tokenizer.pad_token_id # Use assigned pad token
+            do_sample=False,  # GREEDY DECODING - fully deterministic
+            num_beams=1,      # No beam search
+            pad_token_id=tokenizer.pad_token_id,
+            eos_token_id=tokenizer.eos_token_id
         )
 
-    # Decode only the newly generated tokens
     response_ids = outputs[0][inputs['input_ids'].shape[-1]:]
     response = tokenizer.decode(response_ids, skip_special_tokens=True)
 
-    # Clean up tensors
     del inputs, outputs, response_ids
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
@@ -199,9 +213,9 @@ def generate_validation(tokenizer, model, prompt, max_new_tokens=70): # Increase
 
 def parse_validation_response(response):
     """Parse the validation response to extract action, revised label, and reason."""
-    action = 'KEEP'  # Default
+    action = 'KEEP'
     revised_label = None
-    reason = "Parsing failed or reason not provided." # Default reason
+    reason = "Parsing failed or reason not provided."
 
     lines = response.split('\\n')
     action_found = False
@@ -217,7 +231,6 @@ def parse_validation_response(response):
                 action_found = True
         elif line_upper.startswith("REVISED_LABEL:"):
             revised_label = line.split(":", 1)[1].strip()
-            # Handle cases where the label might be empty or placeholder
             if not revised_label or revised_label.lower() in ['n/a', 'none', '']:
                 revised_label = None
             revised_found = True
@@ -225,27 +238,23 @@ def parse_validation_response(response):
             reason = line.split(":", 1)[1].strip()
             reason_found = True
 
-    # Simple keyword check as fallback if structured parsing failed
     if not action_found:
         response_upper = response.upper()
-        if 'INVALIDATE' in response_upper: action = 'INVALIDATE'
-        elif 'REVISE' in response_upper: action = 'REVISE'
-        # Keep remains default
+        if 'INVALIDATE' in response_upper: 
+            action = 'INVALIDATE'
+        elif 'REVISE' in response_upper: 
+            action = 'REVISE'
 
-    # If action is REVISE but no revised label was found via tag, try to extract contextually
     if action == 'REVISE' and not revised_found and revised_label is None:
-         # Simplistic: assume label follows action if reason tag exists
-         if reason_found:
-              potential_label = response.split("REASON:")[0].split("ACTION:")[1].strip().split('\\n')[0].strip()
-              if potential_label and potential_label.upper() != 'REVISE':
-                   revised_label = potential_label
-         # If no reason tag, maybe it's just the rest of the string after ACTION: REVISE
-         elif not reason_found and action_found and action == 'REVISE':
-             parts = response.split("ACTION: REVISE", 1)
-             if len(parts) > 1 and parts[1].strip():
-                 revised_label = parts[1].strip().split('\\n')[0].strip()
+        if reason_found:
+            potential_label = response.split("REASON:")[0].split("ACTION:")[1].strip().split('\\n')[0].strip()
+            if potential_label and potential_label.upper() != 'REVISE':
+                revised_label = potential_label
+        elif not reason_found and action_found and action == 'REVISE':
+            parts = response.split("ACTION: REVISE", 1)
+            if len(parts) > 1 and parts[1].strip():
+                revised_label = parts[1].strip().split('\\n')[0].strip()
 
-    # Ensure revised_label is None if action is not REVISE
     if action != 'REVISE':
         revised_label = None
 
@@ -272,165 +281,145 @@ def load_checkpoint(output_file):
 def main():
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('--gpu_id', type=int, required=True, help="Assigned physical GPU ID")
+    parser.add_argument('--gpu_id', type=int, required=True)
     parser.add_argument('--labels_file', type=str, required=True)
     parser.add_argument('--examples_file', type=str, required=True)
     parser.add_argument('--output_file', type=str, required=True)
     args = parser.parse_args()
 
-    # Read labels from file instead of command-line arg
+    # SET SEED FOR REPRODUCIBILITY
+    set_seed(SEED)
+
     with open(args.labels_file, 'r', encoding='utf-8') as f:
         label_subset = json.load(f)
 
-    # Read examples from file instead of command-line arg
     with open(args.examples_file, 'r', encoding='utf-8') as f:
         examples_map = json.load(f)
 
-    gpu_id = args.gpu_id # This is the assigned physical GPU ID
+    gpu_id = args.gpu_id
     output_file = Path(args.output_file)
 
     logger = setup_logger(f'qwen3_validate_gpu{gpu_id}', f'phase2_5_validate_gpu{gpu_id}.log')
 
-    logger.info(f"[GPU {gpu_id}] Worker started")
+    logger.info(f"[GPU {gpu_id}] Worker started with SEED={SEED}")
+    logger.info(f"[GPU {gpu_id}] Deterministic mode: ENABLED")
     logger.info(f"[GPU {gpu_id}] Validating {len(label_subset)} labels")
     logger.info(f"[GPU {gpu_id}] Output: {output_file}")
 
-    # Check for checkpoint and resume
     validated = load_checkpoint(output_file)
     processed_features = set(v['feature_id'] for v in validated)
     
     if validated:
         logger.info(f"[GPU {gpu_id}] Resuming from checkpoint: {len(validated)} features already validated")
     
-    # Load model
     try:
         tokenizer, model = load_qwen3_30b()
     except Exception as e:
         logger.error(f"[GPU {gpu_id}] Failed to load model: {e}", exc_info=True)
-        # Attempt to save partial results indicating failure
         error_results = []
         for label_data in label_subset:
-             if label_data.get('feature_id') not in processed_features:
-                 label_data['validation_action'] = 'ERROR'
-                 label_data['validation_reason'] = f"Model loading failed: {e}"
-                 label_data['final_label'] = None
-                 label_data['validated_by_gpu'] = gpu_id
-                 error_results.append(label_data)
+            if label_data.get('feature_id') not in processed_features:
+                label_data['validation_action'] = 'ERROR'
+                label_data['validation_reason'] = f"Model loading failed: {e}"
+                label_data['final_label'] = None
+                label_data['validated_by_gpu'] = gpu_id
+                label_data['seed'] = SEED
+                error_results.append(label_data)
         
         if error_results:
             validated.extend(error_results)
             with open(output_file, 'w', encoding='utf-8') as f:
                 json.dump(validated, f, indent=2, ensure_ascii=False)
-        sys.exit(1) # Ensure the main script knows this worker failed
+        sys.exit(1)
 
-    # Process labels
     features_processed_this_run = 0
     
     for idx, label_data in enumerate(tqdm(label_subset, desc=f"GPU {gpu_id} - Validating")):
         try:
             feature_id = label_data.get('feature_id', 'unknown')
             
-            # Skip if already processed in checkpoint
             if feature_id in processed_features:
                 continue
             
             initial_label = label_data.get('label_qwen', '')
 
-            # Skip incoherent/invalid features more robustly
             if not label_data.get('is_coherent', False) or not initial_label or initial_label.upper() == 'INCOHERENT':
                 label_data['validation_action'] = 'INVALIDATE'
                 label_data['validation_reason'] = 'Initial label was INCOHERENT or missing'
                 label_data['final_label'] = None
                 label_data['validated_by_gpu'] = gpu_id
+                label_data['seed'] = SEED
                 validated.append(label_data)
                 processed_features.add(feature_id)
                 features_processed_this_run += 1
                 continue
 
-            # Get examples for this feature
-            feature_id_str = str(feature_id) # Ensure key is string
+            feature_id_str = str(feature_id)
             examples = examples_map.get(feature_id_str, [])
+            
             if not examples:
                 logger.warning(f"[GPU {gpu_id}] No examples found for {feature_id}")
                 label_data['validation_action'] = 'INVALIDATE'
                 label_data['validation_reason'] = 'No examples available'
                 label_data['final_label'] = None
                 label_data['validated_by_gpu'] = gpu_id
+                label_data['seed'] = SEED
                 validated.append(label_data)
                 processed_features.add(feature_id)
                 features_processed_this_run += 1
                 continue
 
-            # Create validation prompt
-            prompt = create_validation_prompt(
-                label_data,
-                initial_label,
-                examples
-            )
-
-            # Generate validation
+            prompt = create_validation_prompt(label_data, initial_label, examples)
             response = generate_validation(tokenizer, model, prompt)
-
-            # Parse response
             action, revised_label, reason = parse_validation_response(response)
 
-            # Store results
             label_data['validation_action'] = action
-            label_data['validation_response'] = response # Store raw response
+            label_data['validation_response'] = response
             label_data['validation_reason'] = reason
             label_data['validated_by_gpu'] = gpu_id
+            label_data['seed'] = SEED
 
-            # Determine final label
             if action == 'KEEP':
                 label_data['final_label'] = initial_label
             elif action == 'REVISE':
-                # Use revised only if valid, else keep original as fallback
                 label_data['final_label'] = revised_label if revised_label else initial_label
                 if not revised_label:
-                    logger.warning(f"[GPU {gpu_id}] Action REVISE but failed to parse revised_label for {feature_id}. Raw response: {response}")
-            else:  # INVALIDATE or ERROR
+                    logger.warning(f"[GPU {gpu_id}] Action REVISE but failed to parse revised_label for {feature_id}")
+            else:
                 label_data['final_label'] = None
 
             validated.append(label_data)
             processed_features.add(feature_id)
             features_processed_this_run += 1
 
-            # Memory cleanup every 50 features
             if features_processed_this_run % 50 == 0:
                 clear_gpu_memory()
                 alloc, reserved = get_gpu_memory_usage()
                 logger.info(f"[GPU {gpu_id}] Progress: {len(validated)}/{len(label_subset)} | Memory: {alloc:.1f}GB / {reserved:.1f}GB")
 
-            # Checkpoint save every 100 features
             if features_processed_this_run % 100 == 0:
                 save_checkpoint(validated, output_file, gpu_id)
 
         except Exception as e:
             logger.error(f"[GPU {gpu_id}] Error validating feature {feature_id}: {e}", exc_info=True)
-            # Ensure label_data exists and is a dict before modifying
             if isinstance(label_data, dict):
                 label_data['validation_action'] = 'ERROR'
                 label_data['validation_reason'] = str(e)
                 label_data['final_label'] = None
                 label_data['validated_by_gpu'] = gpu_id
-                validated.append(label_data) # Append even on error
+                label_data['seed'] = SEED
+                validated.append(label_data)
                 processed_features.add(feature_id)
-            else:
-                 logger.error(f"[GPU {gpu_id}] Invalid label_data format during error handling: {label_data}")
-
-            # Attempt to clear memory after error
             clear_gpu_memory()
-            continue # Move to next feature
+            continue
 
-    # Save final results for this worker
     try:
         with open(output_file, 'w', encoding='utf-8') as f:
             json.dump(validated, f, indent=2, ensure_ascii=False)
         logger.info(f"[GPU {gpu_id}] ✓ Complete: {len(validated)} validation results saved to {output_file}")
     except Exception as e:
-         logger.error(f"[GPU {gpu_id}] Failed to save final results to {output_file}: {e}")
+        logger.error(f"[GPU {gpu_id}] Failed to save final results to {output_file}: {e}")
 
-    # Final memory report
     alloc, reserved = get_gpu_memory_usage()
     logger.info(f"[GPU {gpu_id}] Final GPU Memory - Allocated: {alloc:.2f}GB, Reserved: {reserved:.2f}GB")
 
@@ -442,21 +431,25 @@ if __name__ == "__main__":
 
 
 def main():
-    # Set Model Path to the downloaded Qwen3 model
+    # Set seed in main process
+    random.seed(SEED)
+    np.random.seed(SEED)
+    
     model_path = "/data/user_data/anshulk/data/models/Qwen3-30B-A3B-Instruct-2507"
 
-    # Define input/output paths using the symlinks in /home
-    home_base = Path("/home/anshulk/cultural-alignment-study/outputs")
-    initial_labels_file = home_base / "sae_models/labels_qwen_initial.json"
-    examples_dir = home_base / "sae_models/feature_examples"
-    output_dir = home_base / "sae_models" # Output goes next to inputs
-    final_output_file = output_dir / "labels_qwen3_validated.json" # New output filename
+    # CORRECTED PATHS - Use SAE_OUTPUT_ROOT (compute node storage)
+    initial_labels_file = SAE_OUTPUT_ROOT / "labels_qwen_initial.json"
+    examples_dir = SAE_OUTPUT_ROOT / "feature_examples"
+    output_dir = SAE_OUTPUT_ROOT
+    final_output_file = output_dir / "labels_qwen3_validated.json"
 
     logger = setup_logger('qwen3_validate_parallel', 'phase2_5_validate_parallel.log')
 
     logger.info("=" * 80)
-    logger.info("PARALLEL QWEN3-30B LABEL VALIDATION (WITH CHECKPOINTS)")
+    logger.info("PARALLEL QWEN3-30B LABEL VALIDATION (REPRODUCIBLE)")
     logger.info(f"Expecting {REQUESTED_GPUS} GPUs (e.g., 2x L40S)")
+    logger.info(f"SEED: {SEED}")
+    logger.info(f"Generation: GREEDY DECODING (fully deterministic)")
     logger.info("=" * 80)
     logger.info(f"Input file: {initial_labels_file}")
     logger.info(f"Examples directory: {examples_dir}")
@@ -465,18 +458,17 @@ def main():
     logger.info("Checkpoint saves: Every 100 features")
     logger.info("Memory cleanup: Every 50 features")
 
-    # Verify model exists at the new path
     if not Path(model_path).exists():
-       logger.error(f"Model not found at {model_path}")
-       logger.error("Please ensure the model download completed successfully!")
-       return
+        logger.error(f"Model not found at {model_path}")
+        logger.error("Please ensure the model download completed successfully!")
+        return
     logger.info(f"✓ Model path verified: {model_path}")
 
-    # Load initial labels
     if not initial_labels_file.exists():
         logger.error(f"Initial labels file not found: {initial_labels_file}")
         logger.error("Ensure the previous labeling step completed successfully.")
         return
+    
     logger.info(f"\nLoading initial labels from {initial_labels_file}")
     try:
         with open(initial_labels_file, 'r', encoding='utf-8') as f:
@@ -485,38 +477,37 @@ def main():
         logger.error(f"Error loading initial labels: {e}")
         return
 
-    # Filter out any non-dict items just in case
     initial_labels = [item for item in initial_labels if isinstance(item, dict)]
     logger.info(f"Loaded {len(initial_labels)} initial labels to validate")
+    
     if not initial_labels:
         logger.warning("No labels loaded. Nothing to validate.")
         return
 
-    # Load all examples into a map
     if not examples_dir.exists():
         logger.error(f"Examples directory not found: {examples_dir}")
         return
+    
     examples_map = {}
-
     logger.info("\nLoading examples...")
-    example_files_found = list(examples_dir.glob("*_examples.json"))
+    example_files_found = sorted(examples_dir.glob("*_examples.json"))
+    
     if not example_files_found:
-         logger.error(f"No example json files found in {examples_dir}")
-         return
+        logger.error(f"No example json files found in {examples_dir}")
+        return
 
     for file_path in example_files_found:
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 features = json.load(f)
                 for feat in features:
-                    # Use string keys for JSON compatibility when passing via cmd line
                     if 'feature_id' in feat and 'examples' in feat:
-                         examples_map[str(feat['feature_id'])] = feat['examples']
+                        examples_map[str(feat['feature_id'])] = feat['examples']
                     else:
-                         logger.warning(f"Skipping feature in {file_path} due to missing 'feature_id' or 'examples'")
+                        logger.warning(f"Skipping feature in {file_path} due to missing 'feature_id' or 'examples'")
         except Exception as e:
             logger.error(f"Error loading examples from {file_path}: {e}")
-            continue # Skip corrupted files
+            continue
 
     if not examples_map:
         logger.error("Failed to load any examples. Cannot proceed.")
@@ -524,20 +515,19 @@ def main():
 
     logger.info(f"Loaded examples for {len(examples_map)} features")
 
-    # Determine available GPUs from Slurm environment or default to 0, 1
     assigned_gpu_ids_str = os.environ.get('CUDA_VISIBLE_DEVICES')
     if assigned_gpu_ids_str:
         try:
             assigned_gpu_ids = [int(gid.strip()) for gid in assigned_gpu_ids_str.split(',')]
             if len(assigned_gpu_ids) != REQUESTED_GPUS:
-                 logger.warning(f"Expected {REQUESTED_GPUS} GPUs but CUDA_VISIBLE_DEVICES={assigned_gpu_ids_str}. Adjusting.")
-                 assigned_gpu_ids = assigned_gpu_ids[:REQUESTED_GPUS] # Take what we can get
+                logger.warning(f"Expected {REQUESTED_GPUS} GPUs but CUDA_VISIBLE_DEVICES={assigned_gpu_ids_str}. Adjusting.")
+                assigned_gpu_ids = assigned_gpu_ids[:REQUESTED_GPUS]
             logger.info(f"Using GPUs assigned by Slurm: {assigned_gpu_ids}")
         except ValueError:
             logger.error(f"Could not parse CUDA_VISIBLE_DEVICES='{assigned_gpu_ids_str}'. Defaulting to GPUs 0, 1.")
             assigned_gpu_ids = list(range(REQUESTED_GPUS))
     else:
-        logger.warning("CUDA_VISIBLE_DEVICES not set. Defaulting to GPUs 0, 1. Ensure Slurm script requests GPUs.")
+        logger.warning("CUDA_VISIBLE_DEVICES not set. Defaulting to GPUs 0, 1.")
         assigned_gpu_ids = list(range(REQUESTED_GPUS))
 
     num_gpus = len(assigned_gpu_ids)
@@ -545,20 +535,18 @@ def main():
         logger.error("No GPUs available or assigned. Cannot proceed.")
         return
 
-    # Split labels between the *available* GPUs
     labels_per_gpu = len(initial_labels) // num_gpus
     remainder = len(initial_labels) % num_gpus
 
     label_splits = []
     start_idx = 0
     for i in range(num_gpus):
-        gpu_id = assigned_gpu_ids[i] # Use the actual assigned GPU ID
+        gpu_id = assigned_gpu_ids[i]
         extra = 1 if i < remainder else 0
         end_idx = start_idx + labels_per_gpu + extra
-        # Ensure end_idx does not exceed list bounds
         end_idx = min(end_idx, len(initial_labels))
-        if start_idx < end_idx: # Only add if there are labels for this GPU
-             label_splits.append((gpu_id, initial_labels[start_idx:end_idx]))
+        if start_idx < end_idx:
+            label_splits.append((gpu_id, initial_labels[start_idx:end_idx]))
         start_idx = end_idx
 
     if not label_splits:
@@ -572,8 +560,7 @@ def main():
         total_distributed += len(labels)
     logger.info(f"Total labels distributed: {total_distributed}")
 
-    # Create worker script
-    worker_script_path = Path("/tmp/qwen3_validate_worker_checkpoints.py")
+    worker_script_path = Path("/tmp/qwen3_validate_worker_reproducible.py")
     try:
         with open(worker_script_path, 'w') as f:
             f.write(create_worker_script())
@@ -586,12 +573,11 @@ def main():
     logger.info("STARTING PARALLEL VALIDATION")
     logger.info("=" * 80)
     logger.info("Estimated time: 3-5 hours")
+    logger.info("Generation mode: GREEDY (deterministic)")
     logger.info("")
 
-    # Launch subprocesses with CUDA_VISIBLE_DEVICES set correctly
     processes = []
 
-    # Write examples map to a single temp file (read by all workers)
     examples_temp_file = Path("/tmp") / f"qwen3_validate_examples_{os.getpid()}.json"
     try:
         with open(examples_temp_file, 'w', encoding='utf-8') as f:
@@ -604,7 +590,6 @@ def main():
     for assigned_gpu_id, label_list in label_splits:
         output_file = output_dir / f"labels_qwen3_validated_gpu{assigned_gpu_id}.json"
 
-        # Write labels for this GPU to a temp file
         labels_temp_file = Path("/tmp") / f"qwen3_validate_labels_gpu{assigned_gpu_id}_{os.getpid()}.json"
         try:
             with open(labels_temp_file, 'w', encoding='utf-8') as f:
@@ -613,11 +598,10 @@ def main():
             logger.error(f"Failed to write labels for GPU {assigned_gpu_id}: {e}")
             continue
 
-        # Create environment with CUDA_VISIBLE_DEVICES set for this specific worker
         env = os.environ.copy()
         env['CUDA_VISIBLE_DEVICES'] = str(assigned_gpu_id)
+        env['PYTHONHASHSEED'] = str(SEED)
 
-        # Pass file paths instead of data
         cmd = [
             sys.executable,
             str(worker_script_path),
@@ -627,7 +611,6 @@ def main():
             '--output_file', str(output_file)
         ]
 
-        # Start subprocess
         try:
             proc = subprocess.Popen(
                 cmd,
@@ -651,11 +634,10 @@ def main():
 
     logger.info("")
 
-    # Monitor processes and stream output
     active_processes = list(processes)
     while active_processes:
         for gpu_id, proc in active_processes[:]:
-            if proc.poll() is None:  # Process still running
+            if proc.poll() is None:
                 try:
                     line = proc.stdout.readline()
                     if line:
@@ -664,16 +646,14 @@ def main():
                         time.sleep(0.05)
                 except Exception as e:
                     logger.warning(f"Error reading stdout for GPU {gpu_id}: {e}")
-            else: # Process finished
-                # Process any remaining output
+            else:
                 try:
                     for line in proc.stdout:
-                         print(f"[GPU {gpu_id}] {line.rstrip()}")
+                        print(f"[GPU {gpu_id}] {line.rstrip()}")
                 except Exception as e:
-                     logger.warning(f"Error reading remaining stdout for GPU {gpu_id}: {e}")
+                    logger.warning(f"Error reading remaining stdout for GPU {gpu_id}: {e}")
                 active_processes.remove((gpu_id, proc))
 
-    # Check final return codes
     logger.info("\n" + "=" * 80)
     logger.info("WORKER STATUS")
     logger.info("=" * 80)
@@ -693,7 +673,6 @@ def main():
     logger.info("MERGING RESULTS")
     logger.info("=" * 80)
 
-    # Merge results from all GPUs
     all_validated = []
     for gpu_id, _ in label_splits:
         gpu_output_file = output_dir / f"labels_qwen3_validated_gpu{gpu_id}.json"
@@ -707,25 +686,27 @@ def main():
                     else:
                         logger.error(f"  GPU {gpu_id}: Invalid format in {gpu_output_file}")
             except Exception as e:
-                 logger.error(f"  GPU {gpu_id}: Error reading {gpu_output_file}: {e}")
+                logger.error(f"  GPU {gpu_id}: Error reading {gpu_output_file}: {e}")
         else:
-             worker_failed = any(p.returncode != 0 for gid, p in processes if gid == gpu_id)
-             if worker_failed:
-                  logger.warning(f"  GPU {gpu_id}: output file not found, likely due to worker failure")
-             else:
-                  logger.error(f"  GPU {gpu_id}: output file not found but worker seemed successful?")
+            worker_failed = any(p.returncode != 0 for gid, p in processes if gid == gpu_id)
+            if worker_failed:
+                logger.warning(f"  GPU {gpu_id}: output file not found, likely due to worker failure")
+            else:
+                logger.error(f"  GPU {gpu_id}: output file not found but worker seemed successful?")
 
     if not all_validated:
         logger.error("\nNo results were successfully merged. Final output file will be empty.")
         try:
             with open(final_output_file, 'w', encoding='utf-8') as f:
-                 json.dump([], f)
+                json.dump([], f)
             logger.info(f"Created empty results file: {final_output_file}")
         except Exception as e:
             logger.error(f"Failed to create empty results file: {e}")
         return
 
-    # Save merged results
+    # Sort merged results by feature_id for consistency
+    all_validated = sorted(all_validated, key=lambda x: x.get('feature_id', ''))
+
     try:
         with open(final_output_file, 'w', encoding='utf-8') as f:
             json.dump(all_validated, f, indent=2, ensure_ascii=False)
@@ -734,10 +715,7 @@ def main():
         logger.error(f"Failed to save final merged results: {e}")
         return
 
-    # Compute statistics
-    stats = {
-        'KEEP': 0, 'REVISE': 0, 'INVALIDATE': 0, 'ERROR': 0
-    }
+    stats = {'KEEP': 0, 'REVISE': 0, 'INVALIDATE': 0, 'ERROR': 0}
     
     for v in all_validated:
         action = v.get('validation_action', 'ERROR')
@@ -757,6 +735,8 @@ def main():
     logger.info("\n" + "=" * 80)
     logger.info("VALIDATION COMPLETE - FINAL SUMMARY")
     logger.info("=" * 80)
+    logger.info(f"SEED: {SEED}")
+    logger.info(f"Generation mode: GREEDY DECODING (deterministic)")
     logger.info(f"Total features processed: {total}")
     logger.info(f"KEEP:       {stats['KEEP']:>6} ({stats['KEEP']/total*100:>5.1f}%)")
     logger.info(f"REVISE:     {stats['REVISE']:>6} ({stats['REVISE']/total*100:>5.1f}%)")
@@ -765,24 +745,22 @@ def main():
     logger.info("-" * 40)
     logger.info(f"Final Valid (Keep+Revise): {final_valid:>6} ({final_valid/total*100:>5.1f}%)")
 
-    # GPU distribution
     logger.info("\nProcessing distribution:")
     gpu_counts = {}
     for v in all_validated:
         gid = v.get('validated_by_gpu', 'Unknown')
         gpu_counts[gid] = gpu_counts.get(gid, 0) + 1
 
-    for gpu_id in assigned_gpu_ids:
+    for gpu_id in sorted(assigned_gpu_ids):
         count = gpu_counts.get(gpu_id, 0)
         logger.info(f"  GPU {gpu_id}: {count:>6} features")
     if 'Unknown' in gpu_counts:
-         logger.warning(f"  Unknown GPU: {gpu_counts['Unknown']:>6} features")
+        logger.warning(f"  Unknown GPU: {gpu_counts['Unknown']:>6} features")
 
     logger.info("=" * 80)
     logger.info("✓ PHASE 2.5 VALIDATION COMPLETE")
     logger.info("=" * 80)
 
-    # Clean up temp files
     try:
         examples_temp_file = Path("/tmp") / f"qwen3_validate_examples_{os.getpid()}.json"
         if examples_temp_file.exists():
