@@ -30,11 +30,11 @@ SAVE_EVERY_N_BATCHES = 50
 
 DATASETS = {
     "train": {
-        "path": DATA_ROOT / "train" / "combined_data.json",
+        "path": DATA_ROOT / "data" / "train" / "combined_data.json",
         "max_samples": 40000
     },
     "test": {
-        "path": DATA_ROOT / "test" / "combined_data.json",
+        "path": DATA_ROOT / "data" / "test" / "combined_data.json",
         "max_samples": 10000
     }
 }
