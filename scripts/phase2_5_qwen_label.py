@@ -11,11 +11,16 @@ import subprocess
 import os
 import time
 import gc
+import random
+import numpy as np
 from pathlib import Path
 from configs.config import SAE_OUTPUT_ROOT, setup_logger
 
 # GPU configuration - 4x GPUs
 FREE_GPUS = [0, 1, 2, 3]
+
+# REPRODUCIBILITY SEED
+SEED = 42
 
 
 def create_worker_script():
@@ -28,10 +33,32 @@ sys.path.append('/home/anshulk/cultural-alignment-study')
 import json
 import torch
 import gc
+import random
+import numpy as np
 from pathlib import Path
 from tqdm import tqdm
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from configs.config import SAE_OUTPUT_ROOT, setup_logger
+
+# REPRODUCIBILITY SEED
+SEED = 42
+
+
+def set_seed(seed):
+    """Set all random seeds for reproducibility."""
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    
+    # Deterministic operations
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    torch.use_deterministic_algorithms(True, warn_only=True)
+    
+    # Python hash seed
+    os.environ['PYTHONHASHSEED'] = str(seed)
 
 
 def clear_gpu_memory():
@@ -92,7 +119,7 @@ def load_qwen():
         trust_remote_code=True,
         torch_dtype=torch.float16,
         low_cpu_mem_usage=True,
-        local_files_only=True # Prevent hanging
+        local_files_only=True  # Prevent hanging
     )
     
     model.eval()  # Set to evaluation mode
@@ -142,7 +169,7 @@ LABEL:"""
 
 
 def generate_label(tokenizer, model, prompt, max_new_tokens=50):
-    """Generate a label using Qwen model with memory optimization."""
+    """Generate a label using Qwen model with GREEDY DECODING for reproducibility."""
     messages = [
         {"role": "system", "content": "You are a helpful assistant specialized in linguistic analysis and cultural understanding."},
         {"role": "user", "content": prompt}
@@ -160,9 +187,8 @@ def generate_label(tokenizer, model, prompt, max_new_tokens=50):
         outputs = model.generate(
             **inputs,
             max_new_tokens=max_new_tokens,
-            temperature=0.3,
-            do_sample=False,
-            top_p=0.9,
+            do_sample=False,  # GREEDY DECODING - fully deterministic
+            num_beams=1,  # No beam search
             pad_token_id=tokenizer.pad_token_id,
             eos_token_id=tokenizer.eos_token_id
         )
@@ -205,9 +231,13 @@ def main():
     gpu_id = args.gpu_id
     output_file = Path(args.output_file)
     
+    # SET SEED FOR REPRODUCIBILITY
+    set_seed(SEED)
+    
     logger = setup_logger(f'qwen_label_gpu{gpu_id}', f'phase2_5_qwen_gpu{gpu_id}.log')
     
-    logger.info(f"[GPU {gpu_id}] Worker started")
+    logger.info(f"[GPU {gpu_id}] Worker started with SEED={SEED}")
+    logger.info(f"[GPU {gpu_id}] Deterministic mode: ENABLED")
     logger.info(f"[GPU {gpu_id}] Processing {len(file_paths)} files")
     logger.info(f"[GPU {gpu_id}] Output: {output_file}")
     
@@ -225,16 +255,16 @@ def main():
         logger.error(f"[GPU {gpu_id}] Failed to load model: {e}")
         raise
     
-    # Process each file
-    for file_idx, file_path_str in enumerate(file_paths, 1):
+    # Process each file in SORTED order for reproducibility
+    for file_idx, file_path_str in enumerate(sorted(file_paths), 1):
         file_path = Path(file_path_str)
         logger.info(f"[GPU {gpu_id}] Processing file {file_idx}/{len(file_paths)}: {file_path.name}")
         
         with open(file_path, 'r', encoding='utf-8') as f:
             features = json.load(f)
         
-        # Only process top 400 features per file
-        features = features[:400]
+        # Only process top 400 features per file (SORTED by feature_id for consistency)
+        features = sorted(features, key=lambda x: x.get('feature_id', ''))[:400]
         logger.info(f"[GPU {gpu_id}] Loaded {len(features)} features from {file_path.name}")
         
         # Process features with periodic cleanup
@@ -256,7 +286,8 @@ def main():
                     'num_examples': feature['num_examples'],
                     'label_qwen': label,
                     'is_coherent': is_coherent,
-                    'processed_by_gpu': gpu_id
+                    'processed_by_gpu': gpu_id,
+                    'seed': SEED
                 }
                 
                 # Copy over additional statistics
@@ -306,6 +337,10 @@ if __name__ == "__main__":
 
 
 def main():
+    # Set seed in main process
+    random.seed(SEED)
+    np.random.seed(SEED)
+    
     # Use 32B Model
     model_path = "/data/models/huggingface/qwen/Qwen1.5-32B-Chat"
     examples_dir = SAE_OUTPUT_ROOT / "feature_examples"
@@ -316,8 +351,10 @@ def main():
     logger = setup_logger('qwen_label_parallel', 'phase2_5_qwen_parallel.log')
     
     logger.info("=" * 80)
-    logger.info("PARALLEL QWEN1.5-32B-CHAT FEATURE LABELING")
+    logger.info("PARALLEL QWEN1.5-32B-CHAT FEATURE LABELING (REPRODUCIBLE)")
     logger.info(f"Using GPUs: {FREE_GPUS} (4x 48GB-class GPUs)")
+    logger.info(f"SEED: {SEED}")
+    logger.info(f"Generation: GREEDY DECODING (fully deterministic)")
     logger.info("=" * 80)
     logger.info(f"Input directory: {examples_dir}")
     logger.info(f"Output file: {final_output_file}")
@@ -331,7 +368,7 @@ def main():
     
     logger.info(f"✓ Model path verified: {model_path}")
     
-    # Get all example files
+    # Get all example files and SORT for reproducibility
     examples_files = sorted(examples_dir.glob("*_examples.json"))
     
     if not examples_files:
@@ -355,14 +392,13 @@ def main():
         start_idx = end_idx
     
     logger.info("\nWork distribution:")
-    total_features = 0
     for gpu_id, files in file_splits:
         logger.info(f"  GPU {gpu_id}: {len(files)} files")
         for f in files:
             logger.info(f"    - {Path(f).name}")
     
     # Create worker script
-    worker_script_path = Path("/tmp/qwen_worker_32b_8bit.py") # Renamed for clarity
+    worker_script_path = Path("/tmp/qwen_worker_32b_8bit_reproducible.py")
     with open(worker_script_path, 'w') as f:
         f.write(create_worker_script())
     
@@ -373,6 +409,7 @@ def main():
     logger.info("Estimated time: 6-10 hours")
     logger.info("Checkpoint saves: Every 100 features")
     logger.info("Memory cleanup: Every 50 features")
+    logger.info("Generation mode: GREEDY (deterministic)")
     logger.info("")
     
     # Launch subprocesses with CUDA_VISIBLE_DEVICES set
@@ -384,13 +421,14 @@ def main():
         # Create environment with CUDA_VISIBLE_DEVICES set
         env = os.environ.copy()
         env['CUDA_VISIBLE_DEVICES'] = str(gpu_id)
+        env['PYTHONHASHSEED'] = str(SEED)  # Ensure hash reproducibility
         
         # Prepare arguments
         cmd = [
             sys.executable,
             str(worker_script_path),
             '--gpu_id', str(gpu_id),
-            '--file_paths', json.dumps(file_list),
+            '--file_paths', json.dumps(sorted(file_list)),  # Sort for consistency
             '--output_file', str(output_file)
         ]
         
@@ -454,9 +492,9 @@ def main():
     logger.info("MERGING RESULTS")
     logger.info("=" * 80)
     
-    # Merge results from all GPUs
+    # Merge results from all GPUs in SORTED order
     all_results = []
-    for gpu_id in FREE_GPUS:
+    for gpu_id in sorted(FREE_GPUS):
         gpu_output_file = output_dir / f"labels_qwen_initial_gpu{gpu_id}.json"
         if gpu_output_file.exists():
             with open(gpu_output_file, 'r', encoding='utf-8') as f:
@@ -465,6 +503,9 @@ def main():
                 logger.info(f"  GPU {gpu_id}: {len(results)} features")
         else:
             logger.warning(f"  GPU {gpu_id}: output file not found!")
+    
+    # Sort merged results by feature_id for consistency
+    all_results = sorted(all_results, key=lambda x: x.get('feature_id', ''))
     
     # Save merged results
     with open(final_output_file, 'w', encoding='utf-8') as f:
@@ -480,13 +521,15 @@ def main():
         logger.info("\n" + "=" * 80)
         logger.info("LABELING COMPLETE - FINAL SUMMARY")
         logger.info("=" * 80)
+        logger.info(f"SEED: {SEED}")
+        logger.info(f"Generation mode: GREEDY DECODING (deterministic)")
         logger.info(f"Total features labeled: {len(all_results)}")
         logger.info(f"Coherent features: {coherent} ({coherent_pct:.1f}%)")
         logger.info(f"Incoherent features: {len(all_results) - coherent} ({100 - coherent_pct:.1f}%)")
         
         # GPU distribution
         logger.info("\nProcessing distribution:")
-        for gpu_id in FREE_GPUS:
+        for gpu_id in sorted(FREE_GPUS):
             gpu_count = sum(1 for r in all_results if r.get('processed_by_gpu') == gpu_id)
             logger.info(f"  GPU {gpu_id}: {gpu_count} features")
         
