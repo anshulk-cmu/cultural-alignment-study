@@ -1,10 +1,10 @@
 #!/bin/bash
 #SBATCH --job-name=phase2_sae_training
 #SBATCH --partition=general
-#SBATCH --gres=gpu:A6000:4
+#SBATCH --gres=gpu:A6000:3
 #SBATCH --cpus-per-task=48
 #SBATCH --mem=0
-#SBATCH --time=2-00:00:00
+#SBATCH --time=24:00:00
 #SBATCH --output=/home/anshulk/cultural-alignment-study/outputs/logs/phase2_sae_%j.out
 #SBATCH --error=/home/anshulk/cultural-alignment-study/outputs/logs/phase2_sae_%j.err
 #SBATCH --mail-type=BEGIN,END,FAIL
@@ -15,7 +15,7 @@
 # PHASE 2: SAE TRAINING
 # Training 9 SAEs (3 model types × 3 layers) with 100 epochs each
 # Expected duration: 24-30 hours
-# Resources: 4x A6000 GPUs, 48 CPUs, All available memory
+# Resources: 3x A6000 GPUs, 48 CPUs, All available memory
 # ============================================================================
 
 set -e  # Exit on error
@@ -113,7 +113,7 @@ print(f'✓ Latest run: {latest_run.name}')
 print(f'  Path: {latest_run}')
 
 # Check for required datasets
-datasets = ['updesh_beta', 'snli_control', 'hindi_control']
+datasets = ['train', 'test']
 model_types = ['base', 'chat', 'delta']
 missing = []
 
