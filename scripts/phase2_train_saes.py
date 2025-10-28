@@ -56,11 +56,17 @@ def train_sae_for_model(
     
     logger.info("\nLoading activation datasets...")
     
-    dataset_names = ['updesh_beta', 'snli_control', 'hindi_control']
+    # CORRECTED: Separate training and validation datasets
+    train_dataset_names = ['updesh_beta']  # Cultural content only (30K samples)
+    val_dataset_names = ['snli_control', 'hindi_control']  # Control content only (10K samples)
     
+    logger.info(f"  Training datasets: {train_dataset_names}")
+    logger.info(f"  Validation datasets: {val_dataset_names}")
+    
+    # Load training data (cultural content)
     train_loaders = create_activation_dataloaders(
         run_dir=run_dir,
-        dataset_names=dataset_names,
+        dataset_names=train_dataset_names,
         layer_idx=layer_idx,
         model_type=model_type,
         batch_size=SAE_BATCH_SIZE,
@@ -68,9 +74,10 @@ def train_sae_for_model(
         shuffle=True
     )
     
+    # Load validation data (control content)
     val_loaders = create_activation_dataloaders(
         run_dir=run_dir,
-        dataset_names=dataset_names,
+        dataset_names=val_dataset_names,
         layer_idx=layer_idx,
         model_type=model_type,
         batch_size=SAE_BATCH_SIZE,
@@ -78,7 +85,10 @@ def train_sae_for_model(
         shuffle=False
     )
     
+    # Concatenate training datasets
     train_dataset = ConcatDataset([loader.dataset for loader in train_loaders.values()])
+    
+    # Concatenate validation datasets
     val_dataset = ConcatDataset([loader.dataset for loader in val_loaders.values()])
     
     train_loader = DataLoader(
@@ -135,7 +145,7 @@ def main():
     
     try:
         logger.info("="*80)
-        logger.info("PHASE 2: TRIPLE SAE TRAINING WITH AUXILIARY LOSS")
+        logger.info("PHASE 2: TRIPLE SAE TRAINING WITH PROPER TRAIN/VAL SPLIT")
         logger.info("="*80)
         
         logger.info(f"\nSystem Information:")
@@ -156,11 +166,16 @@ def main():
         logger.info(f"  Epochs: {SAE_NUM_EPOCHS}")
         logger.info(f"  Dead neuron check: every {SAE_DEAD_NEURON_CHECK_EVERY} steps")
         
+        logger.info(f"\nData Split Strategy:")
+        logger.info(f"  Training: Updesh_beta (30K cultural samples)")
+        logger.info(f"  Validation: SNLI + IITB (10K control samples)")
+        logger.info(f"  Purpose: Test generalization to non-cultural content")
+        
         run_dir = find_latest_run(ACTIVATION_ROOT)
         logger.info(f"\nUsing activation data from: {run_dir}")
         
         output_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_dir = SAE_OUTPUT_ROOT / f"triple_sae_k{SAE_SPARSITY_K}_dict{SAE_DICT_SIZE}_aux_{output_timestamp}"
+        output_dir = SAE_OUTPUT_ROOT / f"triple_sae_k{SAE_SPARSITY_K}_dict{SAE_DICT_SIZE}_corrected_{output_timestamp}"
         output_dir.mkdir(parents=True, exist_ok=True)
         logger.info(f"Output directory: {output_dir}")
         
