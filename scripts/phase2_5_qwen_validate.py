@@ -2,7 +2,7 @@
 """
 Phase 2.5: Parallel Qwen3 Validation with 2x 48GB-class GPUs (e.g., L40S)
 Using Qwen3-30B-A3B-Instruct-2507 model
-WITH CHECKPOINT SUPPORT for fault tolerance and FULL REPRODUCIBILITY
+WITH CHECKPOINT SUPPORT for fault tolerance.
 """
 import sys
 project_root = '/home/anshulk/cultural-alignment-study'
