@@ -2,13 +2,21 @@
 Dataset for loading activation chunks for SAE training
 """
 import torch
-from torch.utils.data import Dataset, DataLoader
+import random
 import numpy as np
+from torch.utils.data import Dataset, DataLoader
 from pathlib import Path
 from typing import List, Dict, Optional
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+def worker_init_fn(worker_id):
+    """Initialize each dataloader worker with unique but reproducible seed"""
+    worker_seed = torch.initial_seed() % 2**32
+    np.random.seed(worker_seed)
+    random.seed(worker_seed)
 
 
 class ActivationDataset(Dataset):
@@ -92,23 +100,29 @@ def create_activation_dataloaders(
     model_type: str,
     batch_size: int,
     num_workers: int,
-    shuffle: bool = True
+    shuffle: bool = True,
+    seed: int = 42
 ) -> Dict[str, DataLoader]:
     """
-    Create dataloaders for all datasets
+    Create dataloaders for all datasets with reproducibility
     
     Args:
         run_dir: Run directory from Phase 1 (e.g., run_20251019_192554)
-        dataset_names: List of dataset names (e.g., ['updesh_beta', 'snli_control'])
+        dataset_names: List of dataset names (e.g., ['train', 'test'])
         layer_idx: Layer index
         model_type: 'base', 'chat', or 'delta'
         batch_size: Batch size
         num_workers: Number of workers
         shuffle: Shuffle data
+        seed: Random seed for reproducibility
     
     Returns:
         Dict mapping dataset_name -> DataLoader
     """
+    # Set generator for reproducibility
+    g = torch.Generator()
+    g.manual_seed(seed)
+    
     dataloaders = {}
     
     for dataset_name in dataset_names:
@@ -126,8 +140,10 @@ def create_activation_dataloaders(
             shuffle=shuffle,
             num_workers=num_workers,
             pin_memory=True,
-            drop_last=True,  # For stable batch sizes
-            collate_fn=collate_activations
+            drop_last=True,
+            collate_fn=collate_activations,
+            generator=g,
+            worker_init_fn=worker_init_fn
         )
         
         dataloaders[dataset_name] = dataloader
