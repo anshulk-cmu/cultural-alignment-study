@@ -4,7 +4,7 @@ import torch
 import logging
 
 PROJECT_ROOT = Path("/home/anshulk/cultural-alignment-study")
-DATA_ROOT = Path("/data/user_data/anshulk/data")
+DATA_ROOT = Path("/data/user_data/anshulk/cultural-alignment-study/data")
 MODEL_CACHE = Path("/data/models/huggingface")
 ACTIVATION_ROOT = DATA_ROOT / "activations"
 
@@ -14,7 +14,6 @@ ACTIVATION_ROOT.mkdir(parents=True, exist_ok=True)
 MODEL_NAME_BASE = "/data/models/huggingface/qwen/Qwen1.5-1.8B"
 MODEL_NAME_CHAT = "/data/models/huggingface/qwen/Qwen1.5-1.8B-Chat"
 
-# Model dictionary for Phase 1 compatibility
 MODELS = {
     "base": MODEL_NAME_BASE,
     "chat": MODEL_NAME_CHAT
@@ -22,7 +21,6 @@ MODELS = {
 
 TARGET_LAYERS = [6, 12, 18]
 
-# Phase 1 specific configs
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 NUM_GPUS = torch.cuda.device_count() if torch.cuda.is_available() else 0
 BATCH_SIZE_PER_GPU = 64
@@ -31,17 +29,13 @@ EMPTY_CACHE_EVERY_N = 10
 SAVE_EVERY_N_BATCHES = 50
 
 DATASETS = {
-    "updesh_beta": {
-        "path": DATA_ROOT / "updesh_beta.json",
-        "max_samples": 30000
+    "train": {
+        "path": DATA_ROOT / "train" / "combined_data.json",
+        "max_samples": 40000
     },
-    "snli_control": {
-        "path": DATA_ROOT / "snli_control.json",
-        "max_samples": 5000
-    },
-    "hindi_control": {
-        "path": DATA_ROOT / "hindi_control.json",
-        "max_samples": 5000
+    "test": {
+        "path": DATA_ROOT / "test" / "combined_data.json",
+        "max_samples": 10000
     }
 }
 
@@ -52,25 +46,20 @@ NUM_WORKERS = 4
 SAE_HIDDEN_DIM = 2048
 SAE_DICT_SIZE = 8192
 SAE_SPARSITY_K = 256
-
 SAE_AUX_K = 512
 SAE_AUX_COEF = 0.03
-
 SAE_DEAD_NEURON_MONITOR_STEPS = 1000
 SAE_DEAD_NEURON_CHECK_EVERY = 3000
 SAE_DEAD_NEURON_THRESHOLD = 0.001
-
 SAE_BATCH_SIZE = 256
 SAE_LEARNING_RATE = 1e-4
 SAE_NUM_EPOCHS = 100
 SAE_WARMUP_STEPS = 1000
 SAE_WEIGHT_DECAY = 0.01
-
 SAE_GPUS = [0, 1, 2]
 SAE_NUM_WORKERS = 8
 SAE_CHECKPOINT_EVERY = 10
 SAE_EVAL_EVERY = 5
-
 SAE_OUTPUT_ROOT = PROJECT_ROOT / "outputs" / "sae_models"
 SAE_OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
 
