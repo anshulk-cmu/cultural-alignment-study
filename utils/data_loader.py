@@ -3,16 +3,24 @@ Memory-optimized data loading for activation extraction
 """
 import json
 import torch
+import random
+import numpy as np
 from pathlib import Path
 from typing import List, Dict, Optional
 from torch.utils.data import Dataset, DataLoader
 import gc
 import logging
 
-# Import from config
 from configs.config import MAX_LENGTH, DATASETS
 
 logger = logging.getLogger(__name__)
+
+
+def worker_init_fn(worker_id):
+    """Initialize each dataloader worker with unique but reproducible seed"""
+    worker_seed = torch.initial_seed() % 2**32
+    np.random.seed(worker_seed)
+    random.seed(worker_seed)
 
 
 class StreamingTextDataset(Dataset):
@@ -94,25 +102,32 @@ def collate_fn_optimized(batch):
 def load_all_datasets(
     tokenizer, 
     batch_size: int = 32, 
-    num_workers: int = 4
+    num_workers: int = 4,
+    seed: int = 42
 ) -> Dict[str, DataLoader]:
     """
-    Load all datasets with optimized settings
+    Load all datasets with reproducibility
     
     Args:
         tokenizer: HuggingFace tokenizer
         batch_size: Batch size per dataset
         num_workers: Number of data loading workers
+        seed: Random seed for reproducibility
     
     Returns:
         Dict mapping dataset_name -> DataLoader
     """
+    # Set generator for DataLoader reproducibility
+    g = torch.Generator()
+    g.manual_seed(seed)
+    
     dataloaders = {}
     total_samples = 0
     
     logger.info("="*80)
     logger.info("LOADING ALL DATASETS")
     logger.info("="*80)
+    logger.info(f"Random seed: {seed}")
     
     for dataset_name, config in DATASETS.items():
         logger.info(f"\nLoading {dataset_name}...")
@@ -131,7 +146,9 @@ def load_all_datasets(
                 num_workers=num_workers,
                 collate_fn=collate_fn_optimized,
                 pin_memory=True,
-                persistent_workers=True if num_workers > 0 else False
+                persistent_workers=True if num_workers > 0 else False,
+                generator=g,
+                worker_init_fn=worker_init_fn
             )
             
             dataloaders[dataset_name] = dataloader
