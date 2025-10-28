@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=phase1_extract
 #SBATCH --partition=general
-#SBATCH --gres=gpu:a6000:1
+#SBATCH --gres=gpu:A6000:1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=32G
 #SBATCH --time=8:00:00
