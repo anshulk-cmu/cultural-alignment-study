@@ -156,9 +156,10 @@ def main():
     print(f"   Train samples: {len(train_data)}")
     print(f"   Test samples: {len(test_data)}")
     
-    # Create directories
-    train_dir = DATA_ROOT / "train"
-    test_dir = DATA_ROOT / "test"
+    # Create data directory and subdirectories
+    data_dir = DATA_ROOT / "data"
+    train_dir = data_dir / "train"
+    test_dir = data_dir / "test"
     train_dir.mkdir(parents=True, exist_ok=True)
     test_dir.mkdir(parents=True, exist_ok=True)
     
@@ -195,4 +196,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-  
