@@ -3,14 +3,17 @@ from pathlib import Path
 import torch
 import logging
 
+# Root directories
 PROJECT_ROOT = Path("/home/anshulk/cultural-alignment-study")
 DATA_ROOT = Path("/data/user_data/anshulk/cultural-alignment-study")
 MODEL_CACHE = Path("/data/models/huggingface")
-ACTIVATION_ROOT = DATA_ROOT / "activations"
 
+# Create directories
+ACTIVATION_ROOT = DATA_ROOT / "activations"
 MODEL_CACHE.mkdir(parents=True, exist_ok=True)
 ACTIVATION_ROOT.mkdir(parents=True, exist_ok=True)
 
+# Model paths
 MODEL_NAME_BASE = "/data/models/huggingface/qwen/Qwen1.5-1.8B"
 MODEL_NAME_CHAT = "/data/models/huggingface/qwen/Qwen1.5-1.8B-Chat"
 
@@ -19,15 +22,20 @@ MODELS = {
     "chat": MODEL_NAME_CHAT
 }
 
+# Target layers for activation extraction
 TARGET_LAYERS = [6, 12, 18]
 
+# Device configuration
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 NUM_GPUS = torch.cuda.device_count() if torch.cuda.is_available() else 0
+
+# Phase 1: Activation extraction settings
 BATCH_SIZE_PER_GPU = 64
 USE_FP16 = True
 EMPTY_CACHE_EVERY_N = 10
 SAVE_EVERY_N_BATCHES = 50
 
+# Dataset paths and sizes
 DATASETS = {
     "train": {
         "path": DATA_ROOT / "data" / "train" / "combined_data.json",
@@ -39,30 +47,43 @@ DATASETS = {
     }
 }
 
+# Data loading settings
 BATCH_SIZE = 64
 MAX_LENGTH = 512
 NUM_WORKERS = 4
 
+# SAE architecture
 SAE_HIDDEN_DIM = 2048
 SAE_DICT_SIZE = 8192
 SAE_SPARSITY_K = 256
 SAE_AUX_K = 512
 SAE_AUX_COEF = 0.03
+
+# SAE dead neuron handling
 SAE_DEAD_NEURON_MONITOR_STEPS = 1000
 SAE_DEAD_NEURON_CHECK_EVERY = 3000
 SAE_DEAD_NEURON_THRESHOLD = 0.001
+
+# SAE training hyperparameters
 SAE_BATCH_SIZE = 256
 SAE_LEARNING_RATE = 1e-4
 SAE_NUM_EPOCHS = 100
 SAE_WARMUP_STEPS = 1000
 SAE_WEIGHT_DECAY = 0.01
+
+# SAE GPU configuration
 SAE_GPUS = [0, 1, 2]
 SAE_NUM_WORKERS = 8
+
+# SAE checkpointing
 SAE_CHECKPOINT_EVERY = 10
 SAE_EVAL_EVERY = 5
-SAE_OUTPUT_ROOT = PROJECT_ROOT / "outputs" / "sae_models"
+
+# SAE output directory (compute storage)
+SAE_OUTPUT_ROOT = DATA_ROOT / "sae_models"
 SAE_OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
 
+# Validation thresholds
 VALIDATION_THRESHOLDS = {
     "reconstruction_loss": 0.05,
     "l0_sparsity_ratio": 10,
@@ -73,20 +94,24 @@ VALIDATION_THRESHOLDS = {
     "cross_validation_stability": 0.80
 }
 
+# Environment variables
 os.environ['HF_HOME'] = str(MODEL_CACHE)
 os.environ['TRANSFORMERS_CACHE'] = str(MODEL_CACHE / "transformers")
 os.environ['TOKENIZERS_PARALLELISM'] = 'false'
 
+# Logging configuration
 LOG_DIR = PROJECT_ROOT / "outputs" / "logs"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 def setup_logger(name: str, log_file: str = None, level=logging.INFO):
+    """Setup logger with console and file handlers"""
     logger = logging.getLogger(name)
     logger.setLevel(level)
     
     if logger.handlers:
         return logger
     
+    # Console handler
     console_handler = logging.StreamHandler()
     console_handler.setLevel(logging.INFO)
     console_formatter = logging.Formatter(
@@ -96,6 +121,7 @@ def setup_logger(name: str, log_file: str = None, level=logging.INFO):
     console_handler.setFormatter(console_formatter)
     logger.addHandler(console_handler)
     
+    # File handler
     if log_file:
         file_handler = logging.FileHandler(LOG_DIR / log_file)
         file_handler.setLevel(logging.DEBUG)
