@@ -9,7 +9,8 @@ from datetime import datetime
 import logging
 
 from configs.config import (
-    SAE_OUTPUT_ROOT,
+    DATA_ROOT,
+    PROJECT_ROOT,
     TARGET_LAYERS,
     VALIDATION_THRESHOLDS,
     setup_logger
@@ -18,14 +19,16 @@ from configs.config import (
 logger = setup_logger('phase2_analysis', 'phase2_analysis.log')
 
 
-def find_latest_run(output_root: Path) -> Path:
-    run_dirs = sorted(output_root.glob("triple_sae_*"))
+def find_latest_run(sae_storage_root: Path) -> Path:
+    """Find latest run in compute storage"""
+    run_dirs = sorted(sae_storage_root.glob("triple_sae_*"))
     if not run_dirs:
-        raise ValueError(f"No training runs found in {output_root}")
+        raise ValueError(f"No training runs found in {sae_storage_root}")
     return run_dirs[-1]
 
 
 def load_best_model(save_dir: Path):
+    """Load best model checkpoint"""
     best_model_path = save_dir / "best_model.pt"
     if not best_model_path.exists():
         return None
@@ -34,8 +37,11 @@ def load_best_model(save_dir: Path):
     return checkpoint
 
 
-def analyze_training_run(run_dir: Path):
+def analyze_training_run(run_dir: Path, output_dir: Path):
+    """Analyze training run and save results to output directory"""
     logger.info(f"Analyzing run: {run_dir.name}")
+    logger.info(f"Reading models from: {run_dir}")
+    logger.info(f"Writing results to: {output_dir}")
     
     results = []
     
@@ -96,12 +102,13 @@ def analyze_training_run(run_dir: Path):
     
     df = pd.DataFrame(results)
     
-    summary_path = run_dir / "PHASE2_SUMMARY.txt"
+    summary_path = output_dir / "PHASE2_SUMMARY.txt"
     with open(summary_path, 'w') as f:
         f.write("="*80 + "\n")
-        f.write("PHASE 2: TRIPLE SAE TRAINING WITH AUXILIARY LOSS - RESULTS\n")
+        f.write("PHASE 2: TRIPLE SAE TRAINING - RESULTS\n")
         f.write("="*80 + "\n\n")
         f.write(f"Training Run: {run_dir.name}\n")
+        f.write(f"Model Storage: {run_dir}\n")
         f.write(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
         
         f.write("="*80 + "\n")
@@ -154,7 +161,7 @@ def analyze_training_run(run_dir: Path):
     
     logger.info(f"\nSummary saved to: {summary_path}")
     
-    csv_path = run_dir / "results.csv"
+    csv_path = output_dir / "results.csv"
     df.to_csv(csv_path, index=False)
     logger.info(f"CSV saved to: {csv_path}")
     
@@ -167,10 +174,18 @@ def main():
     logger.info("="*80)
     
     try:
-        run_dir = find_latest_run(SAE_OUTPUT_ROOT)
-        logger.info(f"\nAnalyzing run: {run_dir}")
+        sae_storage_root = DATA_ROOT / "sae_models"
+        output_root = PROJECT_ROOT / "outputs" / "sae_models"
+        output_root.mkdir(parents=True, exist_ok=True)
         
-        df = analyze_training_run(run_dir)
+        run_dir = find_latest_run(sae_storage_root)
+        logger.info(f"\nReading models from: {run_dir}")
+        
+        output_dir = output_root / run_dir.name
+        output_dir.mkdir(parents=True, exist_ok=True)
+        logger.info(f"Writing results to: {output_dir}")
+        
+        df = analyze_training_run(run_dir, output_dir)
         
         logger.info("\n" + "="*80)
         logger.info("ANALYSIS COMPLETE")
@@ -179,6 +194,7 @@ def main():
         logger.info(f"  Total SAEs: {len(df)}")
         logger.info(f"  Passing: {df['passes_validation'].sum()}")
         logger.info(f"  Success Rate: {100*df['passes_validation'].mean():.1f}%")
+        logger.info(f"\nResults saved to: {output_dir}")
         
     except Exception as e:
         logger.error(f"Error during analysis: {e}", exc_info=True)
