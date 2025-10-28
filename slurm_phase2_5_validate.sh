@@ -12,10 +12,11 @@
 #SBATCH --requeue
 
 # ============================================================================
-# PHASE 2.5: QWEN3 FEATURE VALIDATION
+# PHASE 2.5: QWEN3 FEATURE VALIDATION (REPRODUCIBLE)
 # Validating feature labels using Qwen3-30B-A3B-Instruct-2507
-# Expected duration: 3-5 hours
+# Expected duration: approx. 16-18 hours
 # Resources: 2x L40S 48GB GPUs, 32 CPUs, All available memory
+# Generation: GREEDY DECODING (deterministic), SEED=42
 # ============================================================================
 
 set -e  # Exit on error
@@ -80,12 +81,14 @@ export TRANSFORMERS_CACHE=/data/hf_cache/transformers
 export CUDA_LAUNCH_BLOCKING=0
 export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
 export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
+export PYTHONHASHSEED=42
 
 echo "Environment Variables:"
 echo "  HF_HOME: $HF_HOME"
 echo "  HF_DATASETS_CACHE: $HF_DATASETS_CACHE"
 echo "  CUDA_LAUNCH_BLOCKING: $CUDA_LAUNCH_BLOCKING"
 echo "  OMP_NUM_THREADS: $OMP_NUM_THREADS"
+echo "  PYTHONHASHSEED: 42 (reproducibility)"
 echo ""
 
 # Navigate to project directory
@@ -114,7 +117,10 @@ from configs.config import SAE_OUTPUT_ROOT
 from pathlib import Path
 import json
 
+# Check labels file on compute node storage
 labels_file = SAE_OUTPUT_ROOT / 'labels_qwen_initial.json'
+print(f'Looking for: {labels_file}')
+
 if not labels_file.exists():
     print(f'ERROR: Initial labels not found: {labels_file}')
     sys.exit(1)
@@ -123,12 +129,19 @@ with open(labels_file, 'r') as f:
     labels = json.load(f)
 print(f'✓ Initial labels found: {len(labels)} features')
 
+# Check examples directory on compute node storage
 examples_dir = SAE_OUTPUT_ROOT / 'feature_examples'
+print(f'Looking for examples in: {examples_dir}')
+
 if not examples_dir.exists():
     print(f'ERROR: Examples directory not found: {examples_dir}')
     sys.exit(1)
 
 example_files = list(examples_dir.glob('*_examples.json'))
+if len(example_files) < 9:
+    print(f'ERROR: Expected 9 example files, found {len(example_files)}')
+    sys.exit(1)
+
 print(f'✓ Examples directory found: {len(example_files)} files')
 "
 
@@ -150,11 +163,10 @@ from configs.config import SAE_OUTPUT_ROOT
 from pathlib import Path
 import json
 
-output_dir = SAE_OUTPUT_ROOT
 checkpoints_found = False
 
 for gpu_id in [0, 1]:
-    checkpoint_file = output_dir / f'labels_qwen3_validated_gpu{gpu_id}_checkpoint.json'
+    checkpoint_file = SAE_OUTPUT_ROOT / f'labels_qwen3_validated_gpu{gpu_id}_checkpoint.json'
     if checkpoint_file.exists():
         with open(checkpoint_file, 'r') as f:
             data = json.load(f)
@@ -174,12 +186,15 @@ echo "=================================="
 echo "Configuration:"
 echo "  Model: Qwen3-30B-A3B-Instruct-2507 (8-bit quantized)"
 echo "  GPUs: 2x L40S 48GB (parallel workers)"
-echo "  Input: labels_qwen_initial.json"
-echo "  Output: labels_qwen3_validated.json"
+echo "  Input: SAE_OUTPUT_ROOT/labels_qwen_initial.json"
+echo "  Output: SAE_OUTPUT_ROOT/labels_qwen3_validated.json"
+echo "  Storage: /data/user_data/anshulk/.../sae_models/ (compute node)"
+echo "  Generation: GREEDY DECODING (deterministic)"
+echo "  Seed: 42 (reproducibility)"
 echo "  Checkpoint saves: Every 100 features"
 echo "  Memory cleanup: Every 50 features"
 echo "  Resume supported: Rerun if interrupted"
-echo "  Estimated time: 3-5 hours"
+echo "  Estimated time: 16-18 hours"
 echo ""
 
 # Record start time
@@ -241,6 +256,7 @@ if output_file.exists():
     print(f'  {output_file}')
     print(f'')
     print(f'Summary:')
+    print(f'  Seed: 42 (reproducible)')
     print(f'  Total features validated: {len(results):,}')
     print(f'  KEEP:       {stats[\"KEEP\"]:>6,} ({stats[\"KEEP\"]/len(results)*100:>5.1f}%)')
     print(f'  REVISE:     {stats[\"REVISE\"]:>6,} ({stats[\"REVISE\"]/len(results)*100:>5.1f}%)')
@@ -338,13 +354,12 @@ if [ $EXIT_STATUS -eq 0 ]; then
     echo "Next Steps"
     echo "=================================="
     echo "1. Review validation results:"
-    echo "   less /home/anshulk/cultural-alignment-study/outputs/sae_models/labels_qwen3_validated.json"
+    echo "   python -c 'import sys; sys.path.append(\"/home/anshulk/cultural-alignment-study\"); from configs.config import SAE_OUTPUT_ROOT; import json; f=open(SAE_OUTPUT_ROOT/\"labels_qwen3_validated.json\"); data=json.load(f); print(f\"Total: {len(data)}\"); print(f\"Sample: {data[0]}\")'"
     echo ""
     echo "2. Analyze validated features:"
     echo "   python scripts/analyze_validated_features.py"
     echo ""
-    echo "3. Export final feature labels:"
-    echo "   python scripts/export_final_labels.py"
+    echo "3. Continue with Phase 3 (Cultural Feature Prioritization)"
     echo ""
 fi
 
