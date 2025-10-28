@@ -216,14 +216,13 @@ class ActivationSaver:
     def add_batch(
         self, 
         activations: Dict[int, torch.Tensor],
-        texts: List[str],  # Not stored, only for logging
+        texts: List[str],
         languages: List[str],
         categories: List[str],
         indices: List[int]
     ):
         """
         Add a batch of activations to buffer
-        Optimized: stores only metadata, not full texts
         
         Args:
             activations: Dict mapping layer -> tensor [batch_size, hidden_dim]
