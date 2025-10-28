@@ -37,6 +37,7 @@ logger = setup_logger(
 
 
 def find_latest_run(activation_root: Path) -> Path:
+    """Find the most recent Phase 1 run directory"""
     run_dirs = sorted(activation_root.glob("run_*"))
     if not run_dirs:
         raise ValueError(f"No run directories found in {activation_root}")
@@ -49,6 +50,7 @@ def train_sae_for_model(
     run_dir: Path,
     save_dir: Path
 ):
+    """Train a single SAE for given model type and layer"""
     
     logger.info(f"\n{'='*80}")
     logger.info(f"Training {model_type.upper()} SAE - Layer {layer_idx}")
@@ -56,14 +58,14 @@ def train_sae_for_model(
     
     logger.info("\nLoading activation datasets...")
     
-    # CORRECTED: Separate training and validation datasets
-    train_dataset_names = ['updesh_beta']  # Cultural content only (30K samples)
-    val_dataset_names = ['snli_control', 'hindi_control']  # Control content only (10K samples)
+    # Use Phase 1 train/test split from consolidated data
+    train_dataset_names = ['train']  # 40K samples
+    val_dataset_names = ['test']     # 10K samples
     
     logger.info(f"  Training datasets: {train_dataset_names}")
     logger.info(f"  Validation datasets: {val_dataset_names}")
     
-    # Load training data (cultural content)
+    # Load training data
     train_loaders = create_activation_dataloaders(
         run_dir=run_dir,
         dataset_names=train_dataset_names,
@@ -74,7 +76,7 @@ def train_sae_for_model(
         shuffle=True
     )
     
-    # Load validation data (control content)
+    # Load validation data
     val_loaders = create_activation_dataloaders(
         run_dir=run_dir,
         dataset_names=val_dataset_names,
@@ -142,10 +144,11 @@ def train_sae_for_model(
 
 
 def main():
+    """Train all 9 SAEs (3 model types × 3 layers)"""
     
     try:
         logger.info("="*80)
-        logger.info("PHASE 2: TRIPLE SAE TRAINING WITH PROPER TRAIN/VAL SPLIT")
+        logger.info("PHASE 2: TRIPLE SAE TRAINING")
         logger.info("="*80)
         
         logger.info(f"\nSystem Information:")
@@ -166,16 +169,15 @@ def main():
         logger.info(f"  Epochs: {SAE_NUM_EPOCHS}")
         logger.info(f"  Dead neuron check: every {SAE_DEAD_NEURON_CHECK_EVERY} steps")
         
-        logger.info(f"\nData Split Strategy:")
-        logger.info(f"  Training: Updesh_beta (30K cultural samples)")
-        logger.info(f"  Validation: SNLI + IITB (10K control samples)")
-        logger.info(f"  Purpose: Test generalization to non-cultural content")
+        logger.info(f"\nData Split:")
+        logger.info(f"  Training: 40K samples from Phase 1 train set")
+        logger.info(f"  Validation: 10K samples from Phase 1 test set")
         
         run_dir = find_latest_run(ACTIVATION_ROOT)
         logger.info(f"\nUsing activation data from: {run_dir}")
         
         output_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_dir = SAE_OUTPUT_ROOT / f"triple_sae_k{SAE_SPARSITY_K}_dict{SAE_DICT_SIZE}_corrected_{output_timestamp}"
+        output_dir = SAE_OUTPUT_ROOT / f"triple_sae_k{SAE_SPARSITY_K}_dict{SAE_DICT_SIZE}_{output_timestamp}"
         output_dir.mkdir(parents=True, exist_ok=True)
         logger.info(f"Output directory: {output_dir}")
         
