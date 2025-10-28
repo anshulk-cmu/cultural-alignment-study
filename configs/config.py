@@ -4,7 +4,7 @@ import torch
 import logging
 
 PROJECT_ROOT = Path("/home/anshulk/cultural-alignment-study")
-DATA_ROOT = Path("/data/user_data/anshulk/cultural-alignment-study/data")
+DATA_ROOT = Path("/data/user_data/anshulk/cultural-alignment-study")
 MODEL_CACHE = Path("/data/models/huggingface")
 ACTIVATION_ROOT = DATA_ROOT / "activations"
 
