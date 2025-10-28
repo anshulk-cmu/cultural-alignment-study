@@ -3,6 +3,11 @@ Download and combine datasets: Updesh (38k), SNLI control (6k), Hindi control (6
 Creates 80/20 train/test split maintaining dataset ratios
 """
 
+import os
+os.environ['HF_HOME'] = '/data/user_data/anshulk/huggingface_cache'
+os.environ['HF_DATASETS_CACHE'] = '/data/user_data/anshulk/huggingface_cache/datasets'
+os.environ['TRANSFORMERS_CACHE'] = '/data/user_data/anshulk/huggingface_cache/transformers'
+
 import sys
 sys.path.append('/home/anshulk/cultural-alignment-study')
 
