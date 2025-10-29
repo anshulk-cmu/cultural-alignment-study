@@ -97,6 +97,7 @@ def load_and_parse_labels(validated_file):
         labels_by_type[sae_type].append({
             'feature_id': feat.get('feature_id'),
             'sae_name': feat.get('sae_name'),
+            'sae_type': sae_type,  # ✅ FIX: Added this line
             'label': cleaned_label,
             'validation_action': validation_action,
             'max_activation': feat.get('max_activation', 0),
