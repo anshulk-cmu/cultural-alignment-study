@@ -2,7 +2,7 @@
 """
 Phase 2.5: Parallel Qwen3 Validation with 4x 48GB-class GPUs (e.g., L40S)
 Using Qwen3-30B-A3B-Instruct-2507 model
-WITH CHECKPOINT SUPPORT and TQDM PROGRESS BARS
+WITH CHECKPOINT SUPPORT, TQDM PROGRESS BARS, AND OPTIMIZED MEMORY MANAGEMENT
 """
 import sys
 project_root = '/home/anshulk/cultural-alignment-study'
@@ -27,7 +27,7 @@ SEED = 42
 
 
 def create_worker_script():
-    """Create the worker script with tqdm progress bars."""
+    """Create the worker script with optimized memory management."""
     worker_code = '''#!/usr/bin/env python3
 import sys
 import os
@@ -62,10 +62,11 @@ def set_seed(seed):
 
 
 def clear_gpu_memory():
-    """Clear GPU memory."""
+    """Aggressively clear GPU memory."""
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
         torch.cuda.synchronize()
+        torch.cuda.ipc_collect()
     gc.collect()
 
 
@@ -79,13 +80,17 @@ def get_gpu_memory_usage():
 
 
 def load_qwen3_30b():
-    """Load Qwen3-30B with 8-bit quantization."""
+    """Load Qwen3-30B with optimized 8-bit quantization."""
     model_path = "/data/user_data/anshulk/data/models/Qwen3-30B-A3B-Instruct-2507"
     
     assigned_gpu = os.environ.get('CUDA_VISIBLE_DEVICES', 'unknown')
     print(f"Worker GPU {assigned_gpu}: Loading model...")
     
+    # Clear all GPU memory before loading
     clear_gpu_memory()
+    
+    # Set PyTorch memory allocator configs for better memory management
+    os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'max_split_size_mb:128,expandable_segments:True'
     
     tokenizer = AutoTokenizer.from_pretrained(
         model_path,
@@ -95,24 +100,38 @@ def load_qwen3_30b():
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     
+    # Optimized 8-bit quantization config
     quantization_config = BitsAndBytesConfig(
         load_in_8bit=True,
-        llm_int8_threshold=6.0
+        llm_int8_threshold=6.0,
+        llm_int8_has_fp16_weight=False,  # Reduce memory overhead
+        bnb_4bit_use_double_quant=False
     )
     
+    # Load with auto device_map for better memory management
     model = AutoModelForCausalLM.from_pretrained(
         model_path,
         quantization_config=quantization_config,
-        device_map={"": 0},
+        device_map="auto",  # Auto memory management instead of manual assignment
         trust_remote_code=True,
         torch_dtype=torch.bfloat16,
         low_cpu_mem_usage=True,
-        local_files_only=True
+        local_files_only=True,
+        max_memory={0: "46GB"}  # Reserve 46GB of 48GB, leave 2GB buffer
     )
     model.eval()
     
+    # Enable memory-efficient attention if available
+    if hasattr(model, 'config'):
+        if hasattr(model.config, 'use_cache'):
+            model.config.use_cache = True
+    
     alloc, reserved = get_gpu_memory_usage()
     print(f"Model loaded: {alloc:.2f}GB / {reserved:.2f}GB")
+    
+    # Clear any residual memory after loading
+    clear_gpu_memory()
+    
     return tokenizer, model
 
 
@@ -154,14 +173,14 @@ Your response:"""
 
 
 def generate_validation(tokenizer, model, prompt, max_new_tokens=70):
-    """Generate validation with GREEDY DECODING."""
+    """Generate validation with GREEDY DECODING and optimized memory usage."""
     messages = [
         {"role": "system", "content": "You are a rigorous linguistic analyst validating feature labels for interpretability research. Strictly follow the output format."},
         {"role": "user", "content": prompt}
     ]
     
     text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-    inputs = tokenizer([text], return_tensors="pt").to(model.device)
+    inputs = tokenizer([text], return_tensors="pt", padding=False, truncation=True, max_length=4096).to(model.device)
     
     with torch.no_grad():
         outputs = model.generate(
@@ -170,14 +189,18 @@ def generate_validation(tokenizer, model, prompt, max_new_tokens=70):
             do_sample=False,
             num_beams=1,
             pad_token_id=tokenizer.pad_token_id,
-            eos_token_id=tokenizer.eos_token_id
+            eos_token_id=tokenizer.eos_token_id,
+            use_cache=True,  # Enable KV cache reuse
+            return_dict_in_generate=False  # Reduce memory overhead
         )
     
     response_ids = outputs[0][inputs['input_ids'].shape[-1]:]
     response = tokenizer.decode(response_ids, skip_special_tokens=True)
     
+    # Immediately delete tensors and clear cache after each generation
     del inputs, outputs, response_ids
-    clear_gpu_memory()
+    torch.cuda.empty_cache()
+    gc.collect()
     
     return response.strip()
 
@@ -255,9 +278,8 @@ def main():
     
     tokenizer, model = load_qwen3_30b()
     
-    # TQDM Progress bar - this will show in GPU logs
-    with tqdm(total=len(label_subset), desc=f"GPU {gpu_id}", position=gpu_id, leave=True) as pbar:
-        pbar.update(len(validated))  # Update to current checkpoint
+    # TQDM Progress bar
+    with tqdm(total=len(label_subset), desc=f"GPU {gpu_id}", initial=len(validated), position=gpu_id, leave=True) as pbar:
         
         for label_data in label_subset:
             feature_id = label_data.get('feature_id', 'unknown')
@@ -313,10 +335,14 @@ def main():
                 validated.append(label_data)
                 processed_features.add(feature_id)
                 
-                # Periodic cleanup and checkpoint
-                if len(validated) % 50 == 0:
+                # More aggressive memory cleanup - every 25 features instead of 50
+                if len(validated) % 25 == 0:
                     clear_gpu_memory()
-                if len(validated) % 100 == 0:
+                    alloc, reserved = get_gpu_memory_usage()
+                    logger.info(f"GPU {gpu_id} memory after {len(validated)} features: {alloc:.2f}GB / {reserved:.2f}GB")
+                
+                # Save checkpoint more frequently - every 50 features instead of 100
+                if len(validated) % 50 == 0:
                     save_checkpoint(validated, output_file, gpu_id)
                 
             except Exception as e:
@@ -328,6 +354,7 @@ def main():
                 label_data['seed'] = SEED
                 validated.append(label_data)
                 processed_features.add(feature_id)
+                clear_gpu_memory()  # Clear memory after error
             
             pbar.update(1)
     
@@ -357,9 +384,10 @@ def main():
     logger = setup_logger('qwen3_validate_parallel', 'phase2_5_validate_parallel.log')
     
     logger.info("=" * 80)
-    logger.info("PARALLEL QWEN3-30B LABEL VALIDATION (4 GPUs)")
+    logger.info("PARALLEL QWEN3-30B LABEL VALIDATION (4 GPUs) - OPTIMIZED")
     logger.info(f"GPUs: {REQUESTED_GPUS} x L40S 48GB")
     logger.info(f"SEED: {SEED} (GREEDY DECODING)")
+    logger.info(f"Memory Management: Optimized for 8-bit quantization")
     logger.info("=" * 80)
     
     # Load labels
@@ -377,7 +405,7 @@ def main():
                     examples_map[str(feat['feature_id'])] = feat['examples']
     logger.info(f"Loaded examples for {len(examples_map)} features")
     
-    # Get GPUs from SLURM
+    # Get GPUs from SLURM (user confirmed always 0,1,2,3)
     assigned_gpu_ids_str = os.environ.get('CUDA_VISIBLE_DEVICES')
     if assigned_gpu_ids_str:
         assigned_gpu_ids = [int(gid.strip()) for gid in assigned_gpu_ids_str.split(',')]
@@ -402,7 +430,7 @@ def main():
         start_idx = end_idx
     
     # Write worker script
-    worker_script_path = Path("/tmp/qwen3_validate_worker_4gpu.py")
+    worker_script_path = Path("/tmp/qwen3_validate_worker_4gpu_optimized.py")
     with open(worker_script_path, 'w') as f:
         f.write(create_worker_script())
     
@@ -412,7 +440,7 @@ def main():
         json.dump(examples_map, f, ensure_ascii=False)
     
     logger.info("\n" + "=" * 80)
-    logger.info("STARTING 4 GPU WORKERS")
+    logger.info("STARTING 4 GPU WORKERS (OPTIMIZED)")
     logger.info("=" * 80)
     
     processes = []
@@ -426,6 +454,8 @@ def main():
         env = os.environ.copy()
         env['CUDA_VISIBLE_DEVICES'] = str(gpu_id)
         env['PYTHONHASHSEED'] = str(SEED)
+        # Add memory optimization env vars
+        env['PYTORCH_CUDA_ALLOC_CONF'] = 'max_split_size_mb:128,expandable_segments:True'
         
         cmd = [
             sys.executable,
