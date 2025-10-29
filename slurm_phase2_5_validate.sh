@@ -2,9 +2,9 @@
 #SBATCH --job-name=phase2_5_qwen3_validate
 #SBATCH --partition=general
 #SBATCH --gres=gpu:L40S:4
-#SBATCH --cpus-per-task=32
+#SBATCH --cpus-per-task=48
 #SBATCH --mem=0
-#SBATCH --time=24:00:00
+#SBATCH --time=20:00:00
 #SBATCH --output=/home/anshulk/cultural-alignment-study/outputs/logs/phase2_5_validate_%j.out
 #SBATCH --error=/home/anshulk/cultural-alignment-study/outputs/logs/phase2_5_validate_%j.err
 #SBATCH --mail-type=BEGIN,END,FAIL
@@ -12,10 +12,10 @@
 #SBATCH --requeue
 
 # ============================================================================
-# PHASE 2.5: QWEN3 FEATURE VALIDATION (REPRODUCIBLE)
+# PHASE 2.5: QWEN3 FEATURE VALIDATION (4 GPUs - REPRODUCIBLE)
 # Validating feature labels using Qwen3-30B-A3B-Instruct-2507
-# Expected duration: approx. 16-18 hours
-# Resources: 4x L40S 48GB GPUs, 32 CPUs, All available memory
+# Expected duration: 8-10 hours with 4 GPUs
+# Resources: 4x L40S 48GB GPUs, 48 CPUs, All available memory
 # Generation: GREEDY DECODING (deterministic), SEED=42
 # ============================================================================
 
@@ -153,7 +153,7 @@ if [ $VALIDATION_STATUS -ne 0 ]; then
     exit 1
 fi
 
-# Check for existing checkpoints
+# Check for existing checkpoints (4 GPUs)
 echo ""
 echo "Checking for existing checkpoints..."
 python -c "
@@ -164,19 +164,22 @@ from pathlib import Path
 import json
 
 checkpoints_found = False
+total_checkpointed = 0
 
-for gpu_id in [0, 1]:
+for gpu_id in [0, 1, 2, 3]:
     checkpoint_file = SAE_OUTPUT_ROOT / f'labels_qwen3_validated_gpu{gpu_id}_checkpoint.json'
     if checkpoint_file.exists():
         with open(checkpoint_file, 'r') as f:
             data = json.load(f)
         print(f'  ✓ GPU {gpu_id} checkpoint exists: {len(data)} features already validated')
+        total_checkpointed += len(data)
         checkpoints_found = True
 
-if not checkpoints_found:
-    print('  No existing checkpoints found - starting fresh')
+if checkpoints_found:
+    print(f'  Total checkpointed across all GPUs: {total_checkpointed} features')
+    print('  Will resume from checkpoints and redistribute work across 4 GPUs')
 else:
-    print('  Will resume from checkpoints')
+    print('  No existing checkpoints found - starting fresh')
 "
 
 echo ""
@@ -194,7 +197,7 @@ echo "  Seed: 42 (reproducibility)"
 echo "  Checkpoint saves: Every 100 features"
 echo "  Memory cleanup: Every 50 features"
 echo "  Resume supported: Rerun if interrupted"
-echo "  Estimated time: 10-12 hours"
+echo "  Estimated time: 8-10 hours with 4 GPUs"
 echo ""
 
 # Record start time
@@ -266,7 +269,7 @@ if output_file.exists():
     print(f'  Final Valid (Keep+Revise): {final_valid:>6,} ({final_valid/len(results)*100:>5.1f}%)')
     print(f'')
     print(f'GPU outputs:')
-    for gpu_id in [0, 1]:
+    for gpu_id in [0, 1, 2, 3]:
         gpu_file = SAE_OUTPUT_ROOT / f'labels_qwen3_validated_gpu{gpu_id}.json'
         if gpu_file.exists():
             with open(gpu_file, 'r') as gf:
@@ -295,7 +298,7 @@ import json
 checkpoints_found = False
 total_checkpointed = 0
 
-for gpu_id in [0, 1]:
+for gpu_id in [0, 1, 2, 3]:
     checkpoint_file = SAE_OUTPUT_ROOT / f'labels_qwen3_validated_gpu{gpu_id}_checkpoint.json'
     if checkpoint_file.exists():
         with open(checkpoint_file, 'r') as f:
@@ -312,8 +315,9 @@ if checkpoints_found:
     print('  sbatch slurm_phase2_5_validate.sh')
     print('')
     print('The script will automatically:')
-    print('  - Load existing checkpoints')
+    print('  - Load existing checkpoints from all 4 GPUs')
     print('  - Skip already validated features')
+    print('  - Redistribute remaining work across 4 GPUs')
     print('  - Continue from where it left off')
 else:
     print('  No checkpoint files found')
@@ -325,7 +329,7 @@ else:
     echo "  Full log: /home/anshulk/cultural-alignment-study/outputs/logs/phase2_5_validate_${SLURM_JOB_ID}.log"
     echo ""
     echo "Individual GPU logs:"
-    for i in 0 1; do
+    for i in 0 1 2 3; do
         echo "  GPU $i: /home/anshulk/cultural-alignment-study/outputs/logs/phase2_5_validate_gpu${i}.log"
     done
 fi
@@ -348,6 +352,20 @@ echo ""
 echo "For detailed efficiency report after completion, run:"
 echo "  seff $SLURM_JOB_ID"
 echo ""
+
+if [ $EXIT_STATUS -eq 0 ]; then
+    echo "=================================="
+    echo "Next Steps"
+    echo "=================================="
+    echo "1. Review validation results:"
+    echo "   python -c 'import sys; sys.path.append(\"/home/anshulk/cultural-alignment-study\"); from configs.config import SAE_OUTPUT_ROOT; import json; f=open(SAE_OUTPUT_ROOT/\"labels_qwen3_validated.json\"); data=json.load(f); print(f\"Total: {len(data)}\"); print(f\"Sample: {data[0]}\")'"
+    echo ""
+    echo "2. Analyze validated features:"
+    echo "   python scripts/analyze_validated_features.py"
+    echo ""
+    echo "3. Continue with Phase 3 (Cultural Feature Prioritization)"
+    echo ""
+fi
 
 # Exit with the status from the Python script
 exit $EXIT_STATUS
