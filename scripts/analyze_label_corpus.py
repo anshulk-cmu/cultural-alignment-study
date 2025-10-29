@@ -306,7 +306,7 @@ def extract_topics_ctfidf(labels_data, cluster_labels):
         top_words = [(words[i], ctfidf[idx][i]) for i in top_indices]
         
         topics[cluster_id] = {
-            'cluster_id': cluster_id,
+            'cluster_id': int(cluster_id),
             'size': len(documents_per_cluster[cluster_id]),
             'top_words': top_words,
             'sample_labels': documents_per_cluster[cluster_id][:5]
@@ -362,7 +362,7 @@ def analyze_cluster_distribution(labels_data, cluster_labels):
         enrichment = observed_delta_prop / expected_delta_prop if expected_delta_prop > 0 else 0
         
         enrichment_scores.append({
-            'cluster_id': cluster_id,
+            'cluster_id': int(cluster_id),
             'enrichment': enrichment,
             'delta_count': delta,
             'delta_pct': observed_delta_prop * 100
