@@ -514,7 +514,7 @@ def save_results(tfidf_results, bigrams, trigrams, stats, embeddings,
                 'feature_id': labels_data[i]['feature_id'],
                 'label': labels_data[i]['label'],
                 'sae_type': labels_data[i]['sae_type'],
-                'cluster_id': int(cluster_labels[i])
+                'cluster_id': cluster_labels[i].item()
             }
             for i in range(len(labels_data))
         ]
