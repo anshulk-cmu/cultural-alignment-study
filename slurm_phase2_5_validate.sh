@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=phase2_5_qwen3_validate
 #SBATCH --partition=general
-#SBATCH --gres=gpu:L40S:2
+#SBATCH --gres=gpu:L40S:4
 #SBATCH --cpus-per-task=32
 #SBATCH --mem=0
 #SBATCH --time=24:00:00
@@ -15,7 +15,7 @@
 # PHASE 2.5: QWEN3 FEATURE VALIDATION (REPRODUCIBLE)
 # Validating feature labels using Qwen3-30B-A3B-Instruct-2507
 # Expected duration: approx. 16-18 hours
-# Resources: 2x L40S 48GB GPUs, 32 CPUs, All available memory
+# Resources: 4x L40S 48GB GPUs, 32 CPUs, All available memory
 # Generation: GREEDY DECODING (deterministic), SEED=42
 # ============================================================================
 
@@ -185,7 +185,7 @@ echo "Starting Phase 2.5: Feature Validation"
 echo "=================================="
 echo "Configuration:"
 echo "  Model: Qwen3-30B-A3B-Instruct-2507 (8-bit quantized)"
-echo "  GPUs: 2x L40S 48GB (parallel workers)"
+echo "  GPUs: 4x L40S 48GB (parallel workers)"
 echo "  Input: SAE_OUTPUT_ROOT/labels_qwen_initial.json"
 echo "  Output: SAE_OUTPUT_ROOT/labels_qwen3_validated.json"
 echo "  Storage: /data/user_data/anshulk/.../sae_models/ (compute node)"
@@ -194,7 +194,7 @@ echo "  Seed: 42 (reproducibility)"
 echo "  Checkpoint saves: Every 100 features"
 echo "  Memory cleanup: Every 50 features"
 echo "  Resume supported: Rerun if interrupted"
-echo "  Estimated time: 16-18 hours"
+echo "  Estimated time: 10-12 hours"
 echo ""
 
 # Record start time
@@ -348,20 +348,6 @@ echo ""
 echo "For detailed efficiency report after completion, run:"
 echo "  seff $SLURM_JOB_ID"
 echo ""
-
-if [ $EXIT_STATUS -eq 0 ]; then
-    echo "=================================="
-    echo "Next Steps"
-    echo "=================================="
-    echo "1. Review validation results:"
-    echo "   python -c 'import sys; sys.path.append(\"/home/anshulk/cultural-alignment-study\"); from configs.config import SAE_OUTPUT_ROOT; import json; f=open(SAE_OUTPUT_ROOT/\"labels_qwen3_validated.json\"); data=json.load(f); print(f\"Total: {len(data)}\"); print(f\"Sample: {data[0]}\")'"
-    echo ""
-    echo "2. Analyze validated features:"
-    echo "   python scripts/analyze_validated_features.py"
-    echo ""
-    echo "3. Continue with Phase 3 (Cultural Feature Prioritization)"
-    echo ""
-fi
 
 # Exit with the status from the Python script
 exit $EXIT_STATUS
