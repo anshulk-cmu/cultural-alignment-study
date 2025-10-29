@@ -4,7 +4,7 @@
 #SBATCH --gres=gpu:L40S:4
 #SBATCH --cpus-per-task=48
 #SBATCH --mem=0
-#SBATCH --time=20:00:00
+#SBATCH --time=24:00:00
 #SBATCH --output=/home/anshulk/cultural-alignment-study/outputs/logs/phase2_5_validate_%j.out
 #SBATCH --error=/home/anshulk/cultural-alignment-study/outputs/logs/phase2_5_validate_%j.err
 #SBATCH --mail-type=BEGIN,END,FAIL
@@ -12,9 +12,9 @@
 #SBATCH --requeue
 
 # ============================================================================
-# PHASE 2.5: QWEN3 FEATURE VALIDATION (4 GPUs - REPRODUCIBLE)
+# PHASE 2.5: QWEN3 FEATURE VALIDATION (4 GPUs)
 # Validating feature labels using Qwen3-30B-A3B-Instruct-2507
-# Expected duration: 8-10 hours with 4 GPUs
+# Expected duration: 8-12 hours with 4 GPUs
 # Resources: 4x L40S 48GB GPUs, 48 CPUs, All available memory
 # Generation: GREEDY DECODING (deterministic), SEED=42
 # ============================================================================
@@ -79,7 +79,7 @@ export HF_HOME=/data/hf_cache
 export HF_DATASETS_CACHE=/data/hf_cache/datasets
 export TRANSFORMERS_CACHE=/data/hf_cache/transformers
 export CUDA_LAUNCH_BLOCKING=0
-export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
+export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:128,expandable_segments:True
 export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 export PYTHONHASHSEED=42
 
@@ -87,6 +87,7 @@ echo "Environment Variables:"
 echo "  HF_HOME: $HF_HOME"
 echo "  HF_DATASETS_CACHE: $HF_DATASETS_CACHE"
 echo "  CUDA_LAUNCH_BLOCKING: $CUDA_LAUNCH_BLOCKING"
+echo "  PYTORCH_CUDA_ALLOC_CONF: $PYTORCH_CUDA_ALLOC_CONF"
 echo "  OMP_NUM_THREADS: $OMP_NUM_THREADS"
 echo "  PYTHONHASHSEED: 42 (reproducibility)"
 echo ""
@@ -194,10 +195,11 @@ echo "  Output: SAE_OUTPUT_ROOT/labels_qwen3_validated.json"
 echo "  Storage: /data/user_data/anshulk/.../sae_models/ (compute node)"
 echo "  Generation: GREEDY DECODING (deterministic)"
 echo "  Seed: 42 (reproducibility)"
-echo "  Checkpoint saves: Every 100 features"
-echo "  Memory cleanup: Every 50 features"
+echo "  Memory management: device_map=auto with 46GB/GPU limit"
+echo "  Checkpoint saves: Every 50 features"
+echo "  Memory cleanup: Every 25 features"
 echo "  Resume supported: Rerun if interrupted"
-echo "  Estimated time: 8-10 hours with 4 GPUs"
+echo "  Estimated time: 8-12 hours with 4 GPUs"
 echo ""
 
 # Record start time
