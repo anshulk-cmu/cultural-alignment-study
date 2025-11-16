@@ -1,0 +1,92 @@
+================================================================================
+CULTURAL ALIGNMENT EDA - EXECUTIVE SUMMARY
+================================================================================
+
+Generated: 2025-11-15 20:18:03
+
+Dataset: 33,522 sentences
+Models: Qwen2-1.5B Base & Instruct
+Layers analyzed: [6, 12, 18]
+
+--------------------------------------------------------------------------------
+1. DATA DISTRIBUTION
+--------------------------------------------------------------------------------
+
+Group counts:
+  enhancement    : 11,970 (35.71%)
+  suppression    : 11,934 (35.60%)
+  control        :  9,618 (28.69%)
+
+Unique states: 36
+Unique attributes: 16
+
+--------------------------------------------------------------------------------
+2. TEXT QUALITY
+--------------------------------------------------------------------------------
+
+Sentence length (words):
+  Mean: 46.1
+  Median: 46.0
+  Std: 2.5
+
+Near-duplicates:
+  Sentences with duplicates: 0 (0.00%)
+
+--------------------------------------------------------------------------------
+3. MODEL CORRECTNESS
+--------------------------------------------------------------------------------
+
+Accuracy by group:
+  control        : Base=0.804, Instruct=0.804, Delta=+0.000
+  enhancement    : Base=0.415, Instruct=0.768, Delta=+0.353
+  suppression    : Base=0.799, Instruct=0.375, Delta=-0.425
+
+--------------------------------------------------------------------------------
+4. SEMANTIC CLUSTERING
+--------------------------------------------------------------------------------
+
+HDBSCAN results:
+  Clusters found: 283
+  Noise points: 6176 (18.4%)
+
+Baseline probing (on embeddings):
+  Group type accuracy: 0.399 ± 0.025
+  Attribute accuracy: 0.775 ± 0.016
+
+--------------------------------------------------------------------------------
+5. ACTIVATION GEOMETRY
+--------------------------------------------------------------------------------
+
+Base-Instruct similarity (cosine):
+  Layer 6: 0.9997
+    suppression    : 0.9997 ± 0.0001
+    enhancement    : 0.9997 ± 0.0001
+    control        : 0.9997 ± 0.0001
+  Layer 12: 0.9996
+    suppression    : 0.9996 ± 0.0001
+    enhancement    : 0.9996 ± 0.0001
+    control        : 0.9996 ± 0.0001
+  Layer 18: 0.9991
+    suppression    : 0.9991 ± 0.0002
+    enhancement    : 0.9991 ± 0.0002
+    control        : 0.9991 ± 0.0002
+
+--------------------------------------------------------------------------------
+6. KEY FINDINGS
+--------------------------------------------------------------------------------
+
+• Suppression effect: -0.425 (0.799 → 0.375)
+• Enhancement effect: +0.353 (0.415 → 0.768)
+
+--------------------------------------------------------------------------------
+7. OUTPUT FILES
+--------------------------------------------------------------------------------
+
+Plots: /home/anshulk/cultural-alignment-study/outputs/EDA_results/plots
+Reports: /home/anshulk/cultural-alignment-study/outputs/EDA_results/reports
+Tables: /home/anshulk/cultural-alignment-study/outputs/EDA_results/tables
+Heavy data: /data/user_data/anshulk/cultural-alignment-study/sanskriti_data/EDA_data
+
+================================================================================
+END OF REPORT
+================================================================================

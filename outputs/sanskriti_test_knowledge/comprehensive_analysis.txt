@@ -1,0 +1,238 @@
+====================================================================================================
+COMPREHENSIVE CULTURAL KNOWLEDGE ANALYSIS
+SANSKRITI BENCHMARK: Complete 21,853 Question Evaluation
+====================================================================================================
+
+====================================================================================================
+1. OVERALL PERFORMANCE
+====================================================================================================
+
+Total Questions:           21,853
+Base Model Accuracy:       0.7123 (15,566/21,853)
+Instruct Model Accuracy:   0.6996 (15,289/21,853)
+Knowledge Gap:             +0.0127 (+1.27%)
+
+Response Quality:
+  Base valid responses:     21,853/21,853 (100.00%)
+  Instruct valid responses: 21,853/21,853 (100.00%)
+
+Pattern Analysis:
+  Suppression (Base✓, Instruct✗):  1,788 (8.18%)
+  Enhancement (Base✗, Instruct✓):  1,511 (6.91%)
+  Both Correct:                     13,778 (63.05%)
+  Both Wrong:                       4,776 (21.86%)
+  Net Suppression Rate:             1.27%
+
+====================================================================================================
+2. QUESTION TYPE ANALYSIS (4 Types)
+====================================================================================================
+
+Question Type                  Count    Base Acc     Instruct Acc Gap        Suppression 
+----------------------------------------------------------------------------------------------------
+Association                    5454     0.6797       0.6801       -0.0004+++ 390         
+Country Prediction             5563     0.9017       0.9098       -0.0081+++ 113         
+General Awareness              5449     0.6420       0.6019       0.0400++++ 797         
+State Prediction               5387     0.6209       0.6013       0.0197++++ 488         
+
+====================================================================================================
+3. CULTURAL ATTRIBUTE ANALYSIS (16 Attributes)
+====================================================================================================
+
+Attribute                      Count    Base Acc     Instruct Acc Gap        Suppression 
+----------------------------------------------------------------------------------------------------
+Religion                       483      0.7660       0.7288       0.0373++++ 37          
+Rituals_and_Ceremonies         1007     0.7001       0.6643       0.0357++++ 105         
+Costume                        1515     0.7366       0.7135       0.0231++++ 124         
+History                        2637     0.7391       0.7171       0.0220++++ 214         
+Art                            2075     0.7186       0.6969       0.0217++++ 166         
+Dance_and_Music                2024     0.6749       0.6542       0.0208++++ 191         
+Personalities                  990      0.6525       0.6404       0.0121++++ 92          
+Cultural_Common_Sense          2109     0.7312       0.7193       0.0119++++ 150         
+Tourism                        3808     0.7366       0.7261       0.0105++++ 302         
+Language                       906      0.7759       0.7715       0.0044++++ 61          
+Cuisine                        1686     0.6465       0.6501       -0.0036+++ 156         
+Sports                         162      0.7531       0.7593       -0.0062+++ 10          
+Festivals                      2260     0.6761       0.6867       -0.0106+++ 168         
+Medicine                       72       0.7639       0.7778       -0.0139+++ 4           
+Nightlife                      42       0.6429       0.6667       -0.0238+++ 2           
+Transport                      77       0.6623       0.7273       -0.0649+++ 6           
+
+====================================================================================================
+4. GEOGRAPHIC ANALYSIS (All 36 Regions)
+====================================================================================================
+
+State/UT                            Count    Base Acc     Instruct Acc Gap        Suppression 
+----------------------------------------------------------------------------------------------------
+Tamil_Nadu                          742      0.8544       0.8019       0.0526++++ 58          
+Karnataka                           1450     0.7683       0.7179       0.0503++++ 139         
+Dadra_and_Nagar_Haveli_and_Daman_and_Diu 510      0.6000       0.5529       0.0471++++ 59          
+Arunachal_Pradesh                   1023     0.6403       0.5934       0.0469++++ 133         
+Kerala                              471      0.8917       0.8450       0.0467++++ 32          
+Lakshadweep                         131      0.6031       0.5573       0.0458++++ 12          
+Maharashtra                         283      0.8304       0.7951       0.0353++++ 22          
+Haryana                             888      0.7444       0.7095       0.0349++++ 77          
+Assam                               563      0.7567       0.7247       0.0320++++ 49          
+Chandigarh                          323      0.7926       0.7616       0.0310++++ 27          
+Jharkhand                           780      0.5577       0.5295       0.0282++++ 95          
+Jammu_kashmir                       329      0.6231       0.5957       0.0274++++ 35          
+West_Bengal                         564      0.6738       0.6489       0.0248++++ 44          
+Sikkim                              685      0.7066       0.6861       0.0204++++ 73          
+Andhra_Pradesh                      1128     0.7615       0.7429       0.0186++++ 83          
+Madhya_Pradesh                      546      0.7912       0.7729       0.0183++++ 32          
+Telangana                           1705     0.7003       0.6827       0.0176++++ 122         
+Puducherry                          374      0.7246       0.7086       0.0160++++ 35          
+Uttar_Pradesh                       504      0.7421       0.7302       0.0119++++ 35          
+Rajasthan                           484      0.8595       0.8512       0.0083++++ 23          
+Goa                                 310      0.6355       0.6290       0.0065++++ 24          
+Gujarat                             552      0.7880       0.7917       -0.0036+++ 35          
+Bihar                               367      0.6594       0.6649       -0.0054+++ 29          
+Delhi                               1082     0.7532       0.7588       -0.0055+++ 72          
+Ladakh                              286      0.6958       0.7028       -0.0070+++ 22          
+Manipur                             654      0.6254       0.6346       -0.0092+++ 58          
+Chhattisgarh                        631      0.4596       0.4723       -0.0127+++ 43          
+Odisha                              465      0.8151       0.8280       -0.0129+++ 17          
+Uttarakhand                         913      0.7130       0.7284       -0.0153+++ 71          
+Nagaland                            514      0.7023       0.7179       -0.0156+++ 47          
+Meghalaya                           267      0.7828       0.8015       -0.0187+++ 16          
+Mizoram                             210      0.6524       0.6714       -0.0190+++ 18          
+Andaman_and_Nicobar                 338      0.6272       0.6479       -0.0207+++ 26          
+Tripura                             567      0.6120       0.6437       -0.0317+++ 42          
+Himachal_Pradesh                    822      0.6752       0.7153       -0.0401+++ 61          
+Punjab                              392      0.7449       0.7985       -0.0536+++ 22          
+
+====================================================================================================
+5. TOP SUPPRESSION EXAMPLES
+====================================================================================================
+
+Example 0:
+  Question: Which of the given regions is home to the Jarawa body painting?...
+  State: Andaman_and_Nicobar | Attribute: Art | Type: Association
+  Gold Answer: South Andaman and Middle Andaman Islands
+  Base Response: B) South Andaman and Middle Andaman Islands. The Jarawa body painting is a tradi... (Letter: B) ✓
+  Instruct Response: A... (Letter: A) ✗
+
+Example 12:
+  Question: Which Indian territory's Jarawa tribe maintains traditional practices of body painting using natural...
+  State: Andaman_and_Nicobar | Attribute: Cultural_Common_Sense | Type: Association
+  Gold Answer: Andaman and Nicobar
+  Base Response: B) Andaman and Nicobar.
+
+The Jarawa tribe is a small indigenous community in the... (Letter: B) ✓
+  Instruct Response: A... (Letter: A) ✗
+
+Example 20:
+  Question: In which islands do communities maintain sacred groves as protected forest areas based on ancestral ...
+  State: Andaman_and_Nicobar | Attribute: Cultural_Common_Sense | Type: Association
+  Gold Answer: Andaman and Nicobar
+  Base Response: B) Andaman and Nicobar.
+
+Explanation: Sacred groves are often found in tropical ... (Letter: B) ✓
+  Instruct Response: A... (Letter: A) ✗
+
+Example 22:
+  Question: In which territory do tribal people practice hodi boat-building, crafting dugout canoes from massive...
+  State: Andaman_and_Nicobar | Attribute: Cultural_Common_Sense | Type: Association
+  Gold Answer: Andaman and Nicobar
+  Base Response: B) Andaman and Nicobar.
+
+Hodi boat-building is a traditional craft practiced by ... (Letter: B) ✓
+  Instruct Response: C... (Letter: C) ✗
+
+Example 31:
+  Question: Which territory's Cellular Jail (Kala Pani) stands as a reminder of India's freedom struggle and col...
+  State: Andaman_and_Nicobar | Attribute: History | Type: Association
+  Gold Answer: Andaman and Nicobar
+  Base Response: C) Andaman and Nicobar.
+
+The Cellular Jail (Kala Pani) is a historical site in t... (Letter: C) ✓
+  Instruct Response: B... (Letter: B) ✗
+
+Example 52:
+  Question: Where is the Nicobari pig-farming customs famous within Andaman_and_Nicobar?...
+  State: Andaman_and_Nicobar | Attribute: Tourism | Type: Association
+  Gold Answer: Nicobari pig-farming customs
+  Base Response: C) Nicobari pig-farming customs. Nicobari pig-farming customs are famous within ... (Letter: C) ✓
+  Instruct Response: B... (Letter: B) ✗
+
+Example 66:
+  Question: Which of the given regions is home to the Ross Island Penal Colony?...
+  State: Andaman_and_Nicobar | Attribute: Tourism | Type: Association
+  Gold Answer: Port Blair
+  Base Response: D) Port Blair.
+
+Explanation: Port Blair is a city in the Andaman and Nicobar Isl... (Letter: D) ✓
+  Instruct Response: A... (Letter: A) ✗
+
+Example 70:
+  Question: Where can tourists explore Ross Island's abandoned British colonial buildings dramatically enveloped...
+  State: Andaman_and_Nicobar | Attribute: Tourism | Type: Association
+  Gold Answer: Andaman and Nicobar
+  Base Response: B) Andaman and Nicobar.
+
+Ross Island is a small island in the Andaman and Nicoba... (Letter: B) ✓
+  Instruct Response: D... (Letter: D) ✗
+
+Example 71:
+  Question: Which region offers eco-tourism to Barren Island, home to India's only active volcano with periodic ...
+  State: Andaman_and_Nicobar | Attribute: Tourism | Type: Association
+  Gold Answer: Andaman and Nicobar
+  Base Response: B) Andaman and Nicobar.
+
+Explanation: Barren Island is located in the Andaman an... (Letter: B) ✓
+  Instruct Response: A... (Letter: A) ✗
+
+Example 82:
+  Question: Udayagiri wooden cutlery Andhra is associated to which region of Andhra_Pradesh?...
+  State: Andhra_Pradesh | Attribute: Art | Type: Association
+  Gold Answer: Udayagiri
+  Base Response: D) Udayagiri.
+
+Explanation: Udayagiri is a region in Andhra Pradesh, India, know... (Letter: D) ✓
+  Instruct Response: A... (Letter: A) ✗
+
+====================================================================================================
+6. CROSS-DIMENSIONAL INSIGHTS
+====================================================================================================
+
+Worst Performing Combinations (Question Type × Attribute):
+  General Awareness × Medicine: 14 questions, Gap: +0.1429
+  General Awareness × Religion: 100 questions, Gap: +0.1000
+  General Awareness × Rituals_and_Ceremonies: 343 questions, Gap: +0.0816
+  General Awareness × Personalities: 193 questions, Gap: +0.0777
+  Country Prediction × Nightlife: 13 questions, Gap: +0.0769
+  General Awareness × Art: 457 questions, Gap: +0.0766
+  State Prediction × Rituals_and_Ceremonies: 250 questions, Gap: +0.0760
+  State Prediction × Costume: 344 questions, Gap: +0.0669
+  General Awareness × Dance_and_Music: 559 questions, Gap: +0.0662
+  Association × Medicine: 18 questions, Gap: +0.0556
+  General Awareness × History: 671 questions, Gap: +0.0447
+  General Awareness × Tourism: 853 questions, Gap: +0.0410
+  Association × Religion: 123 questions, Gap: +0.0407
+  State Prediction × Tourism: 956 questions, Gap: +0.0345
+  State Prediction × Personalities: 266 questions, Gap: +0.0301
+
+Worst Performing State-Attribute Combinations:
+  Dadra_and_Nagar_Haveli_and_Daman_and_Diu × Language: 10 questions, Gap: +0.3000
+  Chandigarh × Religion: 11 questions, Gap: +0.2727
+  Assam × Rituals_and_Ceremonies: 8 questions, Gap: +0.2500
+  Sikkim × Costume: 9 questions, Gap: +0.2222
+  Himachal_Pradesh × Transport: 10 questions, Gap: +0.2000
+  Lakshadweep × Rituals_and_Ceremonies: 5 questions, Gap: +0.2000
+  Tamil_Nadu × Rituals_and_Ceremonies: 69 questions, Gap: +0.1884
+  Haryana × Personalities: 33 questions, Gap: +0.1818
+  Haryana × Festivals: 22 questions, Gap: +0.1818
+  Kerala × Costume: 33 questions, Gap: +0.1818
+  Jharkhand × Rituals_and_Ceremonies: 11 questions, Gap: +0.1818
+  Himachal_Pradesh × Personalities: 11 questions, Gap: +0.1818
+  Jammu_kashmir × Language: 11 questions, Gap: +0.1818
+  Tamil_Nadu × Personalities: 11 questions, Gap: +0.1818
+  Lakshadweep × Language: 6 questions, Gap: +0.1667
+  Nagaland × Nightlife: 6 questions, Gap: +0.1667
+  Dadra_and_Nagar_Haveli_and_Daman_and_Diu × Dance_and_Music: 13 questions, Gap: +0.1538
+  Jharkhand × Language: 27 questions, Gap: +0.1481
+  Karnataka × Cuisine: 81 questions, Gap: +0.1481
+  Uttarakhand × Personalities: 22 questions, Gap: +0.1364
+
+====================================================================================================
+END OF COMPREHENSIVE ANALYSIS
+====================================================================================================

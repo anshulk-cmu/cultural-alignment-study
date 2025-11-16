@@ -1,0 +1,222 @@
+================================================================================
+SANSKRITI 12K TARGETED DATASET - ANALYSIS REPORT
+================================================================================
+
+DATASET COMPOSITION:
+  Total Questions:        11206
+  Suppression Group:      4000 (35.7%)
+  Enhancement Group:      4000 (35.7%)
+  Control Group:          3206 (28.6%)
+
+OVERALL PERFORMANCE:
+  Base Model Accuracy:       0.6638 (7439/11206)
+  Instruct Model Accuracy:   0.6388 (7158/11206)
+  Knowledge Gap:             +0.0251 (+2.51%)
+
+PERFORMANCE BY GROUP:
+
+Suppression Group (4000 questions):
+  Base Accuracy:     0.7995
+  Instruct Accuracy: 0.3765
+  Gap:               +0.4230
+
+Enhancement Group (4000 questions):
+  Base Accuracy:     0.4160
+  Instruct Accuracy: 0.7685
+  Gap:               -0.3525
+
+Control Group (3206 questions):
+  Base Accuracy:     0.8038
+  Instruct Accuracy: 0.8041
+  Gap:               -0.0003
+
+================================================================================
+DISTRIBUTION BY DIMENSIONS
+================================================================================
+
+QUESTION TYPE DISTRIBUTION:
+  Association                     2265 ( 20.2%)
+  Country Prediction              2064 ( 18.4%)
+  General Awareness               3836 ( 34.2%)
+  State Prediction                3041 ( 27.1%)
+
+ATTRIBUTE DISTRIBUTION (Top 16):
+  Tourism                         1873 ( 16.7%)
+  History                         1177 ( 10.5%)
+  Cultural_Common_Sense           1123 ( 10.0%)
+  Festivals                       1090 (  9.7%)
+  Cuisine                         1059 (  9.5%)
+  Dance_and_Music                  960 (  8.6%)
+  Art                              927 (  8.3%)
+  Costume                          707 (  6.3%)
+  Rituals_and_Ceremonies           687 (  6.1%)
+  Language                         573 (  5.1%)
+  Personalities                    494 (  4.4%)
+  Religion                         296 (  2.6%)
+  Sports                           114 (  1.0%)
+  Transport                         62 (  0.6%)
+  Medicine                          45 (  0.4%)
+  Nightlife                         19 (  0.2%)
+
+STATE DISTRIBUTION (Top 20):
+  Telangana                             963 (  8.6%)
+  Uttarakhand                           603 (  5.4%)
+  Tamil_Nadu                            530 (  4.7%)
+  Sikkim                                495 (  4.4%)
+  Arunachal_Pradesh                     489 (  4.4%)
+  Tripura                               483 (  4.3%)
+  Manipur                               483 (  4.3%)
+  Himachal_Pradesh                      482 (  4.3%)
+  Jharkhand                             463 (  4.1%)
+  Karnataka                             436 (  3.9%)
+  West_Bengal                           421 (  3.8%)
+  Nagaland                              408 (  3.6%)
+  Odisha                                356 (  3.2%)
+  Andhra_Pradesh                        341 (  3.0%)
+  Uttar_Pradesh                         337 (  3.0%)
+  Punjab                                323 (  2.9%)
+  Delhi                                 288 (  2.6%)
+  Rajasthan                             287 (  2.6%)
+  Haryana                               273 (  2.4%)
+  Assam                                 238 (  2.1%)
+
+================================================================================
+TOP COMBINATIONS IN EACH GROUP
+================================================================================
+
+SUPPRESSION GROUP - Top 10 Combinations:
+  Dadra_and_Nagar_Haveli_and_Daman_and_Diu × Tourism × State Prediction: 80 questions
+  Sikkim × Tourism × State Prediction: 67 questions
+  Andhra_Pradesh × Costume × General Awareness: 60 questions
+  Andhra_Pradesh × Art × General Awareness: 55 questions
+  Jharkhand × History × General Awareness: 42 questions
+  Karnataka × Dance_and_Music × State Prediction: 42 questions
+  Karnataka × Cultural_Common_Sense × General Awareness: 41 questions
+  Karnataka × Cultural_Common_Sense × Association: 39 questions
+  Arunachal_Pradesh × Tourism × State Prediction: 36 questions
+  Arunachal_Pradesh × Dance_and_Music × General Awareness: 35 questions
+
+ENHANCEMENT GROUP - Top 10 Combinations:
+  Tripura × Cultural_Common_Sense × State Prediction: 64 questions
+  Himachal_Pradesh × Festivals × General Awareness: 58 questions
+  Arunachal_Pradesh × Tourism × Association: 57 questions
+  Uttarakhand × Tourism × Association: 53 questions
+  Delhi × Personalities × State Prediction: 51 questions
+  Tripura × History × State Prediction: 51 questions
+  Uttarakhand × Cuisine × General Awareness: 49 questions
+  Tripura × Tourism × State Prediction: 42 questions
+  Himachal_Pradesh × Festivals × Country Prediction: 39 questions
+  Himachal_Pradesh × Festivals × State Prediction: 39 questions
+
+CONTROL GROUP - Top 10 Combinations:
+  Telangana × Tourism × State Prediction: 123 questions
+  Telangana × Tourism × Country Prediction: 123 questions
+  Telangana × History × Country Prediction: 102 questions
+  Telangana × History × General Awareness: 72 questions
+  Sikkim × Tourism × Association: 66 questions
+  Telangana × Cultural_Common_Sense × Country Prediction: 57 questions
+  Odisha × Cultural_Common_Sense × Country Prediction: 52 questions
+  Telangana × Personalities × General Awareness: 50 questions
+  Manipur × Tourism × General Awareness: 46 questions
+  Sikkim × Art × State Prediction: 43 questions
+
+================================================================================
+HIGHEST GAP COMBINATIONS IN DATASET
+================================================================================
+
+Top 15 Suppression Hotspots (Highest Positive Gaps):
+State                     Attribute                 Q-Type               N     Gap     
+--------------------------------------------------------------------------------
+Chandigarh                Religion                  General Awareness    2     +1.0000
+Dadra_and_Nagar_Haveli_and_Daman_and_Diu Language                  General Awareness    2     +1.0000
+Ladakh                    Language                  General Awareness    1     +1.0000
+Odisha                    History                   General Awareness    1     +1.0000
+Haryana                   Festivals                 General Awareness    4     +0.7500
+Bihar                     Cuisine                   Association          3     +0.6667
+Dadra_and_Nagar_Haveli_and_Daman_and_Diu Dance_and_Music           Association          3     +0.6667
+Himachal_Pradesh          Personalities             State Prediction     3     +0.6667
+Haryana                   Personalities             State Prediction     9     +0.5556
+Andaman_and_Nicobar       Personalities             General Awareness    2     +0.5000
+Chandigarh                Personalities             General Awareness    2     +0.5000
+Dadra_and_Nagar_Haveli_and_Daman_and_Diu Costume                   General Awareness    2     +0.5000
+Dadra_and_Nagar_Haveli_and_Daman_and_Diu Medicine                  General Awareness    2     +0.5000
+Goa                       Personalities             General Awareness    2     +0.5000
+Himachal_Pradesh          Medicine                  General Awareness    2     +0.5000
+
+Top 15 Enhancement Hotspots (Highest Negative Gaps):
+State                     Attribute                 Q-Type               N     Gap     
+--------------------------------------------------------------------------------
+Lakshadweep               Language                  State Prediction     1     -1.0000
+Tripura                   Costume                   General Awareness    1     -1.0000
+Manipur                   Rituals_and_Ceremonies    Country Prediction   3     -0.6667
+Manipur                   Sports                    State Prediction     3     -0.6667
+Puducherry                Dance_and_Music           State Prediction     3     -0.6667
+Chandigarh                Art                       General Awareness    2     -0.5000
+Chandigarh                Festivals                 General Awareness    2     -0.5000
+Dadra_and_Nagar_Haveli_and_Daman_and_Diu Rituals_and_Ceremonies    General Awareness    2     -0.5000
+Dadra_and_Nagar_Haveli_and_Daman_and_Diu Sports                    General Awareness    2     -0.5000
+Delhi                     Nightlife                 General Awareness    4     -0.5000
+Meghalaya                 Costume                   General Awareness    4     -0.5000
+Meghalaya                 Cuisine                   General Awareness    4     -0.5000
+Mizoram                   History                   General Awareness    8     -0.5000
+Puducherry                Dance_and_Music           General Awareness    2     -0.5000
+Sikkim                    Dance_and_Music           General Awareness    4     -0.5000
+
+================================================================================
+SAMPLE QUESTIONS FROM EACH GROUP
+================================================================================
+
+Suppression Group Samples:
+
+Question: Which of the given regions is home to the Jarawa body painting?...
+  State: Andaman_and_Nicobar | Attribute: Art | Type: Association
+  Answer: South Andaman and Middle Andaman Islands
+  Base: ✓ | Instruct: ✗
+
+Question: Which Indian territory's Jarawa tribe maintains traditional practices of body painting using natural...
+  State: Andaman_and_Nicobar | Attribute: Cultural_Common_Sense | Type: Association
+  Answer: Andaman and Nicobar
+  Base: ✓ | Instruct: ✗
+
+Question: In which islands do communities maintain sacred groves as protected forest areas based on ancestral ...
+  State: Andaman_and_Nicobar | Attribute: Cultural_Common_Sense | Type: Association
+  Answer: Andaman and Nicobar
+  Base: ✓ | Instruct: ✗
+
+Enhancement Group Samples:
+
+Question: Where is the Ossuary Feast famous within Andaman_and_Nicobar?...
+  State: Andaman_and_Nicobar | Attribute: Dance_and_Music | Type: Association
+  Answer: Car Nicobar
+  Base: ✗ | Instruct: ✓
+
+Question: Which of the given regions is home to the Nicobari pig-farming customs?...
+  State: Andaman_and_Nicobar | Attribute: Tourism | Type: Association
+  Answer: Nicobari pig-farming customs
+  Base: ✗ | Instruct: ✓
+
+Question: Which of the given regions is home to the Machan?...
+  State: Andaman_and_Nicobar | Attribute: Tourism | Type: Association
+  Answer: Nicobar district
+  Base: ✗ | Instruct: ✓
+
+Control Group Samples:
+
+Question: Which of the given regions is home to the Ellora Festival?...
+  State: Maharashtra | Attribute: Festivals | Type: Association
+  Answer: Aurangabad
+  Base: ✓ | Instruct: ✓
+
+Question: Where is the Mangalagaur Festival famous within Maharashtra?...
+  State: Maharashtra | Attribute: Festivals | Type: Association
+  Answer: Maharashtra
+  Base: ✗ | Instruct: ✗
+
+Question: Which of the given regions is home to the Narali Purnima Festival?...
+  State: Maharashtra | Attribute: Festivals | Type: Association
+  Answer: Mumbai
+  Base: ✗ | Instruct: ✗
+
+================================================================================
+END OF ANALYSIS
+================================================================================
