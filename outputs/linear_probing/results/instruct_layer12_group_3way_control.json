@@ -1,0 +1,68 @@
+{
+  "config": {
+    "model": "instruct",
+    "layer": 12,
+    "task": "group_3way_control",
+    "task_name": "Group Type (3-way) (Control)",
+    "best_C": 10.0,
+    "dev_accuracy": 0.3413906296627872,
+    "test_accuracy": 0.3412343470483005,
+    "test_f1": 0.3321121587787534,
+    "test_auc": NaN,
+    "train_size": 23463,
+    "test_size": 6708,
+    "multiclass": true,
+    "is_control": true,
+    "real_task": "group_3way"
+  },
+  "confusion_matrix": [
+    [
+      898,
+      1010,
+      543
+    ],
+    [
+      893,
+      955,
+      525
+    ],
+    [
+      703,
+      745,
+      436
+    ]
+  ],
+  "classification_report": {
+    "0": {
+      "precision": 0.36006415396952685,
+      "recall": 0.3663810689514484,
+      "f1-score": 0.36319514661274016,
+      "support": 2451.0
+    },
+    "1": {
+      "precision": 0.35239852398523985,
+      "recall": 0.4024441635061104,
+      "f1-score": 0.375762345071808,
+      "support": 2373.0
+    },
+    "2": {
+      "precision": 0.2898936170212766,
+      "recall": 0.23142250530785563,
+      "f1-score": 0.25737898465171194,
+      "support": 1884.0
+    },
+    "accuracy": 0.3412343470483005,
+    "macro avg": {
+      "precision": 0.3341187649920145,
+      "recall": 0.3334159125884715,
+      "f1-score": 0.3321121587787534,
+      "support": 6708.0
+    },
+    "weighted avg": {
+      "precision": 0.33764438182235684,
+      "recall": 0.3412343470483005,
+      "f1-score": 0.3379214902037942,
+      "support": 6708.0
+    }
+  }
+}

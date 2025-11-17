@@ -1,0 +1,55 @@
+{
+  "config": {
+    "model": "base",
+    "layer": 12,
+    "task": "knowledge",
+    "task_name": "Base Model Correctness",
+    "best_C": 0.001,
+    "dev_accuracy": 0.6642793196060878,
+    "test_accuracy": 0.6686046511627907,
+    "test_f1": 0.7820374546524169,
+    "test_auc": 0.6656123688358875,
+    "train_size": 23463,
+    "test_size": 6708,
+    "multiclass": false,
+    "is_control": false,
+    "real_task": "knowledge"
+  },
+  "confusion_matrix": [
+    [
+      497,
+      1762
+    ],
+    [
+      461,
+      3988
+    ]
+  ],
+  "classification_report": {
+    "0": {
+      "precision": 0.5187891440501043,
+      "recall": 0.22000885347498894,
+      "f1-score": 0.30898352502331367,
+      "support": 2259.0
+    },
+    "1": {
+      "precision": 0.6935652173913044,
+      "recall": 0.896381209260508,
+      "f1-score": 0.7820374546524169,
+      "support": 4449.0
+    },
+    "accuracy": 0.6686046511627907,
+    "macro avg": {
+      "precision": 0.6061771807207044,
+      "recall": 0.5581950313677485,
+      "f1-score": 0.5455104898378653,
+      "support": 6708.0
+    },
+    "weighted avg": {
+      "precision": 0.6347072642491203,
+      "recall": 0.6686046511627907,
+      "f1-score": 0.6227308316601473,
+      "support": 6708.0
+    }
+  }
+}

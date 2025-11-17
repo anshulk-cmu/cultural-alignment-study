@@ -1,0 +1,55 @@
+{
+  "config": {
+    "model": "base",
+    "layer": 18,
+    "task": "suppression_vs_enhancement",
+    "task_name": "Suppression vs Enhancement",
+    "best_C": 0.1,
+    "dev_accuracy": 0.6234033786567779,
+    "test_accuracy": 0.6200964967484791,
+    "test_f1": 0.6132820841341021,
+    "test_auc": 0.6692739715562258,
+    "train_size": 16710,
+    "test_size": 4767,
+    "multiclass": false,
+    "is_control": false,
+    "real_task": "suppression_vs_enhancement"
+  },
+  "confusion_matrix": [
+    [
+      1520,
+      853
+    ],
+    [
+      958,
+      1436
+    ]
+  ],
+  "classification_report": {
+    "0": {
+      "precision": 0.6133979015334947,
+      "recall": 0.6405394016013485,
+      "f1-score": 0.6266749123891981,
+      "support": 2373.0
+    },
+    "1": {
+      "precision": 0.6273481869812145,
+      "recall": 0.5998329156223893,
+      "f1-score": 0.6132820841341021,
+      "support": 2394.0
+    },
+    "accuracy": 0.6200964967484791,
+    "macro avg": {
+      "precision": 0.6203730442573546,
+      "recall": 0.6201861586118689,
+      "f1-score": 0.6199784982616501,
+      "support": 4767.0
+    },
+    "weighted avg": {
+      "precision": 0.6204037717583408,
+      "recall": 0.6200964967484791,
+      "f1-score": 0.6199489986399429,
+      "support": 4767.0
+    }
+  }
+}

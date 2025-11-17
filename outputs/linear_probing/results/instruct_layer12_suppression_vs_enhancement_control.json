@@ -1,0 +1,55 @@
+{
+  "config": {
+    "model": "instruct",
+    "layer": 12,
+    "task": "suppression_vs_enhancement_control",
+    "task_name": "Suppression vs Enhancement (Control)",
+    "best_C": 0.01,
+    "dev_accuracy": 0.5076252723311547,
+    "test_accuracy": 0.49834162520729686,
+    "test_f1": 0.49181016379672404,
+    "test_auc": 0.49490485492045266,
+    "train_size": 16785,
+    "test_size": 4824,
+    "multiclass": false,
+    "is_control": true,
+    "real_task": "suppression_vs_enhancement"
+  },
+  "confusion_matrix": [
+    [
+      1233,
+      1140
+    ],
+    [
+      1280,
+      1171
+    ]
+  ],
+  "classification_report": {
+    "0": {
+      "precision": 0.49064862713887786,
+      "recall": 0.5195954487989887,
+      "f1-score": 0.5047073270568972,
+      "support": 2373.0
+    },
+    "1": {
+      "precision": 0.5067070532237127,
+      "recall": 0.47776417788657694,
+      "f1-score": 0.49181016379672404,
+      "support": 2451.0
+    },
+    "accuracy": 0.49834162520729686,
+    "macro avg": {
+      "precision": 0.49867784018129524,
+      "recall": 0.4986798133427828,
+      "f1-score": 0.49825874542681065,
+      "support": 4824.0
+    },
+    "weighted avg": {
+      "precision": 0.49880766576531443,
+      "recall": 0.49834162520729686,
+      "f1-score": 0.4981544773158764,
+      "support": 4824.0
+    }
+  }
+}

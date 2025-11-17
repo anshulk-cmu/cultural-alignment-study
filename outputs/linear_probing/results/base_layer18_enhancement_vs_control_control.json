@@ -1,0 +1,55 @@
+{
+  "config": {
+    "model": "base",
+    "layer": 18,
+    "task": "enhancement_vs_control_control",
+    "task_name": "Enhancement vs Control (Control)",
+    "best_C": 0.001,
+    "dev_accuracy": 0.517163504968383,
+    "test_accuracy": 0.5299506694855532,
+    "test_f1": 0.6346540076684316,
+    "test_auc": 0.49943924171701637,
+    "train_size": 15117,
+    "test_size": 4257,
+    "multiclass": false,
+    "is_control": true,
+    "real_task": "enhancement_vs_control"
+  },
+  "confusion_matrix": [
+    [
+      518,
+      1366
+    ],
+    [
+      635,
+      1738
+    ]
+  ],
+  "classification_report": {
+    "0": {
+      "precision": 0.4492627927146574,
+      "recall": 0.2749469214437367,
+      "f1-score": 0.3411261112940402,
+      "support": 1884.0
+    },
+    "1": {
+      "precision": 0.5599226804123711,
+      "recall": 0.7324062368310156,
+      "f1-score": 0.6346540076684316,
+      "support": 2373.0
+    },
+    "accuracy": 0.5299506694855532,
+    "macro avg": {
+      "precision": 0.5045927365635143,
+      "recall": 0.5036765791373762,
+      "f1-score": 0.48789005948123587,
+      "support": 4257.0
+    },
+    "weighted avg": {
+      "precision": 0.510948466547562,
+      "recall": 0.5299506694855532,
+      "f1-score": 0.5047487793928024,
+      "support": 4257.0
+    }
+  }
+}

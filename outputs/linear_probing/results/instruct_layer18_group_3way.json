@@ -1,0 +1,68 @@
+{
+  "config": {
+    "model": "instruct",
+    "layer": 18,
+    "task": "group_3way",
+    "task_name": "Group Type (3-way)",
+    "best_C": 0.01,
+    "dev_accuracy": 0.5302894658310952,
+    "test_accuracy": 0.5445736434108527,
+    "test_f1": 0.547035934700829,
+    "test_auc": NaN,
+    "train_size": 23463,
+    "test_size": 6708,
+    "multiclass": true,
+    "is_control": false,
+    "real_task": "group_3way"
+  },
+  "confusion_matrix": [
+    [
+      1205,
+      751,
+      438
+    ],
+    [
+      701,
+      1311,
+      361
+    ],
+    [
+      377,
+      427,
+      1137
+    ]
+  ],
+  "classification_report": {
+    "0": {
+      "precision": 0.527814279456855,
+      "recall": 0.5033416875522139,
+      "f1-score": 0.5152875775069489,
+      "support": 2394.0
+    },
+    "1": {
+      "precision": 0.5267175572519084,
+      "recall": 0.5524652338811631,
+      "f1-score": 0.5392842451665981,
+      "support": 2373.0
+    },
+    "2": {
+      "precision": 0.5872933884297521,
+      "recall": 0.5857805255023184,
+      "f1-score": 0.5865359814289399,
+      "support": 1941.0
+    },
+    "accuracy": 0.5445736434108527,
+    "macro avg": {
+      "precision": 0.5472750750461719,
+      "recall": 0.5471958156452318,
+      "f1-score": 0.547035934700829,
+      "support": 6708.0
+    },
+    "weighted avg": {
+      "precision": 0.544636943249946,
+      "recall": 0.5445736434108527,
+      "f1-score": 0.544392712326408,
+      "support": 6708.0
+    }
+  }
+}

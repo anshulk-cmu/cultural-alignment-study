@@ -1,0 +1,55 @@
+{
+  "config": {
+    "model": "instruct",
+    "layer": 18,
+    "task": "suppression_vs_control",
+    "task_name": "Suppression vs Control",
+    "best_C": 0.01,
+    "dev_accuracy": 0.7163416898792944,
+    "test_accuracy": 0.7199538638985006,
+    "test_f1": 0.7459187944746756,
+    "test_auc": 0.7976884509057289,
+    "train_size": 15063,
+    "test_size": 4335,
+    "multiclass": false,
+    "is_control": false,
+    "real_task": "suppression_vs_control"
+  },
+  "confusion_matrix": [
+    [
+      1339,
+      602
+    ],
+    [
+      612,
+      1782
+    ]
+  ],
+  "classification_report": {
+    "0": {
+      "precision": 0.6863147104049205,
+      "recall": 0.6898505924781041,
+      "f1-score": 0.6880781089414183,
+      "support": 1941.0
+    },
+    "1": {
+      "precision": 0.74748322147651,
+      "recall": 0.7443609022556391,
+      "f1-score": 0.7459187944746756,
+      "support": 2394.0
+    },
+    "accuracy": 0.7199538638985006,
+    "macro avg": {
+      "precision": 0.7168989659407152,
+      "recall": 0.7171057473668716,
+      "f1-score": 0.716998451708047,
+      "support": 4335.0
+    },
+    "weighted avg": {
+      "precision": 0.7200949677302689,
+      "recall": 0.7199538638985006,
+      "f1-score": 0.7200205774919646,
+      "support": 4335.0
+    }
+  }
+}

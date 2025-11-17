@@ -1,0 +1,55 @@
+{
+  "config": {
+    "model": "instruct",
+    "layer": 18,
+    "task": "knowledge",
+    "task_name": "Instruct Model Correctness",
+    "best_C": 0.1,
+    "dev_accuracy": 0.6532378394509102,
+    "test_accuracy": 0.6268634466308884,
+    "test_f1": 0.7321562332798288,
+    "test_auc": 0.6341581902386999,
+    "train_size": 23463,
+    "test_size": 6708,
+    "multiclass": false,
+    "is_control": false,
+    "real_task": "knowledge"
+  },
+  "confusion_matrix": [
+    [
+      784,
+      1688
+    ],
+    [
+      815,
+      3421
+    ]
+  ],
+  "classification_report": {
+    "0": {
+      "precision": 0.4903064415259537,
+      "recall": 0.31715210355987056,
+      "f1-score": 0.3851633505281258,
+      "support": 2472.0
+    },
+    "1": {
+      "precision": 0.6696026619690741,
+      "recall": 0.8076015108593012,
+      "f1-score": 0.7321562332798288,
+      "support": 4236.0
+    },
+    "accuracy": 0.6268634466308884,
+    "macro avg": {
+      "precision": 0.579954551747514,
+      "recall": 0.5623768072095858,
+      "f1-score": 0.5586597919039773,
+      "support": 6708.0
+    },
+    "weighted avg": {
+      "precision": 0.6035292784068509,
+      "recall": 0.6268634466308884,
+      "f1-score": 0.6042840797076449,
+      "support": 6708.0
+    }
+  }
+}
