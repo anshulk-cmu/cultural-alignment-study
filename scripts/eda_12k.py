@@ -4,7 +4,7 @@ Comprehensive EDA for Cultural Alignment Activation Dataset
 ============================================================
 
 Analyzes 33,522 culturally-grounded sentences with their activations from
-Qwen2-1.5B base and instruct models across layers 6, 12, 18.
+Qwen2-1.5B base and instruct models across layers 8, 16, 24.
 """
 
 import os
@@ -45,18 +45,18 @@ plt.rcParams['font.size'] = 10
 
 class Config:
     # Input paths
-    BASE_DIR = Path("/data/user_data/anshulk/cultural-alignment-study/sanskriti_data")
-    ACTIVATION_DIR = BASE_DIR / "Activations"
+    BASE_DIR = Path("/data/user_data/anshulk/cultural-alignment-study")
+    ACTIVATION_DIR = BASE_DIR / "activations"
     INDEX_FILE = ACTIVATION_DIR / "activation_index.csv"
     
     # Output paths
-    OUTPUT_DIR = Path("/home/anshulk/cultural-alignment-study/outputs/EDA_results")
-    HEAVY_DATA_DIR = Path("/data/user_data/anshulk/cultural-alignment-study/sanskriti_data/EDA_data")
+    OUTPUT_DIR = Path("/home/anshulk/cultural-alignment-study/outputs/eda_results")
+    HEAVY_DATA_DIR = Path("/data/user_data/anshulk/cultural-alignment-study/eda_data")
     
     # Analysis parameters
-    LAYERS = [6, 12, 18]
+    LAYERS = [8, 16, 24]
     HIDDEN_SIZE = 1536
-    N_SAMPLES_MANUAL = 200  # For manual validation sampling
+    N_SAMPLES_MANUAL = 1000  # For manual validation sampling
     SIMILARITY_THRESHOLD = 0.95  # For near-duplicate detection
     
     # Visualization parameters
@@ -364,8 +364,8 @@ def analyze_text_quality(df):
         log.result("  Same attribute", f"{same_attr}/{len(dup_df)} ({same_attr/len(dup_df)*100:.1f}%)")
         
         # Show top examples
-        log.log("\nTop 5 near-duplicate pairs (highest similarity):")
-        for i, row in dup_df.head(5).iterrows():
+        log.log("\nTop 10 near-duplicate pairs (highest similarity):")
+        for i, row in dup_df.head(10).iterrows():
             log.log(f"\n  Pair {i+1} (similarity: {row['similarity']:.4f}):")
             log.log(f"    [{row['group_type_1']}] {row['state_1']} / {row['attribute_1']} - Row {row['row_id_1']}.{row['sentence_num_1']}")
             log.log(f"    → {row['sentence_1'][:120]}...")
@@ -389,7 +389,7 @@ def analyze_text_quality(df):
         }
     else:
         df['has_near_duplicate'] = False
-        log.log("✓ No near-duplicates found at threshold {config.SIMILARITY_THRESHOLD}!")
+        log.log("No near-duplicates found at threshold {config.SIMILARITY_THRESHOLD}!")
         
         results['near_duplicates'] = {
             'total_sentences': len(df),
@@ -565,7 +565,7 @@ def analyze_semantic_structure(df):
     # Save embeddings for future use
     embedding_file = config.HEAVY_DATA_DIR / "sentence_embeddings.npy"
     np.save(embedding_file, embeddings)
-    log.log(f"✓ Saved embeddings to {embedding_file}")
+    log.log(f"Saved embeddings to {embedding_file}")
     
     # 3.2 UMAP dimensionality reduction
     log.subsection("3.2 UMAP Dimensionality Reduction")
@@ -585,7 +585,7 @@ def analyze_semantic_structure(df):
     # Save 2D embeddings
     umap_file = config.HEAVY_DATA_DIR / "umap_2d.npy"
     np.save(umap_file, embedding_2d)
-    log.log(f"✓ Saved UMAP embeddings to {umap_file}")
+    log.log(f"Saved UMAP embeddings to {umap_file}")
     
     # Add to dataframe
     df['umap_x'] = embedding_2d[:, 0]
@@ -717,7 +717,7 @@ def analyze_semantic_structure(df):
     
     cluster_df = pd.DataFrame(cluster_composition)
     cluster_df.to_csv(config.OUTPUT_DIR / "tables" / "cluster_composition.csv", index=False)
-    log.log(f"✓ Analyzed {len(cluster_df)} clusters")
+    log.log(f"Analyzed {len(cluster_df)} clusters")
     
     # 3.6 Simple probing baselines
     log.subsection("3.6 Baseline Probing on Embeddings")
@@ -817,7 +817,7 @@ def analyze_activations(df, activations):
     plt.tight_layout()
     plt.savefig(config.OUTPUT_DIR / "plots" / "04_activation_stds.png", dpi=300, bbox_inches='tight')
     plt.close()
-    log.log("✓ Saved activation std plots")
+    log.log("Saved activation std plots")
     
     # 4.2 Group geometry analysis
     log.subsection("4.2 Group Centroid Analysis")
@@ -881,7 +881,7 @@ def analyze_activations(df, activations):
     plt.tight_layout()
     plt.savefig(config.OUTPUT_DIR / "plots" / "04_group_distances.png", dpi=300, bbox_inches='tight')
     plt.close()
-    log.log("✓ Saved group distance plots")
+    log.log("Saved group distance plots")
     
     # 4.3 UMAP on activations
     log.subsection("4.3 UMAP on Activation Space")
@@ -940,15 +940,15 @@ def analyze_activations(df, activations):
             plt.close()
             log.log(f"✓ Saved UMAP visualization for {model} layer {layer}")
     
-    # 4.3.5 HDBSCAN Clustering on Activations (Layer 18)
+    # 4.3.5 HDBSCAN Clustering on Activations (Layer 24)
     log.subsection("4.3.5 HDBSCAN Clustering on Activation Space")
     
     clustering_results = {}
     
     for model in ['base', 'instruct']:
-        log.log(f"Running HDBSCAN on {model} layer 18 activations...")
+        log.log(f"Running HDBSCAN on {model} layer 24 activations...")
         
-        acts = activations[model][18]
+        acts = activations[model][24]
         
         # Run HDBSCAN
         clusterer = hdbscan.HDBSCAN(
@@ -962,7 +962,7 @@ def analyze_activations(df, activations):
         n_clusters = len(set(cluster_labels)) - (1 if -1 in cluster_labels else 0)
         n_noise = list(cluster_labels).count(-1)
         
-        log.log(f"{model.upper()} Layer 18:")
+        log.log(f"{model.upper()} Layer 24:")
         log.result("  Clusters found", n_clusters)
         log.result("  Noise points", f"{n_noise} ({n_noise/len(df)*100:.1f}%)")
         
@@ -977,7 +977,7 @@ def analyze_activations(df, activations):
             
             composition = {
                 'model': model,
-                'layer': 18,
+                'layer': 24,
                 'cluster_id': int(cluster_id),
                 'size': int(cluster_mask.sum()),
                 'suppression_count': int((cluster_data['group_type'] == 'suppression').sum()),
@@ -996,7 +996,7 @@ def analyze_activations(df, activations):
         # Save cluster composition
         comp_df = pd.DataFrame(cluster_composition)
         comp_df.to_csv(
-            config.OUTPUT_DIR / "tables" / f"activation_clusters_{model}_layer18.csv",
+            config.OUTPUT_DIR / "tables" / f"activation_clusters_{model}_layer24.csv",
             index=False
         )
         log.log(f"✓ Saved {model} cluster composition to CSV")
@@ -1051,7 +1051,7 @@ def analyze_activations(df, activations):
     
     for model_idx, model in enumerate(['base', 'instruct']):
         # Use the UMAP coordinates from earlier
-        umap_file = config.HEAVY_DATA_DIR / f"umap_activations_{model}_layer18.npy"
+        umap_file = config.HEAVY_DATA_DIR / f"umap_activations_{model}_layer24.npy"
         acts_2d = np.load(umap_file)
         
         cluster_labels = df[f'{model}_act_cluster'].values
@@ -1061,7 +1061,7 @@ def analyze_activations(df, activations):
             c=cluster_labels, cmap='tab20',
             alpha=0.3, s=10
         )
-        axes[model_idx].set_title(f'{model.upper()} Layer 18: HDBSCAN Clusters')
+        axes[model_idx].set_title(f'{model.upper()} Layer 24: HDBSCAN Clusters')
         axes[model_idx].set_xlabel('UMAP 1')
         axes[model_idx].set_ylabel('UMAP 2')
         plt.colorbar(scatter, ax=axes[model_idx])

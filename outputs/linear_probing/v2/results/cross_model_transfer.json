@@ -1,62 +1,62 @@
 {
-  "6": {
+  "8": {
     "attribute": {
-      "base_to_base": 0.8202833706189411,
-      "base_to_instruct": 0.8082028337061894,
-      "transfer_rate": 0.9852727272727273,
-      "absolute_drop": 0.012080536912751683
+      "base_to_base": 0.8067056437179334,
+      "base_to_instruct": 0.7984727359503639,
+      "transfer_rate": 0.9897944091110783,
+      "absolute_drop": 0.008232907767569464
     },
     "base_correctness": {
-      "base_to_base": 0.6332587621178225,
-      "base_to_instruct": 0.5970171513795675,
-      "transfer_rate": 0.942769665567593,
-      "absolute_drop": 0.03624161073825505
+      "base_to_base": 0.6293998329554946,
+      "base_to_instruct": 0.5792864813268106,
+      "transfer_rate": 0.9203791469194311,
+      "absolute_drop": 0.05011335162868402
     },
     "state": {
-      "base_to_base": 0.9573452647278151,
-      "base_to_instruct": 0.9558538404175988,
-      "transfer_rate": 0.9984421249415796,
-      "absolute_drop": 0.001491424310216316
+      "base_to_base": 0.939386708030068,
+      "base_to_instruct": 0.9383128504951677,
+      "transfer_rate": 0.9988568525339769,
+      "absolute_drop": 0.0010738575349003021
     }
   },
-  "12": {
+  "16": {
     "attribute": {
-      "base_to_base": 0.794034302759135,
-      "base_to_instruct": 0.7789709172259508,
-      "transfer_rate": 0.9810293012772352,
-      "absolute_drop": 0.015063385533184204
+      "base_to_base": 0.7926261782603508,
+      "base_to_instruct": 0.7625581672831404,
+      "transfer_rate": 0.9620653319283456,
+      "absolute_drop": 0.030068010977210347
     },
     "base_correctness": {
-      "base_to_base": 0.640268456375839,
-      "base_to_instruct": 0.6231170768083519,
-      "transfer_rate": 0.9732122059166083,
-      "absolute_drop": 0.017151379567487024
+      "base_to_base": 0.6240305452809928,
+      "base_to_instruct": 0.6452690609712445,
+      "transfer_rate": 1.0340344168260038,
+      "absolute_drop": -0.021238515690251702
     },
     "state": {
-      "base_to_base": 0.9146905294556301,
-      "base_to_instruct": 0.9097688292319165,
-      "transfer_rate": 0.9946192727865645,
-      "absolute_drop": 0.004921700223713632
+      "base_to_base": 0.9043073618899893,
+      "base_to_instruct": 0.8933301515332299,
+      "transfer_rate": 0.9878611954083651,
+      "absolute_drop": 0.01097721035675936
     }
   },
-  "18": {
+  "24": {
     "attribute": {
-      "base_to_base": 0.792841163310962,
-      "base_to_instruct": 0.7724086502609993,
-      "transfer_rate": 0.9742287434161023,
-      "absolute_drop": 0.02043251304996274
+      "base_to_base": 0.8409497673308675,
+      "base_to_instruct": 0.8124328839040688,
+      "transfer_rate": 0.9660896708286039,
+      "absolute_drop": 0.0285168834267987
     },
     "base_correctness": {
-      "base_to_base": 0.6265473527218494,
-      "base_to_instruct": 0.6225205070842654,
-      "transfer_rate": 0.9935729588193287,
-      "absolute_drop": 0.004026845637583931
+      "base_to_base": 0.6252237203197709,
+      "base_to_instruct": 0.6052976971721752,
+      "transfer_rate": 0.9681297709923664,
+      "absolute_drop": 0.01992602314759573
     },
     "state": {
-      "base_to_base": 0.9023117076808352,
-      "base_to_instruct": 0.8951528709917972,
-      "transfer_rate": 0.9920661157024793,
-      "absolute_drop": 0.007158836689038051
+      "base_to_base": 0.9603865887125641,
+      "base_to_instruct": 0.9615797637513424,
+      "transfer_rate": 1.0012423903590508,
+      "absolute_drop": -0.0011931750387782492
     }
   }
 }

@@ -1,0 +1,391 @@
+
+================================================================================
+CULTURAL ALIGNMENT EDA PIPELINE
+================================================================================
+[16:06:03] Start time: 2025-11-18 16:06:03
+[16:06:03] MODE: FULL DATASET ANALYSIS (NO SAMPLING)
+
+================================================================================
+PHASE 0: DATA LOADING
+================================================================================
+[16:06:03] Loading activation index...
+  • Total sentences: 33522
+  • Columns: ['row_id', 'sentence_num', 'sentence', 'group_type', 'state', 'attribute', 'base_correct', 'instruct_correct', 'activation_idx']
+[16:06:03] Loading base layer 8...
+  •   Shape: (33522, 1536)
+[16:06:03] Loading base layer 16...
+  •   Shape: (33522, 1536)
+[16:06:03] Loading base layer 24...
+  •   Shape: (33522, 1536)
+[16:06:03] Loading instruct layer 8...
+  •   Shape: (33522, 1536)
+[16:06:03] Loading instruct layer 16...
+  •   Shape: (33522, 1536)
+[16:06:03] Loading instruct layer 24...
+  •   Shape: (33522, 1536)
+
+================================================================================
+PHASE 1: TEXT QUALITY & SANITY
+================================================================================
+
+------------------------------------------------------------
+1.1 Sentence Length Analysis
+------------------------------------------------------------
+[16:06:03] Length statistics by group:
+[16:06:05] ✓ Saved length distribution plots
+
+------------------------------------------------------------
+1.2 Lexical Diversity Analysis
+------------------------------------------------------------
+[16:06:06] Lexical diversity by group:
+
+------------------------------------------------------------
+1.3 N-gram Frequency Analysis
+------------------------------------------------------------
+[16:06:07] 
+SUPPRESSION - Top bigrams:
+[16:06:07]   agricultural cycles, andhra pradesh, arunachal pradesh, community gatherings, dadra nagar, daman diu, haveli daman, high altitude, himachal pradesh, indian states
+[16:06:08] 
+ENHANCEMENT - Top bigrams:
+[16:06:08]   agricultural cycles, andhra pradesh, arunachal pradesh, community gatherings, harvest celebrations, high altitude, himachal pradesh, indian cities, indian states, passed generations
+[16:06:09] 
+CONTROL - Top bigrams:
+[16:06:09]   community gatherings, high altitude, indian cities, indian states, local guides, located telangana, national park, passed generations, south asia, stands apart
+
+------------------------------------------------------------
+1.4 Near-Duplicate Detection (FULL DATASET)
+------------------------------------------------------------
+[16:06:09] Computing TF-IDF similarity matrix for FULL dataset...
+[16:06:09] This will take several minutes - please be patient...
+[16:06:10] Computing pairwise similarities for all 33,522 sentences...
+[16:06:10] Creating 33,522 × 33,522 similarity matrix...
+[16:06:24] Identifying near-duplicate pairs (checking upper triangle only)...
+[16:06:24]   Progress: 0/33,522 rows (0.0%)
+[16:06:28]   Progress: 1,000/33,522 rows (3.0%)
+[16:06:32]   Progress: 2,000/33,522 rows (6.0%)
+[16:06:37]   Progress: 3,000/33,522 rows (8.9%)
+[16:06:41]   Progress: 4,000/33,522 rows (11.9%)
+[16:06:45]   Progress: 5,000/33,522 rows (14.9%)
+[16:06:48]   Progress: 6,000/33,522 rows (17.9%)
+[16:06:52]   Progress: 7,000/33,522 rows (20.9%)
+[16:06:55]   Progress: 8,000/33,522 rows (23.9%)
+[16:06:59]   Progress: 9,000/33,522 rows (26.8%)
+[16:07:02]   Progress: 10,000/33,522 rows (29.8%)
+[16:07:05]   Progress: 11,000/33,522 rows (32.8%)
+[16:07:08]   Progress: 12,000/33,522 rows (35.8%)
+[16:07:11]   Progress: 13,000/33,522 rows (38.8%)
+[16:07:14]   Progress: 14,000/33,522 rows (41.8%)
+[16:07:16]   Progress: 15,000/33,522 rows (44.7%)
+[16:07:19]   Progress: 16,000/33,522 rows (47.7%)
+[16:07:21]   Progress: 17,000/33,522 rows (50.7%)
+[16:07:23]   Progress: 18,000/33,522 rows (53.7%)
+[16:07:25]   Progress: 19,000/33,522 rows (56.7%)
+[16:07:27]   Progress: 20,000/33,522 rows (59.7%)
+[16:07:29]   Progress: 21,000/33,522 rows (62.6%)
+[16:07:30]   Progress: 22,000/33,522 rows (65.6%)
+[16:07:32]   Progress: 23,000/33,522 rows (68.6%)
+[16:07:33]   Progress: 24,000/33,522 rows (71.6%)
+[16:07:34]   Progress: 25,000/33,522 rows (74.6%)
+[16:07:36]   Progress: 26,000/33,522 rows (77.6%)
+[16:07:36]   Progress: 27,000/33,522 rows (80.5%)
+[16:07:37]   Progress: 28,000/33,522 rows (83.5%)
+[16:07:38]   Progress: 29,000/33,522 rows (86.5%)
+[16:07:39]   Progress: 30,000/33,522 rows (89.5%)
+[16:07:39]   Progress: 31,000/33,522 rows (92.5%)
+[16:07:39]   Progress: 32,000/33,522 rows (95.5%)
+[16:07:39]   Progress: 33,000/33,522 rows (98.4%)
+[16:07:39]   Progress: 33,522/33,522 rows (100.0%)
+  • Near-duplicate pairs found (FULL dataset): 0
+[16:07:39] No near-duplicates found at threshold {config.SIMILARITY_THRESHOLD}!
+
+================================================================================
+PHASE 2: COVERAGE & BALANCE AUDIT
+================================================================================
+
+------------------------------------------------------------
+2.1 Group Type Distribution
+------------------------------------------------------------
+[16:07:40] Sentence counts by group:
+  • enhancement: 11,970 (35.7%)
+  • suppression: 11,934 (35.6%)
+  • control: 9,618 (28.7%)
+
+------------------------------------------------------------
+2.2 Cross-Tabulation Analysis
+------------------------------------------------------------
+[16:07:40] 
+Group × State cross-tab shape: (3, 36)
+[16:07:40] Cells with <30 sentences: 20
+[16:07:40] 
+Group × Attribute cross-tab shape: (3, 16)
+[16:07:40] Cells with <30 sentences: 5
+
+------------------------------------------------------------
+2.3 State Coverage
+------------------------------------------------------------
+[16:07:40] 
+Top 10 states by sentence count:
+  • Telangana: 2,889
+  • Uttarakhand: 1,806
+  • Tamil_Nadu: 1,590
+  • Sikkim: 1,485
+  • Tripura: 1,449
+  • Manipur: 1,449
+  • Arunachal_Pradesh: 1,431
+  • Himachal_Pradesh: 1,422
+  • Jharkhand: 1,389
+  • Karnataka: 1,308
+[16:07:40] 
+Bottom 10 states by sentence count:
+  • Maharashtra: 534
+  • Andaman_and_Nicobar: 474
+  • Bihar: 447
+  • Ladakh: 429
+  • Goa: 405
+  • Madhya_Pradesh: 390
+  • Jammu_kashmir: 336
+  • Kerala: 324
+  • Chandigarh: 282
+  • Lakshadweep: 171
+[16:07:41] ✓ Saved state distribution plots
+
+------------------------------------------------------------
+2.4 Attribute Coverage
+------------------------------------------------------------
+[16:07:41] 
+Attribute distribution:
+  • Tourism: 5,613
+  • History: 3,528
+  • Cultural_Common_Sense: 3,363
+  • Festivals: 3,267
+  • Cuisine: 3,177
+  • Dance_and_Music: 2,874
+  • Art: 2,781
+  • Costume: 2,103
+  • Rituals_and_Ceremonies: 2,019
+  • Language: 1,710
+  • Personalities: 1,482
+  • Religion: 888
+  • Sports: 342
+  • Transport: 183
+  • Medicine: 135
+  • Nightlife: 57
+[16:07:42] ✓ Saved attribute distribution plot
+
+------------------------------------------------------------
+2.5 Model Correctness by Group
+------------------------------------------------------------
+[16:07:42] 
+Correctness rates by group:
+[16:07:42] ✓ Saved correctness plot
+
+================================================================================
+PHASE 3: SEMANTIC STRUCTURE EXPLORATION
+================================================================================
+
+------------------------------------------------------------
+3.1 Generating Sentence Embeddings
+------------------------------------------------------------
+[16:07:42] Loading Sentence-BERT model...
+[16:07:44] Encoding 33522 sentences (this will take a few minutes)...
+  • Embedding shape: (33522, 384)
+[16:07:52] Saved embeddings to /data/user_data/anshulk/cultural-alignment-study/eda_data/sentence_embeddings.npy
+
+------------------------------------------------------------
+3.2 UMAP Dimensionality Reduction
+------------------------------------------------------------
+[16:07:52] Running UMAP...
+[16:08:24] Saved UMAP embeddings to /data/user_data/anshulk/cultural-alignment-study/eda_data/umap_2d.npy
+
+------------------------------------------------------------
+3.3 HDBSCAN Clustering
+------------------------------------------------------------
+[16:08:24] Running HDBSCAN...
+  • Clusters found: 267
+  • Noise points: 6853 (20.4%)
+
+------------------------------------------------------------
+3.4 Creating Visualizations
+------------------------------------------------------------
+[16:08:30] ✓ Saved UMAP visualizations
+
+------------------------------------------------------------
+3.5 Cluster Composition Analysis
+------------------------------------------------------------
+[16:08:30] Analyzed 267 clusters
+
+------------------------------------------------------------
+3.6 Baseline Probing on Embeddings
+------------------------------------------------------------
+[16:08:30] Training group_type probe...
+  • Group type probe accuracy: 0.399 ± 0.026
+[16:10:36] Training attribute probe...
+  • Attribute probe accuracy: 0.775 ± 0.016
+
+================================================================================
+PHASE 4: ACTIVATION-LEVEL DEEP DIVE
+================================================================================
+
+------------------------------------------------------------
+4.1 Activation Distribution Statistics
+------------------------------------------------------------
+[16:13:49] BASE Layer 8:
+  •   Mean: 0.0180
+  •   Std: 0.9196
+  •   Per-dim std (mean): 0.1475
+[16:13:49] BASE Layer 16:
+  •   Mean: 0.0150
+  •   Std: 1.0211
+  •   Per-dim std (mean): 0.2056
+[16:13:50] BASE Layer 24:
+  •   Mean: 0.0222
+  •   Std: 2.6712
+  •   Per-dim std (mean): 0.7604
+[16:13:51] INSTRUCT Layer 8:
+  •   Mean: 0.0181
+  •   Std: 0.9068
+  •   Per-dim std (mean): 0.1432
+[16:13:51] INSTRUCT Layer 16:
+  •   Mean: 0.0141
+  •   Std: 1.0087
+  •   Per-dim std (mean): 0.2012
+[16:13:52] INSTRUCT Layer 24:
+  •   Mean: 0.0195
+  •   Std: 2.6060
+  •   Per-dim std (mean): 0.7402
+[16:13:54] Saved activation std plots
+
+------------------------------------------------------------
+4.2 Group Centroid Analysis
+------------------------------------------------------------
+[16:13:54] 
+BASE Layer 8 - Group Distances:
+  •   suppression_vs_enhancement: cos=0.9999, eucl=0.59
+  •   suppression_vs_control: cos=0.9999, eucl=0.59
+  •   enhancement_vs_control: cos=0.9998, eucl=0.78
+[16:13:54] 
+BASE Layer 16 - Group Distances:
+  •   suppression_vs_enhancement: cos=0.9998, eucl=0.75
+  •   suppression_vs_control: cos=0.9997, eucl=0.88
+  •   enhancement_vs_control: cos=0.9996, eucl=1.08
+[16:13:54] 
+BASE Layer 24 - Group Distances:
+  •   suppression_vs_enhancement: cos=0.9996, eucl=2.90
+  •   suppression_vs_control: cos=0.9995, eucl=3.26
+  •   enhancement_vs_control: cos=0.9991, eucl=4.38
+[16:13:54] 
+INSTRUCT Layer 8 - Group Distances:
+  •   suppression_vs_enhancement: cos=0.9999, eucl=0.58
+  •   suppression_vs_control: cos=0.9999, eucl=0.57
+  •   enhancement_vs_control: cos=0.9998, eucl=0.76
+[16:13:54] 
+INSTRUCT Layer 16 - Group Distances:
+  •   suppression_vs_enhancement: cos=0.9999, eucl=0.73
+  •   suppression_vs_control: cos=0.9998, eucl=0.85
+  •   enhancement_vs_control: cos=0.9997, eucl=1.04
+[16:13:55] 
+INSTRUCT Layer 24 - Group Distances:
+  •   suppression_vs_enhancement: cos=0.9996, eucl=2.80
+  •   suppression_vs_control: cos=0.9995, eucl=3.16
+  •   enhancement_vs_control: cos=0.9991, eucl=4.26
+[16:13:56] Saved group distance plots
+
+------------------------------------------------------------
+4.3 UMAP on Activation Space
+------------------------------------------------------------
+[16:13:56] Running UMAP on base layer 8...
+[16:14:15] ✓ Saved UMAP visualization for base layer 8
+[16:14:15] Running UMAP on base layer 16...
+[16:14:34] ✓ Saved UMAP visualization for base layer 16
+[16:14:34] Running UMAP on base layer 24...
+[16:14:53] ✓ Saved UMAP visualization for base layer 24
+[16:14:53] Running UMAP on instruct layer 8...
+[16:15:12] ✓ Saved UMAP visualization for instruct layer 8
+[16:15:12] Running UMAP on instruct layer 16...
+[16:15:32] ✓ Saved UMAP visualization for instruct layer 16
+[16:15:32] Running UMAP on instruct layer 24...
+[16:15:50] ✓ Saved UMAP visualization for instruct layer 24
+
+------------------------------------------------------------
+4.3.5 HDBSCAN Clustering on Activation Space
+------------------------------------------------------------
+[16:15:50] Running HDBSCAN on base layer 24 activations...
+[16:15:51] BASE Layer 24:
+  •   Clusters found: 155
+  •   Noise points: 7412 (22.1%)
+[16:15:52] ✓ Saved base cluster composition to CSV
+[16:15:52] 
+BASE Cluster purity analysis:
+  •   Suppression-pure clusters (>70%): 8 clusters, 597 sentences
+  •   Enhancement-pure clusters (>70%): 5 clusters, 607 sentences
+  •   Control-pure clusters (>70%): 4 clusters, 286 sentences
+  •   Average cluster purity: 53.2%
+[16:15:52] Running HDBSCAN on instruct layer 24 activations...
+[16:15:52] INSTRUCT Layer 24:
+  •   Clusters found: 155
+  •   Noise points: 7412 (22.1%)
+[16:15:52] ✓ Saved instruct cluster composition to CSV
+[16:15:52] 
+INSTRUCT Cluster purity analysis:
+  •   Suppression-pure clusters (>70%): 8 clusters, 597 sentences
+  •   Enhancement-pure clusters (>70%): 5 clusters, 607 sentences
+  •   Control-pure clusters (>70%): 4 clusters, 286 sentences
+  •   Average cluster purity: 53.2%
+[16:15:52] 
+Cross-model cluster comparison:
+[16:15:58] ✓ Saved activation cluster comparison plot
+
+------------------------------------------------------------
+4.4 Base vs Instruct Comparison
+------------------------------------------------------------
+[16:15:58] 
+Layer 8 Base-Instruct Similarity:
+  •   Overall: 0.9997 ± 0.0001
+  •   suppression: 0.9997 ± 0.0001
+  •   enhancement: 0.9997 ± 0.0001
+  •   control: 0.9997 ± 0.0001
+[16:15:58] 
+Layer 16 Base-Instruct Similarity:
+  •   Overall: 0.9993 ± 0.0002
+  •   suppression: 0.9993 ± 0.0002
+  •   enhancement: 0.9992 ± 0.0002
+  •   control: 0.9993 ± 0.0002
+[16:15:58] 
+Layer 24 Base-Instruct Similarity:
+  •   Overall: 0.9990 ± 0.0002
+  •   suppression: 0.9990 ± 0.0002
+  •   enhancement: 0.9990 ± 0.0002
+  •   control: 0.9990 ± 0.0002
+[16:16:00] ✓ Saved base-instruct similarity plots
+
+================================================================================
+PHASE 5: MANUAL VALIDATION SAMPLING
+================================================================================
+[16:16:00] Generating stratified sample of 1000 sentences...
+  • Sample size: 990
+  • Distribution: {'suppression': 330, 'enhancement': 330, 'control': 330}
+[16:16:00] ✓ Saved to /home/anshulk/cultural-alignment-study/outputs/eda_results/tables/manual_validation_sample.csv
+[16:16:00] 
+Instructions for manual validation:
+[16:16:00] 1. Open manual_validation_sample.csv
+[16:16:00] 2. For each sentence, fill in:
+[16:16:00]    - manual_factual_correct: yes/no/unsure
+[16:16:00]    - manual_cultural_specific: yes/no (is it truly about the culture?)
+[16:16:00]    - manual_style_issues: list any repetitive/generic phrasing
+[16:16:00]    - manual_notes: any other observations
+
+================================================================================
+GENERATING SUMMARY REPORT
+================================================================================
+[16:16:00] ✓ Summary report saved
+[16:16:00] ✓ Saved enhanced dataset to /home/anshulk/cultural-alignment-study/outputs/eda_results/tables/enhanced_dataset.csv
+
+================================================================================
+PIPELINE COMPLETE
+================================================================================
+[16:16:00] End time: 2025-11-18 16:16:00
+[16:16:00] Total duration: 10.0 minutes
+[16:16:00] 
+All outputs saved to:
+[16:16:00]   /home/anshulk/cultural-alignment-study/outputs/eda_results
+[16:16:00]   /data/user_data/anshulk/cultural-alignment-study/eda_data

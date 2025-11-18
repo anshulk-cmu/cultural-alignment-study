@@ -1,0 +1,23 @@
+{
+  "group_counts": {
+    "enhancement": 11970,
+    "suppression": 11934,
+    "control": 9618
+  },
+  "low_count_cells": {
+    "group_state": 20,
+    "group_attribute": 5
+  },
+  "correctness": {
+    "base_correct": {
+      "control": 0.8038053649407361,
+      "enhancement": 0.41528822055137843,
+      "suppression": 0.799396681749623
+    },
+    "instruct_correct": {
+      "control": 0.8041172800998129,
+      "enhancement": 0.7679197994987469,
+      "suppression": 0.37481146304675717
+    }
+  }
+}

@@ -17,8 +17,8 @@ import multiprocessing as mp
 warnings.filterwarnings('ignore')
 
 # Configuration
-INPUT_FILE = "/data/user_data/anshulk/cultural-alignment-study/sanskriti_data/generated_sentences_12k_batch.csv"
-OUTPUT_DIR = Path("/data/user_data/anshulk/cultural-alignment-study/sanskriti_data/Activations")
+INPUT_FILE = "/data/user_data/anshulk/cultural-alignment-study/sanskriti_data/data/generated_sentences_12k_batch.csv"
+OUTPUT_DIR = Path("/data/user_data/anshulk/cultural-alignment-study/activations")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # Model paths
@@ -26,7 +26,7 @@ BASE_MODEL_PATH = "Qwen/Qwen2-1.5B"
 INSTRUCT_MODEL_PATH = "Qwen/Qwen2-1.5B-Instruct"
 
 # Layer configuration
-TARGET_LAYERS = [6, 12, 18]
+TARGET_LAYERS = [8, 16, 24]
 TOTAL_LAYERS = 28
 
 # GPU configuration
@@ -34,8 +34,8 @@ BASE_GPU = 0
 INSTRUCT_GPU = 1
 
 # Batch size
-BATCH_SIZE = 256
-MAX_LENGTH = 128
+BATCH_SIZE = 512
+MAX_LENGTH = 256
 
 
 def load_sentences():
@@ -335,8 +335,8 @@ def main():
     print("EXTRACTION COMPLETE")
     print(f"{'='*80}")
     print(f"\nOutput files in: {OUTPUT_DIR}")
-    print(f"  - base_layer{{6,12,18}}_activations.npy")
-    print(f"  - instruct_layer{{6,12,18}}_activations.npy")
+    print(f"  - base_layer{{8,16,24}}_activations.npy")
+    print(f"  - instruct_layer{{8,16,24}}_activations.npy")
     print(f"  - base_metadata.json")
     print(f"  - instruct_metadata.json")
     print(f"  - activation_index.csv")

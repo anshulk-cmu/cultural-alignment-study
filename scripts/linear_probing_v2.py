@@ -32,9 +32,9 @@ import pickle
 
 class Config:
     # Input paths
-    ACTIVATION_DIR = Path("/data/user_data/anshulk/cultural-alignment-study/sanskriti_data/Activations")
+    ACTIVATION_DIR = Path("/data/user_data/anshulk/cultural-alignment-study/activations")
     INDEX_FILE = ACTIVATION_DIR / "activation_index.csv"
-    ENHANCED_DATA = Path("/home/anshulk/cultural-alignment-study/outputs/EDA_results/tables/enhanced_dataset.csv")
+    ENHANCED_DATA = Path("/home/anshulk/cultural-alignment-study/outputs/eda_results/tables/enhanced_dataset.csv")
     
     # Output paths
     OUTPUT_DIR = Path("/home/anshulk/cultural-alignment-study/outputs/linear_probing/v2")
@@ -42,12 +42,12 @@ class Config:
     
     # Models and layers
     MODELS = ['base', 'instruct']
-    LAYERS = [6, 12, 18]
+    LAYERS = [8, 16, 24]
     HIDDEN_SIZE = 1536
     
     # Probing settings
     RANDOM_STATE = 42
-    TEST_SIZE = 0.2
+    TEST_SIZE = 0.25
     CV_FOLDS = 5
     MAX_ITER = 2000
     

@@ -1,107 +1,107 @@
 {
   "base": {
-    "6": {
+    "8": {
       "suppression": {
-        "n_samples": 2387,
-        "attribute_accuracy": 0.8211143695014663,
-        "correctness_accuracy": 0.5768747381650607
+        "n_samples": 2984,
+        "attribute_accuracy": 0.800603217158177,
+        "correctness_accuracy": 0.5740616621983914
       },
       "enhancement": {
-        "n_samples": 2394,
-        "attribute_accuracy": 0.8128654970760234,
-        "correctness_accuracy": 0.6152882205513784
+        "n_samples": 2993,
+        "attribute_accuracy": 0.8105579685933846,
+        "correctness_accuracy": 0.6120948880721684
       },
       "control": {
-        "n_samples": 1924,
-        "attribute_accuracy": 0.8284823284823285,
-        "correctness_accuracy": 0.7255717255717256
+        "n_samples": 2404,
+        "attribute_accuracy": 0.8094841930116472,
+        "correctness_accuracy": 0.7196339434276207
       }
     },
-    "12": {
+    "16": {
       "suppression": {
-        "n_samples": 2387,
-        "attribute_accuracy": 0.7943024717218266,
-        "correctness_accuracy": 0.585672392124005
+        "n_samples": 2984,
+        "attribute_accuracy": 0.7905495978552279,
+        "correctness_accuracy": 0.574396782841823
       },
       "enhancement": {
-        "n_samples": 2394,
-        "attribute_accuracy": 0.7903091060985797,
-        "correctness_accuracy": 0.6169590643274854
+        "n_samples": 2993,
+        "attribute_accuracy": 0.7918476445038423,
+        "correctness_accuracy": 0.6104243234213164
       },
       "control": {
-        "n_samples": 1924,
-        "attribute_accuracy": 0.7983367983367984,
-        "correctness_accuracy": 0.737006237006237
+        "n_samples": 2404,
+        "attribute_accuracy": 0.7961730449251248,
+        "correctness_accuracy": 0.7025790349417638
       }
     },
-    "18": {
+    "24": {
       "suppression": {
-        "n_samples": 2387,
-        "attribute_accuracy": 0.7922077922077922,
-        "correctness_accuracy": 0.5743611227482195
+        "n_samples": 2984,
+        "attribute_accuracy": 0.8361260053619303,
+        "correctness_accuracy": 0.57171581769437
       },
       "enhancement": {
-        "n_samples": 2394,
-        "attribute_accuracy": 0.7852965747702589,
-        "correctness_accuracy": 0.6115288220551378
+        "n_samples": 2993,
+        "attribute_accuracy": 0.8449716004009356,
+        "correctness_accuracy": 0.6107584363514869
       },
       "control": {
-        "n_samples": 1924,
-        "attribute_accuracy": 0.803014553014553,
-        "correctness_accuracy": 0.7099792099792099
+        "n_samples": 2404,
+        "attribute_accuracy": 0.8419301164725458,
+        "correctness_accuracy": 0.7096505823627288
       }
     }
   },
   "instruct": {
-    "6": {
+    "8": {
       "suppression": {
-        "n_samples": 2387,
-        "attribute_accuracy": 0.8173439463762044,
-        "correctness_accuracy": 0.5978215333054042
+        "n_samples": 2984,
+        "attribute_accuracy": 0.8002680965147453,
+        "correctness_accuracy": 0.5971849865951743
       },
       "enhancement": {
-        "n_samples": 2394,
-        "attribute_accuracy": 0.8124477861319966,
-        "correctness_accuracy": 0.5772765246449457
+        "n_samples": 2993,
+        "attribute_accuracy": 0.8055462746408286,
+        "correctness_accuracy": 0.5683260942198463
       },
       "control": {
-        "n_samples": 1924,
-        "attribute_accuracy": 0.8238045738045738,
-        "correctness_accuracy": 0.7219334719334719
+        "n_samples": 2404,
+        "attribute_accuracy": 0.8086522462562395,
+        "correctness_accuracy": 0.7071547420965059
       }
     },
-    "12": {
+    "16": {
       "suppression": {
-        "n_samples": 2387,
-        "attribute_accuracy": 0.7934645999162128,
-        "correctness_accuracy": 0.5902806870548806
+        "n_samples": 2984,
+        "attribute_accuracy": 0.7898793565683646,
+        "correctness_accuracy": 0.6082439678284183
       },
       "enhancement": {
-        "n_samples": 2394,
-        "attribute_accuracy": 0.79156223893066,
-        "correctness_accuracy": 0.5739348370927319
+        "n_samples": 2993,
+        "attribute_accuracy": 0.7918476445038423,
+        "correctness_accuracy": 0.5679919812896759
       },
       "control": {
-        "n_samples": 1924,
-        "attribute_accuracy": 0.8045738045738046,
-        "correctness_accuracy": 0.7130977130977131
+        "n_samples": 2404,
+        "attribute_accuracy": 0.788269550748752,
+        "correctness_accuracy": 0.7088186356073212
       }
     },
-    "18": {
+    "24": {
       "suppression": {
-        "n_samples": 2387,
-        "attribute_accuracy": 0.7867616254713029,
-        "correctness_accuracy": 0.5944700460829493
+        "n_samples": 2984,
+        "attribute_accuracy": 0.8270777479892761,
+        "correctness_accuracy": 0.5961796246648794
       },
       "enhancement": {
-        "n_samples": 2394,
-        "attribute_accuracy": 0.7869674185463659,
-        "correctness_accuracy": 0.5781119465329991
+        "n_samples": 2993,
+        "attribute_accuracy": 0.8376211159371868,
+        "correctness_accuracy": 0.5720013364517207
       },
       "control": {
-        "n_samples": 1924,
-        "attribute_accuracy": 0.8035343035343036,
-        "correctness_accuracy": 0.7198544698544699
+        "n_samples": 2404,
+        "attribute_accuracy": 0.8340266222961731,
+        "correctness_accuracy": 0.7204658901830283
       }
     }
   }

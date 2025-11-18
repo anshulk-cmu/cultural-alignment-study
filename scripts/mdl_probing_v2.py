@@ -2,7 +2,6 @@
 """
 MDL (Minimum Description Length) Probing Analysis
 ==================================================
-
 Information-theoretic analysis of cultural knowledge encoding in neural activations.
 
 Implements:
@@ -15,7 +14,7 @@ Implements:
 
 Models: Qwen2-1.5B Base & Instruct
 Layers: 6, 12, 18
-Dataset: 33,522 sentences across 11,174 questions
+Dataset: 33,522 sentences
 """
 
 import os
@@ -28,14 +27,17 @@ from datetime import datetime
 import json
 import warnings
 from typing import Dict, List, Tuple, Optional
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from collections import defaultdict
+import pickle
 warnings.filterwarnings('ignore')
 
-from sklearn.linear_model import LogisticRegression
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import log_loss
-from sklearn.model_selection import StratifiedKFold
+from sklearn.linear_model import LogisticRegression, Ridge
+from sklearn.preprocessing import StandardScaler, LabelEncoder
+from sklearn.metrics import log_loss, accuracy_score
+from sklearn.model_selection import StratifiedKFold, train_test_split
+from scipy.stats import entropy
+from scipy.linalg import eigvalsh
 
 # ============================================================================
 # CONFIGURATION
@@ -48,13 +50,14 @@ class MDLConfig:
     # Paths
     activation_dir: Path = Path("/data/user_data/anshulk/cultural-alignment-study/sanskriti_data/Activations")
     index_file: Path = activation_dir / "activation_index.csv"
-    split_info: Path = Path("/data/user_data/anshulk/cultural-alignment-study/sanskriti_data/Linear_Probing/split_info.json")
+    enhanced_data: Path = Path("/home/anshulk/cultural-alignment-study/outputs/EDA_results/tables/enhanced_dataset.csv")
     output_dir: Path = Path("/home/anshulk/cultural-alignment-study/outputs/mdl_probing_v2")
     heavy_data_dir: Path = Path("/data/user_data/anshulk/cultural-alignment-study/sanskriti_data/MDL_Probing_v2")
     
     # Models and layers
     models: List[str] = None
     layers: List[int] = None
+    hidden_size: int = 1536
     
     # MDL parameters
     lambda_values: List[float] = None
@@ -68,6 +71,7 @@ class MDLConfig:
     n_cv_folds: int = 5
     random_state: int = 42
     max_iter: int = 1000
+    test_size: float = 0.2
     
     def __post_init__(self):
         if self.models is None:
@@ -96,1163 +100,1263 @@ config = MDLConfig()
 # ============================================================================
 
 class Logger:
-    """Structured logging with timestamps."""
-    
-    def __init__(self, log_file: Path):
+    def __init__(self, log_file):
         self.log_file = log_file
-        self.width = 80
         
-    def section(self, title: str):
-        msg = f"\n{'='*self.width}\n{title.upper()}\n{'='*self.width}"
+    def section(self, title):
+        msg = f"\n{'='*80}\n{title.upper()}\n{'='*80}"
         print(msg)
-        self._write(msg)
+        with open(self.log_file, 'a') as f:
+            f.write(msg + '\n')
     
-    def subsection(self, title: str):
-        msg = f"\n{'-'*60}\n{title}\n{'-'*60}"
-        print(msg)
-        self._write(msg)
-    
-    def log(self, message: str):
+    def log(self, message):
         timestamp = datetime.now().strftime("%H:%M:%S")
         msg = f"[{timestamp}] {message}"
         print(msg)
-        self._write(msg)
+        with open(self.log_file, 'a') as f:
+            f.write(msg + '\n')
     
-    def result(self, key: str, value):
+    def result(self, key, value):
         msg = f"  • {key}: {value}"
         print(msg)
-        self._write(msg)
-    
-    def _write(self, message: str):
         with open(self.log_file, 'a') as f:
-            f.write(message + '\n')
+            f.write(msg + '\n')
 
-logger = Logger(config.output_dir / "mdl_log.txt")
-
-# ============================================================================
-# DATA LOADING & PREPARATION
-# ============================================================================
-
-class DataLoader:
-    """Handle data loading and split management."""
-    
-    def __init__(self, config: MDLConfig):
-        self.config = config
-        
-    def load(self) -> Tuple[pd.DataFrame, Dict, np.ndarray, np.ndarray, np.ndarray]:
-        """Load activations, labels, and split masks."""
-        logger.section("Loading Data")
-        
-        # Load index
-        logger.log("Loading activation index...")
-        df = pd.read_csv(self.config.index_file)
-        logger.result("Total sentences", len(df))
-        
-        # Load splits
-        logger.log("Loading train/dev/test splits...")
-        with open(self.config.split_info, 'r') as f:
-            split_info = json.load(f)
-        
-        train_questions = set(split_info['train_questions'])
-        dev_questions = set(split_info['dev_questions'])
-        test_questions = set(split_info['test_questions'])
-        
-        train_mask = df['row_id'].isin(train_questions).values
-        dev_mask = df['row_id'].isin(dev_questions).values
-        test_mask = df['row_id'].isin(test_questions).values
-        
-        logger.result("Train sentences", train_mask.sum())
-        logger.result("Dev sentences", dev_mask.sum())
-        logger.result("Test sentences", test_mask.sum())
-        
-        # Load activations
-        activations = {}
-        for model in self.config.models:
-            activations[model] = {}
-            for layer in self.config.layers:
-                file_path = self.config.activation_dir / f"{model}_layer{layer}_activations.npy"
-                logger.log(f"Loading {model} layer {layer}...")
-                acts = np.load(file_path)
-                activations[model][layer] = acts
-                logger.result(f"  Shape", acts.shape)
-        
-        # Create control labels
-        df = self._create_control_labels(df)
-        
-        return df, activations, train_mask, dev_mask, test_mask
-    
-    def _create_control_labels(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Generate shuffled control labels while preserving question-level structure."""
-        logger.log("Creating control task labels...")
-        
-        df_control = df.copy()
-        np.random.seed(self.config.random_state)
-        
-        # Shuffle group labels
-        question_groups = df.groupby('row_id')['group_type'].first()
-        shuffled_groups = question_groups.sample(frac=1, random_state=self.config.random_state)
-        group_mapping = dict(zip(question_groups.index, shuffled_groups.values))
-        df_control['group_type_control'] = df_control['row_id'].map(group_mapping)
-        
-        # Shuffle correctness labels
-        for label_col in ['base_correct', 'instruct_correct']:
-            question_labels = df.groupby('row_id')[label_col].first()
-            shuffled_labels = question_labels.sample(frac=1, random_state=self.config.random_state)
-            label_mapping = dict(zip(question_labels.index, shuffled_labels.values))
-            df_control[f'{label_col}_control'] = df_control['row_id'].map(label_mapping)
-        
-        logger.result("Control labels", "Created")
-        return df_control
+log = Logger(config.output_dir / "mdl_log.txt")
 
 # ============================================================================
-# TASK DEFINITIONS
+# DATA LOADING
 # ============================================================================
 
-class TaskDefinition:
-    """Define probing tasks with labels and masks."""
+def load_data():
+    """Load activations and metadata."""
+    log.section("Loading Data")
     
-    def __init__(self, name: str, label: np.ndarray, mask: Optional[np.ndarray] = None,
-                 multiclass: bool = False, is_control: bool = False, 
-                 real_task: Optional[str] = None):
-        self.name = name
-        self.label = label
-        self.mask = mask
-        self.multiclass = multiclass
-        self.is_control = is_control
-        self.real_task = real_task if real_task else name
+    # Load metadata
+    log.log("Loading metadata...")
+    df = pd.read_csv(config.enhanced_data)
+    log.result("Total sentences", len(df))
+    
+    # Load activations
+    activations = {}
+    for model in config.models:
+        activations[model] = {}
+        for layer in config.layers:
+            file_path = config.activation_dir / f"{model}_layer{layer}_activations.npy"
+            log.log(f"Loading {model} layer {layer}...")
+            activations[model][layer] = np.load(file_path)
+            log.result(f"  Shape", activations[model][layer].shape)
+    
+    # Prepare labels
+    log.log("\nPreparing labels...")
+    
+    label_encoders = {}
+    
+    # Attribute (16 classes)
+    le_attr = LabelEncoder()
+    df['attribute_label'] = le_attr.fit_transform(df['attribute'])
+    label_encoders['attribute'] = le_attr
+    log.result("Attributes", len(le_attr.classes_))
+    
+    # State (36 classes)
+    le_state = LabelEncoder()
+    df['state_label'] = le_state.fit_transform(df['state'])
+    label_encoders['state'] = le_state
+    log.result("States", len(le_state.classes_))
+    
+    # Group (3 classes)
+    le_group = LabelEncoder()
+    df['group_label'] = le_group.fit_transform(df['group_type'])
+    label_encoders['group'] = le_group
+    log.result("Groups", len(le_group.classes_))
+    
+    # Correctness
+    df['base_correct_label'] = df['base_correct'].astype(int)
+    df['instruct_correct_label'] = df['instruct_correct'].astype(int)
+    
+    return df, activations, label_encoders
 
-def get_tasks(df: pd.DataFrame, model: str) -> Dict[str, TaskDefinition]:
-    """Create all probing tasks for a given model."""
-    tasks = {}
+
+def create_splits(df: pd.DataFrame):
+    """Create stratified train/test splits."""
+    log.section("Creating Splits")
     
-    # Suppression vs Control
-    supp_mask = (df['group_type'] == 'suppression') | (df['group_type'] == 'control')
-    tasks['suppression_vs_control'] = TaskDefinition(
-        name='Suppression vs Control',
-        label=(df['group_type'] == 'suppression').astype(int).values,
-        mask=supp_mask.values,
-        multiclass=False,
-        is_control=False
+    train_idx, test_idx = train_test_split(
+        df.index,
+        test_size=config.test_size,
+        random_state=config.random_state,
+        stratify=df['group_type']
     )
     
-    supp_mask_ctrl = (df['group_type_control'] == 'suppression') | (df['group_type_control'] == 'control')
-    tasks['suppression_vs_control_control'] = TaskDefinition(
-        name='Suppression vs Control (Control)',
-        label=(df['group_type_control'] == 'suppression').astype(int).values,
-        mask=supp_mask_ctrl.values,
-        multiclass=False,
-        is_control=True,
-        real_task='suppression_vs_control'
-    )
+    log.result("Train size", len(train_idx))
+    log.result("Test size", len(test_idx))
     
-    # Enhancement vs Control
-    enh_mask = (df['group_type'] == 'enhancement') | (df['group_type'] == 'control')
-    tasks['enhancement_vs_control'] = TaskDefinition(
-        name='Enhancement vs Control',
-        label=(df['group_type'] == 'enhancement').astype(int).values,
-        mask=enh_mask.values,
-        multiclass=False,
-        is_control=False
-    )
-    
-    enh_mask_ctrl = (df['group_type_control'] == 'enhancement') | (df['group_type_control'] == 'control')
-    tasks['enhancement_vs_control_control'] = TaskDefinition(
-        name='Enhancement vs Control (Control)',
-        label=(df['group_type_control'] == 'enhancement').astype(int).values,
-        mask=enh_mask_ctrl.values,
-        multiclass=False,
-        is_control=True,
-        real_task='enhancement_vs_control'
-    )
-    
-    # 3-way classification
-    group_map = {'suppression': 0, 'enhancement': 1, 'control': 2}
-    tasks['group_3way'] = TaskDefinition(
-        name='Group Type (3-way)',
-        label=df['group_type'].map(group_map).values,
-        mask=None,
-        multiclass=True,
-        is_control=False
-    )
-    
-    tasks['group_3way_control'] = TaskDefinition(
-        name='Group Type (3-way) (Control)',
-        label=df['group_type_control'].map(group_map).values,
-        mask=None,
-        multiclass=True,
-        is_control=True,
-        real_task='group_3way'
-    )
-    
-    return tasks
+    return train_idx, test_idx
+
 
 # ============================================================================
 # COMPLEXITY MEASURES
 # ============================================================================
 
-class ComplexityMeasure:
-    """Compute various model complexity measures with proper parameter encoding."""
-    
-    @staticmethod
-    def count_parameters(probe: LogisticRegression) -> int:
-        """Count total number of parameters in the probe."""
-        if not hasattr(probe, 'coef_'):
-            return 0
-        
-        n_params = probe.coef_.size
-        
-        # Add intercept parameters
-        if hasattr(probe, 'intercept_'):
-            n_params += probe.intercept_.size
-        
-        return n_params
-    
-    @staticmethod
-    def parameter_encoding_cost(probe: LogisticRegression, bits_per_param: int = 32) -> float:
-        """
-        Compute cost of encoding parameters themselves.
-        Each float32 parameter requires 32 bits to encode.
-        """
-        n_params = ComplexityMeasure.count_parameters(probe)
-        return n_params * bits_per_param
-    
-    @staticmethod
-    def l0_norm(probe: LogisticRegression, threshold: float = 1e-6) -> float:
-        """Count non-zero parameters (sparsity)."""
-        if not hasattr(probe, 'coef_'):
-            return 0.0
-        weights = probe.coef_.flatten()
-        return np.sum(np.abs(weights) > threshold)
-    
-    @staticmethod
-    def l1_norm(probe: LogisticRegression) -> float:
-        """Sum of absolute values."""
-        if not hasattr(probe, 'coef_'):
-            return 0.0
-        weights = probe.coef_.flatten()
-        return np.sum(np.abs(weights))
-    
-    @staticmethod
-    def l2_norm(probe: LogisticRegression) -> float:
-        """Sum of squared values."""
-        if not hasattr(probe, 'coef_'):
-            return 0.0
-        weights = probe.coef_.flatten()
-        return np.sum(weights ** 2)
-    
-    @staticmethod
-    def fisher_information(probe: LogisticRegression, X: np.ndarray, y: np.ndarray) -> float:
-        """
-        Compute Fisher Information using empirical Hessian eigenvalues.
-        
-        For logistic regression, Fisher Information Matrix approximates
-        the curvature of the loss surface. Uses eigenvalue decomposition
-        for better approximation than diagonal elements alone.
-        """
-        if not hasattr(probe, 'coef_'):
-            return 0.0
-        
-        n_samples, n_features = X.shape
-        
+def compute_l0_norm(weights: np.ndarray, threshold: float = 1e-6) -> float:
+    """Count non-zero parameters."""
+    return np.sum(np.abs(weights) > threshold)
+
+
+def compute_l1_norm(weights: np.ndarray) -> float:
+    """L1 norm (sum of absolute values)."""
+    return np.sum(np.abs(weights))
+
+
+def compute_l2_norm(weights: np.ndarray) -> float:
+    """L2 norm (Euclidean norm)."""
+    return np.sqrt(np.sum(weights ** 2))
+
+
+def compute_fisher_information(
+    probe,
+    X: np.ndarray,
+    y: np.ndarray,
+    epsilon: float = 1e-8
+) -> float:
+    """
+    Compute Fisher Information as trace of Hessian.
+    Approximated via eigenvalues of X^T W X where W is diagonal weight matrix.
+    """
+    try:
         # Get predictions
         probs = probe.predict_proba(X)
         
-        # Compute weights for Fisher matrix
+        # Compute diagonal weight matrix (variance of predictions)
         if probs.shape[1] == 2:
-            # Binary classification
+            # Binary case
             p = probs[:, 1]
-            weights = p * (1 - p)
+            weights = p * (1 - p) + epsilon
         else:
-            # Multiclass - use entropy-based weighting
-            p_max = np.max(probs, axis=1)
-            weights = p_max * (1 - p_max)
+            # Multi-class case
+            weights = np.sum(probs * (1 - probs), axis=1) + epsilon
         
-        # Clip to avoid numerical issues
-        weights = np.clip(weights, 1e-10, 1.0)
-        
-        # Compute weighted covariance matrix
-        # Fisher ≈ X^T W X where W = diag(weights)
+        # Weighted covariance: X^T W X
         X_weighted = X * np.sqrt(weights)[:, np.newaxis]
+        cov = X_weighted.T @ X_weighted / len(X)
         
-        # Use sample-based approximation to avoid memory issues
-        # Compute X^T W X via sampling if matrix too large
-        if n_features > 1000:
-            # Sample-based approximation
-            n_samples_approx = min(1000, n_samples)
-            sample_idx = np.random.choice(n_samples, n_samples_approx, replace=False)
-            X_weighted_sample = X_weighted[sample_idx]
-            fisher_matrix = (X_weighted_sample.T @ X_weighted_sample) / n_samples_approx
+        # Compute eigenvalues (more stable than full Hessian)
+        eigenvals = eigvalsh(cov)
+        eigenvals = np.maximum(eigenvals, 0)  # Numerical stability
+        
+        # Fisher information is trace
+        fisher = np.sum(eigenvals)
+        
+        return float(fisher)
+        
+    except Exception as e:
+        log.log(f"Warning: Fisher computation failed: {e}")
+        return 0.0
+
+
+def compute_all_complexity_measures(
+    probe,
+    X: np.ndarray,
+    y: np.ndarray
+) -> Dict[str, float]:
+    """Compute all complexity measures for a probe."""
+    
+    # Get weights (flatten all parameters)
+    if hasattr(probe, 'coef_'):
+        weights = probe.coef_.ravel()
+        if hasattr(probe, 'intercept_'):
+            weights = np.concatenate([weights, probe.intercept_.ravel()])
+    else:
+        weights = np.array([])
+    
+    measures = {
+        'l0': compute_l0_norm(weights),
+        'l1': compute_l1_norm(weights),
+        'l2': compute_l2_norm(weights),
+        'fisher': compute_fisher_information(probe, X, y)
+    }
+    
+    return measures
+
+
+# ============================================================================
+# MDL COMPUTATION
+# ============================================================================
+
+def compute_data_codelength(
+    probe,
+    X: np.ndarray,
+    y: np.ndarray,
+    scaler: Optional[StandardScaler] = None
+) -> float:
+    """
+    Compute data codelength: -log P(y|X,θ) in bits.
+    Uses cross-entropy loss.
+    """
+    if scaler is not None:
+        X = scaler.transform(X)
+    
+    # Get predicted probabilities
+    y_proba = probe.predict_proba(X)
+    
+    # Compute cross-entropy in nats
+    loss_nats = log_loss(y, y_proba, normalize=False)
+    
+    # Convert to bits
+    loss_bits = loss_nats / np.log(2)
+    
+    return float(loss_bits)
+
+def compute_parameter_codelength(n_params: int) -> float:
+    """
+    Compute parameter codelength: fixed cost to transmit parameters.
+    
+    Standard MDL: Each float32 parameter requires 32 bits to encode.
+    Complexity is already handled by regularization λ during training.
+    
+    Args:
+        n_params: Number of parameters in the model
+        
+    Returns:
+        Parameter codelength in bits
+    """
+    return n_params * config.bits_per_parameter
+
+
+def compute_mdl_score(
+    probe,
+    X: np.ndarray,
+    y: np.ndarray,
+    scaler: Optional[StandardScaler] = None
+) -> Dict[str, float]:
+    """
+    Compute full MDL score: data codelength + parameter codelength.
+    
+    MDL = L(D|θ) + L(θ)
+    where:
+        L(D|θ) = data codelength (negative log likelihood)
+        L(θ) = parameter codelength (fixed encoding cost)
+    
+    Complexity measures (L0, L1, L2, Fisher) are computed for analysis
+    but don't affect the MDL score (regularization λ already handled them).
+    """
+    # Data codelength: -log P(y|X,θ) in bits
+    data_codelength = compute_data_codelength(probe, X, y, scaler)
+    
+    # Number of parameters
+    if hasattr(probe, 'coef_'):
+        n_params = probe.coef_.size
+        if hasattr(probe, 'intercept_'):
+            n_params += probe.intercept_.size
+    else:
+        n_params = 0
+    
+    # Fixed parameter codelength (standard MDL)
+    param_codelength = compute_parameter_codelength(n_params)
+    
+    # Total MDL score
+    mdl_score = data_codelength + param_codelength
+    
+    # Compute complexity measures for reporting/analysis
+    complexity_measures = compute_all_complexity_measures(probe, X, y)
+    
+    result = {
+        'data_codelength': data_codelength,
+        'parameter_codelength': param_codelength,
+        'mdl_score': mdl_score,
+        'n_parameters': n_params,
+        'complexity_measures': complexity_measures,  # For analysis only
+    }
+    
+    return result
+
+# ============================================================================
+# VARIATIONAL MDL
+# ============================================================================
+
+def variational_mdl(
+    X_train: np.ndarray,
+    y_train: np.ndarray,
+    X_test: np.ndarray,
+    y_test: np.ndarray,
+    lambda_values: List[float],
+    task_type: str = 'multiclass'
+) -> Dict:
+    """
+    Compute MDL across multiple regularization strengths.
+    """
+    results = []
+    
+    # Scale features
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_test_scaled = scaler.transform(X_test)
+    
+    for lam in lambda_values:
+        if task_type == 'binary':
+            probe = LogisticRegression(
+                C=1.0/lam if lam > 0 else 1e10,
+                max_iter=config.max_iter,
+                random_state=config.random_state,
+                penalty='l2',
+                solver='lbfgs'
+            )
         else:
-            fisher_matrix = (X_weighted.T @ X_weighted) / n_samples
+            probe = LogisticRegression(
+                C=1.0/lam if lam > 0 else 1e10,
+                max_iter=config.max_iter,
+                random_state=config.random_state,
+                penalty='l2',
+                solver='lbfgs',
+                multi_class='multinomial'
+            )
         
-        # Compute eigenvalues
-        try:
-            eigenvalues = np.linalg.eigvalsh(fisher_matrix)
-            # Filter out negative eigenvalues (numerical errors)
-            eigenvalues = eigenvalues[eigenvalues > 1e-10]
-            
-            if len(eigenvalues) == 0:
-                return 0.0
-            
-            # Log determinant = sum of log eigenvalues
-            log_det = np.sum(np.log(eigenvalues))
-            
-            return log_det
-        except np.linalg.LinAlgError:
-            # Fallback to diagonal approximation if eigenvalue computation fails
-            fisher_diag = np.sum(X_weighted ** 2, axis=0)
-            fisher_diag = np.maximum(fisher_diag, 1e-10)
-            log_det = np.sum(np.log(fisher_diag))
-            return log_det
+        probe.fit(X_train_scaled, y_train)
+        
+        # Compute MDL on test set
+        mdl_result = compute_mdl_score(probe, X_test_scaled, y_test, scaler=None)
+        
+        # Add metadata
+        mdl_result['lambda'] = lam
+        mdl_result['test_accuracy'] = accuracy_score(y_test, probe.predict(X_test_scaled))
+        
+        results.append(mdl_result)
     
-    @staticmethod
-    def compute_all(probe: LogisticRegression, X: np.ndarray, y: np.ndarray, 
-                    lambda_val: float, bits_per_param: int) -> Dict[str, float]:
-        """Compute all complexity measures including parameter encoding cost."""
+    return {
+        'results': results,
+        'scaler': scaler
+    }
+
+
+# ============================================================================
+# PREQUENTIAL MDL
+# ============================================================================
+
+def prequential_mdl(
+    X: np.ndarray,
+    y: np.ndarray,
+    chunk_sizes: List[int],
+    task_type: str = 'multiclass',
+    lambda_reg: float = 1.0
+) -> Dict:
+    """
+    Compute prequential (online) codelength.
+    Train on chunks sequentially and test on next chunk.
+    """
+    n_samples = len(X)
+    
+    # Scale once
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+    
+    results = {}
+    
+    for chunk_size in chunk_sizes:
+        if chunk_size >= n_samples:
+            continue
         
-        # Base parameter encoding cost (always included)
-        param_encoding = ComplexityMeasure.parameter_encoding_cost(probe, bits_per_param)
+        n_chunks = n_samples // chunk_size
         
-        # Regularization-weighted complexity measures
-        l0_complexity = lambda_val * ComplexityMeasure.l0_norm(probe)
-        l1_complexity = lambda_val * ComplexityMeasure.l1_norm(probe)
-        l2_complexity = lambda_val * ComplexityMeasure.l2_norm(probe)
-        fisher_complexity = lambda_val * ComplexityMeasure.fisher_information(probe, X, y)
+        cumulative_codelength = 0.0
+        cumulative_samples = 0
+        chunk_codelengths = []
         
-        return {
-            'l0': param_encoding + l0_complexity,
-            'l1': param_encoding + l1_complexity,
-            'l2': param_encoding + l2_complexity,
-            'fisher': param_encoding + fisher_complexity
+        for i in range(n_chunks - 1):
+            # Train on chunks 0 to i
+            train_end = (i + 1) * chunk_size
+            X_train_chunk = X_scaled[:train_end]
+            y_train_chunk = y[:train_end]
+            
+            # Test on chunk i+1
+            test_start = train_end
+            test_end = test_start + chunk_size
+            X_test_chunk = X_scaled[test_start:test_end]
+            y_test_chunk = y[test_start:test_end]
+            
+            # Train probe
+            if task_type == 'binary':
+                probe = LogisticRegression(
+                    C=1.0/lambda_reg,
+                    max_iter=config.max_iter,
+                    random_state=config.random_state,
+                    penalty='l2'
+                )
+            else:
+                probe = LogisticRegression(
+                    C=1.0/lambda_reg,
+                    max_iter=config.max_iter,
+                    random_state=config.random_state,
+                    penalty='l2',
+                    multi_class='multinomial'
+                )
+            
+            probe.fit(X_train_chunk, y_train_chunk)
+            
+            # Compute codelength on test chunk
+            codelength = compute_data_codelength(probe, X_test_chunk, y_test_chunk, scaler=None)
+            
+            cumulative_codelength += codelength
+            cumulative_samples += len(y_test_chunk)
+            chunk_codelengths.append(codelength)
+        
+        results[chunk_size] = {
+            'total_codelength': cumulative_codelength,
+            'n_samples': cumulative_samples,
+            'avg_codelength_per_sample': cumulative_codelength / cumulative_samples,
+            'chunk_codelengths': chunk_codelengths
         }
-
-# ============================================================================
-# VARIATIONAL MDL WITH NESTED CV
-# ============================================================================
-
-class VariationalMDL:
-    """Variational MDL coding with hyperparameter validation."""
     
-    def __init__(self, config: MDLConfig):
-        self.config = config
+    return results
+
+
+# ============================================================================
+# PER-CLASS CODELENGTH
+# ============================================================================
+
+def compute_per_class_codelength(
+    probe,
+    X: np.ndarray,
+    y: np.ndarray,
+    scaler: Optional[StandardScaler] = None
+) -> Dict[int, float]:
+    """
+    Compute codelength separately for each class.
+    """
+    if scaler is not None:
+        X = scaler.transform(X)
+    
+    classes = np.unique(y)
+    per_class = {}
+    
+    for cls in classes:
+        mask = y == cls
+        X_cls = X[mask]
+        y_cls = y[mask]
         
-    def fit(self, X_train: np.ndarray, y_train: np.ndarray, 
-            X_dev: np.ndarray, y_dev: np.ndarray,
-            X_test: np.ndarray, y_test: np.ndarray,
-            multiclass: bool = False) -> pd.DataFrame:
-        """
-        Run variational MDL with nested cross-validation.
+        if len(y_cls) == 0:
+            continue
         
-        Outer loop: Select optimal lambda on dev set
-        Inner loop: Compute complexity measures
-        """
-        logger.log("    Running variational MDL with nested CV...")
+        codelength = compute_data_codelength(probe, X_cls, y_cls, scaler=None)
+        per_class[int(cls)] = {
+            'codelength': codelength,
+            'n_samples': len(y_cls),
+            'avg_codelength': codelength / len(y_cls)
+        }
+    
+    return per_class
+
+
+# ============================================================================
+# TASK 1: ATTRIBUTE PROBING
+# ============================================================================
+
+def mdl_attribute_probing(df, train_idx, test_idx, activations):
+    """MDL analysis for attribute classification."""
+    log.section("Task 1: Attribute MDL (16-class)")
+    
+    results = {}
+    
+    for model in config.models:
+        results[model] = {}
         
-        # Combine train and dev for full training set
-        X_full_train = np.vstack([X_train, X_dev])
-        y_full_train = np.concatenate([y_train, y_dev])
-        
-        # Standardize
-        scaler = StandardScaler()
-        X_full_train_scaled = scaler.fit_transform(X_full_train)
-        X_test_scaled = scaler.transform(X_test)
-        
-        # Uniform codelength baseline - computed on TEST set
-        n_classes = len(np.unique(y_test))
-        uniform_cl = len(y_test) * np.log2(n_classes)
-        
-        results = []
-        best_dev_cl = float('inf')
-        best_lambda = None
-        
-        # Grid search over lambda
-        for lam in self.config.lambda_values:
-            C = 1.0 / (2 * lam) if lam > 0 else 1e10
+        for layer in config.layers:
+            log.log(f"\n{model.upper()} Layer {layer}")
             
-            # Train probe
-            if multiclass:
-                probe = LogisticRegression(
-                    C=C, max_iter=self.config.max_iter,
-                    random_state=self.config.random_state,
-                    multi_class='multinomial', solver='lbfgs'
-                )
-            else:
-                probe = LogisticRegression(
-                    C=C, max_iter=self.config.max_iter,
-                    random_state=self.config.random_state
-                )
+            X = activations[model][layer]
+            y = df['attribute_label'].values
             
-            probe.fit(X_full_train_scaled, y_full_train)
+            X_train, y_train = X[train_idx], y[train_idx]
+            X_test, y_test = X[test_idx], y[test_idx]
             
-            # Compute all complexity measures (includes parameter encoding)
-            complexities = ComplexityMeasure.compute_all(
-                probe, X_full_train_scaled, y_full_train, lam, 
-                self.config.bits_per_parameter
+            # Variational MDL
+            log.log("  Computing variational MDL...")
+            var_result = variational_mdl(
+                X_train, y_train, X_test, y_test,
+                config.lambda_values,
+                task_type='multiclass'
             )
             
-            # Compute data misfits
-            train_misfit = self._compute_misfit(probe, scaler, X_full_train, y_full_train)
-            test_misfit = self._compute_misfit(probe, scaler, X_test, y_test)
+            # Find best lambda by MDL (L2 measure)
+            best_idx = np.argmin([r['mdl_scores']['l2'] for r in var_result['results']])
+            best_result = var_result['results'][best_idx]
             
-            # Per-class codelengths
-            per_class_cl = self._compute_per_class_codelength(
-                probe, scaler, X_test, y_test
+            log.result("Best λ", f"{best_result['lambda']:.2e}")
+            log.result("MDL (L2)", f"{best_result['mdl_scores']['l2']:.2f} bits")
+            log.result("Data CL", f"{best_result['data_codelength']:.2f} bits")
+            log.result("Param CL (L2)", f"{best_result['parameter_codelengths']['l2']:.2f} bits")
+            log.result("Test Acc", f"{best_result['test_accuracy']:.4f}")
+            
+            # Prequential MDL
+            log.log("  Computing prequential MDL...")
+            preq_result = prequential_mdl(
+                X_test, y_test,
+                config.prequential_chunk_sizes,
+                task_type='multiclass',
+                lambda_reg=best_result['lambda']
             )
             
-            # Store results for each complexity measure
-            for measure_name, complexity_val in complexities.items():
-                total_cl = complexity_val + train_misfit
-                compression = uniform_cl / total_cl if total_cl > 0 else 0
-                
-                results.append({
-                    'lambda': lam,
-                    'C': C,
-                    'complexity_measure': measure_name,
-                    'model_complexity': complexity_val,
-                    'train_misfit': train_misfit,
-                    'test_misfit': test_misfit,
-                    'total_codelength': total_cl,
-                    'uniform_codelength': uniform_cl,
-                    'compression_ratio': compression,
-                    'n_parameters': ComplexityMeasure.count_parameters(probe),
-                    **{f'class_{k}_codelength': v for k, v in per_class_cl.items()}
-                })
-                
-                # Track best lambda (using L2 by default)
-                if measure_name == 'l2' and total_cl < best_dev_cl:
-                    best_dev_cl = total_cl
-                    best_lambda = lam
-        
-        results_df = pd.DataFrame(results)
-        
-        logger.result("Best λ (L2)", f"{best_lambda:.2e}")
-        logger.result("Best codelength", f"{best_dev_cl:.2f} bits")
-        
-        return results_df
-    
-    def _compute_misfit(self, probe: LogisticRegression, scaler: StandardScaler,
-                        X: np.ndarray, y: np.ndarray) -> float:
-        """Compute negative log likelihood in bits."""
-        X_scaled = scaler.transform(X)
-        ce_loss = log_loss(y, probe.predict_proba(X_scaled))
-        return (ce_loss * len(y)) / np.log(2)
-    
-    def _compute_per_class_codelength(self, probe: LogisticRegression, 
-                                      scaler: StandardScaler,
-                                      X: np.ndarray, y: np.ndarray) -> Dict[int, float]:
-        """Compute codelength separately for each class."""
-        X_scaled = scaler.transform(X)
-        probs = probe.predict_proba(X_scaled)
-        
-        per_class = {}
-        for class_idx in np.unique(y):
-            mask = (y == class_idx)
-            if mask.sum() == 0:
-                continue
+            # Per-class codelength
+            log.log("  Computing per-class codelength...")
+            scaler = var_result['scaler']
+            best_lambda = best_result['lambda']
             
-            class_probs = probs[mask]
-            class_y = y[mask]
+            probe = LogisticRegression(
+                C=1.0/best_lambda,
+                max_iter=config.max_iter,
+                random_state=config.random_state,
+                multi_class='multinomial'
+            )
+            probe.fit(scaler.transform(X_train), y_train)
             
-            # Negative log likelihood for this class
-            n_classes = probs.shape[1]
-            all_labels = list(range(n_classes))
+            per_class = compute_per_class_codelength(
+                probe, X_test, y_test, scaler
+            )
+            
+            results[model][layer] = {
+                'variational': var_result['results'],
+                'best': best_result,
+                'prequential': preq_result,
+                'per_class': per_class
+            }
+    
+    # Save results
+    with open(config.output_dir / "results" / "attribute_mdl.json", 'w') as f:
+        # Convert to serializable format
+        save_results = {}
+        for model in results:
+            save_results[model] = {}
+            for layer in results[model]:
+                save_results[model][layer] = {
+                    'variational': results[model][layer]['variational'],
+                    'best': results[model][layer]['best'],
+                    'prequential': {
+                        str(k): v for k, v in results[model][layer]['prequential'].items()
+                    },
+                    'per_class': {
+                        str(k): v for k, v in results[model][layer]['per_class'].items()
+                    }
+                }
+        json.dump(save_results, f, indent=2)
+    
+    return results
 
-            ce = log_loss(class_y, class_probs, labels=all_labels)
-
-            per_class[int(class_idx)] = (ce * mask.sum()) / np.log(2)
-        
-        return per_class
 
 # ============================================================================
-# PREQUENTIAL (ONLINE) MDL CODING
+# TASK 2: STATE PROBING
 # ============================================================================
 
-class PrequentialMDL:
-    """Prequential coding for online codelength estimation."""
+def mdl_state_probing(df, train_idx, test_idx, activations):
+    """MDL analysis for state classification."""
+    log.section("Task 2: State MDL (36-class)")
     
-    def __init__(self, config: MDLConfig):
-        self.config = config
+    results = {}
+    
+    for model in config.models:
+        results[model] = {}
         
-    def fit(self, X_train: np.ndarray, y_train: np.ndarray,
-            X_test: np.ndarray, y_test: np.ndarray,
-            optimal_C: float, multiclass: bool = False) -> pd.DataFrame:
-        """
-        Prequential (online) coding: train on sequential chunks,
-        measure cumulative codelength.
-        """
-        logger.log("    Running prequential MDL coding...")
+        for layer in config.layers:
+            log.log(f"\n{model.upper()} Layer {layer}")
+            
+            X = activations[model][layer]
+            y = df['state_label'].values
+            
+            X_train, y_train = X[train_idx], y[train_idx]
+            X_test, y_test = X[test_idx], y[test_idx]
+            
+            # Variational MDL
+            log.log("  Computing variational MDL...")
+            var_result = variational_mdl(
+                X_train, y_train, X_test, y_test,
+                config.lambda_values,
+                task_type='multiclass'
+            )
+            
+            best_idx = np.argmin([r['mdl_scores']['l2'] for r in var_result['results']])
+            best_result = var_result['results'][best_idx]
+            
+            log.result("Best λ", f"{best_result['lambda']:.2e}")
+            log.result("MDL (L2)", f"{best_result['mdl_scores']['l2']:.2f} bits")
+            log.result("Test Acc", f"{best_result['test_accuracy']:.4f}")
+            
+            # Prequential MDL
+            log.log("  Computing prequential MDL...")
+            preq_result = prequential_mdl(
+                X_test, y_test,
+                config.prequential_chunk_sizes,
+                task_type='multiclass',
+                lambda_reg=best_result['lambda']
+            )
+            
+            # Per-class (per-state) codelength
+            scaler = var_result['scaler']
+            probe = LogisticRegression(
+                C=1.0/best_result['lambda'],
+                max_iter=config.max_iter,
+                random_state=config.random_state,
+                multi_class='multinomial'
+            )
+            probe.fit(scaler.transform(X_train), y_train)
+            
+            per_class = compute_per_class_codelength(
+                probe, X_test, y_test, scaler
+            )
+            
+            results[model][layer] = {
+                'variational': var_result['results'],
+                'best': best_result,
+                'prequential': preq_result,
+                'per_class': per_class
+            }
+    
+    # Save results
+    with open(config.output_dir / "results" / "state_mdl.json", 'w') as f:
+        save_results = {}
+        for model in results:
+            save_results[model] = {}
+            for layer in results[model]:
+                save_results[model][layer] = {
+                    'variational': results[model][layer]['variational'],
+                    'best': results[model][layer]['best'],
+                    'prequential': {
+                        str(k): v for k, v in results[model][layer]['prequential'].items()
+                    },
+                    'per_class': {
+                        str(k): v for k, v in results[model][layer]['per_class'].items()
+                    }
+                }
+        json.dump(save_results, f, indent=2)
+    
+    return results
+
+
+# ============================================================================
+# TASK 3: CORRECTNESS PROBING
+# ============================================================================
+
+def mdl_correctness_probing(df, train_idx, test_idx, activations):
+    """MDL analysis for correctness prediction."""
+    log.section("Task 3: Correctness MDL (Binary)")
+    
+    results = {}
+    
+    for model in config.models:
+        results[model] = {}
         
-        # Stratified split to ensure class balance
-        indices = self._stratified_indices(y_train)
-        X_train_ordered = X_train[indices]
-        y_train_ordered = y_train[indices]
+        for layer in config.layers:
+            log.log(f"\n{model.upper()} Layer {layer}")
+            
+            X = activations[model][layer]
+            y = df[f'{model}_correct_label'].values
+            
+            X_train, y_train = X[train_idx], y[train_idx]
+            X_test, y_test = X[test_idx], y[test_idx]
+            
+            # Variational MDL
+            log.log("  Computing variational MDL...")
+            var_result = variational_mdl(
+                X_train, y_train, X_test, y_test,
+                config.lambda_values,
+                task_type='binary'
+            )
+            
+            best_idx = np.argmin([r['mdl_scores']['l2'] for r in var_result['results']])
+            best_result = var_result['results'][best_idx]
+            
+            log.result("Best λ", f"{best_result['lambda']:.2e}")
+            log.result("MDL (L2)", f"{best_result['mdl_scores']['l2']:.2f} bits")
+            log.result("Test Acc", f"{best_result['test_accuracy']:.4f}")
+            
+            # Prequential MDL
+            preq_result = prequential_mdl(
+                X_test, y_test,
+                config.prequential_chunk_sizes,
+                task_type='binary',
+                lambda_reg=best_result['lambda']
+            )
+            
+            # Per-class codelength
+            scaler = var_result['scaler']
+            probe = LogisticRegression(
+                C=1.0/best_result['lambda'],
+                max_iter=config.max_iter,
+                random_state=config.random_state
+            )
+            probe.fit(scaler.transform(X_train), y_train)
+            
+            per_class = compute_per_class_codelength(
+                probe, X_test, y_test, scaler
+            )
+            
+            results[model][layer] = {
+                'variational': var_result['results'],
+                'best': best_result,
+                'prequential': preq_result,
+                'per_class': per_class
+            }
+    
+    # Save results
+    with open(config.output_dir / "results" / "correctness_mdl.json", 'w') as f:
+        save_results = {}
+        for model in results:
+            save_results[model] = {}
+            for layer in results[model]:
+                save_results[model][layer] = {
+                    'variational': results[model][layer]['variational'],
+                    'best': results[model][layer]['best'],
+                    'prequential': {
+                        str(k): v for k, v in results[model][layer]['prequential'].items()
+                    },
+                    'per_class': {
+                        str(k): v for k, v in results[model][layer]['per_class'].items()
+                    }
+                }
+        json.dump(save_results, f, indent=2)
+    
+    return results
+
+
+# ============================================================================
+# TASK 4: GROUP PROBING
+# ============================================================================
+
+def mdl_group_probing(df, train_idx, test_idx, activations):
+    """MDL analysis for group classification."""
+    log.section("Task 4: Group MDL (3-class)")
+    
+    results = {}
+    
+    for model in config.models:
+        results[model] = {}
         
-        # Standardize
+        for layer in config.layers:
+            log.log(f"\n{model.upper()} Layer {layer}")
+            
+            X = activations[model][layer]
+            y = df['group_label'].values
+            
+            X_train, y_train = X[train_idx], y[train_idx]
+            X_test, y_test = X[test_idx], y[test_idx]
+            
+            # Variational MDL
+            log.log("  Computing variational MDL...")
+            var_result = variational_mdl(
+                X_train, y_train, X_test, y_test,
+                config.lambda_values,
+                task_type='multiclass'
+            )
+            
+            best_idx = np.argmin([r['mdl_scores']['l2'] for r in var_result['results']])
+            best_result = var_result['results'][best_idx]
+            
+            log.result("Best λ", f"{best_result['lambda']:.2e}")
+            log.result("MDL (L2)", f"{best_result['mdl_scores']['l2']:.2f} bits")
+            log.result("Test Acc", f"{best_result['test_accuracy']:.4f}")
+            
+            # Prequential MDL
+            preq_result = prequential_mdl(
+                X_test, y_test,
+                config.prequential_chunk_sizes,
+                task_type='multiclass',
+                lambda_reg=best_result['lambda']
+            )
+            
+            # Per-group codelength
+            scaler = var_result['scaler']
+            probe = LogisticRegression(
+                C=1.0/best_result['lambda'],
+                max_iter=config.max_iter,
+                random_state=config.random_state,
+                multi_class='multinomial'
+            )
+            probe.fit(scaler.transform(X_train), y_train)
+            
+            per_class = compute_per_class_codelength(
+                probe, X_test, y_test, scaler
+            )
+            
+            results[model][layer] = {
+                'variational': var_result['results'],
+                'best': best_result,
+                'prequential': preq_result,
+                'per_class': per_class
+            }
+    
+    # Save results
+    with open(config.output_dir / "results" / "group_mdl.json", 'w') as f:
+        save_results = {}
+        for model in results:
+            save_results[model] = {}
+            for layer in results[model]:
+                save_results[model][layer] = {
+                    'variational': results[model][layer]['variational'],
+                    'best': results[model][layer]['best'],
+                    'prequential': {
+                        str(k): v for k, v in results[model][layer]['prequential'].items()
+                    },
+                    'per_class': {
+                        str(k): v for k, v in results[model][layer]['per_class'].items()
+                    }
+                }
+        json.dump(save_results, f, indent=2)
+    
+    return results
+
+
+# ============================================================================
+# TASK 5: CROSS-MODEL TRANSFER MDL
+# ============================================================================
+
+def mdl_cross_model_transfer(df, train_idx, test_idx, activations):
+    """MDL analysis for cross-model transfer."""
+    log.section("Task 5: Cross-Model Transfer MDL")
+    
+    results = {}
+    
+    for layer in config.layers:
+        log.log(f"\nLayer {layer}: Train on Base → Test on Instruct")
+        
+        results[layer] = {}
+        
+        X_base = activations['base'][layer]
+        X_instruct = activations['instruct'][layer]
+        
+        # Attribute transfer
+        log.log("\n  Attribute Transfer:")
+        y = df['attribute_label'].values
+        
+        X_train = X_base[train_idx]
+        y_train = y[train_idx]
+        X_test_base = X_base[test_idx]
+        X_test_instruct = X_instruct[test_idx]
+        y_test = y[test_idx]
+        
+        # Scale
         scaler = StandardScaler()
-        X_train_scaled = scaler.fit_transform(X_train_ordered)
-        X_test_scaled = scaler.transform(X_test)
+        X_train_scaled = scaler.fit_transform(X_train)
+        X_test_base_scaled = scaler.transform(X_test_base)
+        X_test_instruct_scaled = scaler.transform(X_test_instruct)
         
-        results = []
-        cumulative_misfit = 0.0
+        # Train on base
+        probe = LogisticRegression(
+            C=1.0,
+            max_iter=config.max_iter,
+            random_state=config.random_state,
+            multi_class='multinomial'
+        )
+        probe.fit(X_train_scaled, y_train)
         
-        for chunk_size in self.config.prequential_chunk_sizes:
-            if chunk_size > len(y_train_ordered):
-                break
-            
-            # Train on data up to this point
-            X_chunk = X_train_scaled[:chunk_size]
-            y_chunk = y_train_ordered[:chunk_size]
-            
-            # Check class balance
-            if len(np.unique(y_chunk)) < 2:
-                continue
-            
-            # Train probe
-            if multiclass:
-                probe = LogisticRegression(
-                    C=optimal_C, max_iter=self.config.max_iter,
-                    random_state=self.config.random_state,
-                    multi_class='multinomial', solver='lbfgs'
-                )
-            else:
-                probe = LogisticRegression(
-                    C=optimal_C, max_iter=self.config.max_iter,
-                    random_state=self.config.random_state
-                )
-            
-            probe.fit(X_chunk, y_chunk)
-            
-            # Measure codelength on test set
-            test_misfit = self._compute_misfit(probe, X_test_scaled, y_test)
-            cumulative_misfit += test_misfit
-            
-            # Accuracies
-            train_acc = probe.score(X_chunk, y_chunk)
-            test_acc = probe.score(X_test_scaled, y_test)
-            
-            # Parameter count
-            n_params = ComplexityMeasure.count_parameters(probe)
-            
-            results.append({
-                'chunk_size': chunk_size,
-                'data_fraction': chunk_size / len(y_train_ordered),
-                'test_misfit': test_misfit,
-                'cumulative_misfit': cumulative_misfit,
-                'train_accuracy': train_acc,
-                'test_accuracy': test_acc,
-                'n_parameters': n_params
-            })
+        # MDL on base (in-model)
+        mdl_base = compute_mdl_score(probe, X_test_base_scaled, y_test, scaler=None)
         
-        logger.result("Prequential chunks", len(results))
+        # MDL on instruct (cross-model)
+        mdl_instruct = compute_mdl_score(probe, X_test_instruct_scaled, y_test, scaler=None)
         
-        return pd.DataFrame(results)
+        log.result("  Base→Base MDL (L2)", f"{mdl_base['mdl_scores']['l2']:.2f} bits")
+        log.result("  Base→Instruct MDL (L2)", f"{mdl_instruct['mdl_scores']['l2']:.2f} bits")
+        log.result("  MDL Ratio", f"{mdl_instruct['mdl_scores']['l2'] / mdl_base['mdl_scores']['l2']:.4f}")
+        
+        results[layer]['attribute'] = {
+            'base_to_base': mdl_base,
+            'base_to_instruct': mdl_instruct,
+            'ratio': mdl_instruct['mdl_scores']['l2'] / mdl_base['mdl_scores']['l2']
+        }
+        
+        # Correctness transfer
+        log.log("\n  Correctness Transfer:")
+        y = df['base_correct_label'].values
+        y_train = y[train_idx]
+        y_test = y[test_idx]
+        
+        probe = LogisticRegression(
+            C=1.0,
+            max_iter=config.max_iter,
+            random_state=config.random_state
+        )
+        probe.fit(X_train_scaled, y_train)
+        
+        mdl_base = compute_mdl_score(probe, X_test_base_scaled, y_test, scaler=None)
+        mdl_instruct = compute_mdl_score(probe, X_test_instruct_scaled, y_test, scaler=None)
+        
+        log.result("  Base→Base MDL (L2)", f"{mdl_base['mdl_scores']['l2']:.2f} bits")
+        log.result("  Base→Instruct MDL (L2)", f"{mdl_instruct['mdl_scores']['l2']:.2f} bits")
+        log.result("  MDL Ratio", f"{mdl_instruct['mdl_scores']['l2'] / mdl_base['mdl_scores']['l2']:.4f}")
+        
+        results[layer]['correctness'] = {
+            'base_to_base': mdl_base,
+            'base_to_instruct': mdl_instruct,
+            'ratio': mdl_instruct['mdl_scores']['l2'] / mdl_base['mdl_scores']['l2']
+        }
     
-    def _stratified_indices(self, y: np.ndarray) -> np.ndarray:
-        """Create stratified ordering to ensure class balance."""
-        indices = []
-        unique_classes = np.unique(y)
-        
-        # Create per-class indices
-        class_indices = {c: np.where(y == c)[0] for c in unique_classes}
-        
-        # Shuffle within each class
-        for c in unique_classes:
-            np.random.seed(self.config.random_state)
-            np.random.shuffle(class_indices[c])
-        
-        # Interleave classes
-        max_per_class = max(len(idx) for idx in class_indices.values())
-        for i in range(max_per_class):
-            for c in unique_classes:
-                if i < len(class_indices[c]):
-                    indices.append(class_indices[c][i])
-        
-        return np.array(indices)
+    # Save results
+    with open(config.output_dir / "results" / "cross_model_mdl.json", 'w') as f:
+        json.dump(results, f, indent=2, default=str)
     
-    def _compute_misfit(self, probe: LogisticRegression, 
-                        X_scaled: np.ndarray, y: np.ndarray) -> float:
-        """Compute negative log likelihood in bits."""
-        probs = probe.predict_proba(X_scaled)
-        ce_loss = log_loss(y, probs)
-        return (ce_loss * len(y)) / np.log(2)
+    return results
+
 
 # ============================================================================
-# MAIN MDL PIPELINE
+# VISUALIZATIONS
 # ============================================================================
 
-class MDLPipeline:
-    """Orchestrate complete MDL analysis."""
+def create_visualizations(
+    attr_results, state_results, corr_results, 
+    group_results, transfer_results
+):
+    """Create comprehensive MDL visualizations."""
+    log.section("Creating Visualizations")
     
-    def __init__(self, config: MDLConfig):
-        self.config = config
-        self.variational = VariationalMDL(config)
-        self.prequential = PrequentialMDL(config)
-        
-    def run(self, df: pd.DataFrame, activations: Dict,
-            train_mask: np.ndarray, dev_mask: np.ndarray, 
-            test_mask: np.ndarray) -> Tuple[pd.DataFrame, pd.DataFrame]:
-        """Execute full MDL analysis pipeline."""
-        logger.section("Running MDL Analysis")
-        
-        all_variational = []
-        all_prequential = []
-        
-        for model in self.config.models:
-            logger.subsection(f"Model: {model.upper()}")
-            
-            tasks = get_tasks(df, model)
-            
-            for layer in self.config.layers:
-                logger.log(f"\nLayer {layer}:")
+    # 1. Variational MDL curves
+    fig, axes = plt.subplots(2, 2, figsize=(16, 12))
+    
+    tasks = [
+        ('attribute', attr_results, 'Attribute (16-class)'),
+        ('state', state_results, 'State (36-class)'),
+        ('correctness', corr_results, 'Correctness (Binary)'),
+        ('group', group_results, 'Group (3-class)')
+    ]
+    
+    for ax, (task_name, results, title) in zip(axes.flat, tasks):
+        for model in config.models:
+            for layer in config.layers:
+                var_results = results[model][layer]['variational']
+                lambdas = [r['lambda'] for r in var_results]
+                mdls = [r['mdl_scores']['l2'] for r in var_results]
                 
-                X = activations[model][layer]
-                
-                for task_id, task in tasks.items():
-                    logger.log(f"  Task: {task.name}")
-                    
-                    # Apply task mask
-                    if task.mask is not None:
-                        train_idx = train_mask & task.mask
-                        dev_idx = dev_mask & task.mask
-                        test_idx = test_mask & task.mask
-                    else:
-                        train_idx = train_mask
-                        dev_idx = dev_mask
-                        test_idx = test_mask
-                    
-                    # Extract data
-                    X_train, y_train = X[train_idx], task.label[train_idx]
-                    X_dev, y_dev = X[dev_idx], task.label[dev_idx]
-                    X_test, y_test = X[test_idx], task.label[test_idx]
-                    
-                    logger.result("Train", len(y_train))
-                    logger.result("Dev", len(y_dev))
-                    logger.result("Test", len(y_test))
-                    
-                    # Variational MDL
-                    var_results = self.variational.fit(
-                        X_train, y_train, X_dev, y_dev, X_test, y_test,
-                        multiclass=task.multiclass
-                    )
-                    
-                    # Add metadata
-                    var_results['model'] = model
-                    var_results['layer'] = layer
-                    var_results['task'] = task_id
-                    var_results['task_name'] = task.name
-                    var_results['is_control'] = task.is_control
-                    var_results['real_task'] = task.real_task
-                    
-                    all_variational.append(var_results)
-                    
-                    # Prequential MDL (use L2-optimal C)
-                    optimal_row = var_results[var_results['complexity_measure'] == 'l2']
-                    optimal_C = optimal_row.loc[optimal_row['total_codelength'].idxmin(), 'C']
-                    
-                    preq_results = self.prequential.fit(
-                        X_train, y_train, X_test, y_test,
-                        optimal_C, multiclass=task.multiclass
-                    )
-                    
-                    # Add metadata
-                    preq_results['model'] = model
-                    preq_results['layer'] = layer
-                    preq_results['task'] = task_id
-                    preq_results['task_name'] = task.name
-                    preq_results['is_control'] = task.is_control
-                    preq_results['real_task'] = task.real_task
-                    
-                    all_prequential.append(preq_results)
+                ax.plot(lambdas, mdls, marker='o', label=f'{model} L{layer}', alpha=0.7)
         
-        # Concatenate results
-        var_df = pd.concat(all_variational, ignore_index=True)
-        preq_df = pd.concat(all_prequential, ignore_index=True)
+        ax.set_xscale('log')
+        ax.set_xlabel('Regularization λ')
+        ax.set_ylabel('MDL (L2, bits)')
+        ax.set_title(title, fontweight='bold')
+        ax.legend(fontsize=8)
+        ax.grid(alpha=0.3)
+    
+    plt.tight_layout()
+    plt.savefig(config.output_dir / "plots" / "variational_mdl_curves.png", dpi=300, bbox_inches='tight')
+    plt.close()
+    log.log("✓ Saved variational MDL curves")
+    
+    # 2. Best MDL comparison
+    fig, axes = plt.subplots(2, 2, figsize=(16, 12))
+    
+    for ax, (task_name, results, title) in zip(axes.flat, tasks):
+        mdl_data = []
+        labels = []
         
-        # Save
-        var_df.to_csv(self.config.output_dir / "results" / "variational_mdl.csv", index=False)
-        preq_df.to_csv(self.config.output_dir / "results" / "prequential_mdl.csv", index=False)
+        for model in config.models:
+            for layer in config.layers:
+                best = results[model][layer]['best']
+                mdl_data.append(best['mdl_scores']['l2'])
+                labels.append(f'{model}\nL{layer}')
         
-        logger.log("✓ Results saved")
+        x = np.arange(len(labels))
+        colors = ['blue', 'blue', 'blue', 'red', 'red', 'red']
         
-        return var_df, preq_df
+        ax.bar(x, mdl_data, color=colors, alpha=0.7)
+        ax.set_xticks(x)
+        ax.set_xticklabels(labels, fontsize=8)
+        ax.set_ylabel('MDL (L2, bits)')
+        ax.set_title(title, fontweight='bold')
+        ax.grid(axis='y', alpha=0.3)
+    
+    plt.tight_layout()
+    plt.savefig(config.output_dir / "plots" / "best_mdl_comparison.png", dpi=300, bbox_inches='tight')
+    plt.close()
+    log.log("✓ Saved best MDL comparison")
+    
+    # 3. Cross-model transfer ratios
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+    
+    transfer_tasks = ['attribute', 'correctness']
+    titles = ['Attribute Transfer', 'Correctness Transfer']
+    
+    for ax, task, title in zip(axes, transfer_tasks, titles):
+        layers_list = []
+        ratios = []
+        
+        for layer in config.layers:
+            ratio = transfer_results[layer][task]['ratio']
+            layers_list.append(layer)
+            ratios.append(ratio)
+        
+        ax.bar(range(len(layers_list)), ratios, alpha=0.7)
+        ax.axhline(y=1.0, color='red', linestyle='--', label='Perfect Transfer')
+        ax.set_xticks(range(len(layers_list)))
+        ax.set_xticklabels([f'L{l}' for l in layers_list])
+        ax.set_ylabel('MDL Ratio (Instruct/Base)')
+        ax.set_title(title, fontweight='bold')
+        ax.legend()
+        ax.grid(axis='y', alpha=0.3)
+    
+    plt.tight_layout()
+    plt.savefig(config.output_dir / "plots" / "cross_model_transfer_ratios.png", dpi=300, bbox_inches='tight')
+    plt.close()
+    log.log("✓ Saved cross-model transfer ratios")
+    
+    # 4. Complexity measures comparison
+    fig, axes = plt.subplots(2, 2, figsize=(16, 12))
+    
+    for ax, (task_name, results, title) in zip(axes.flat, tasks):
+        measures_data = {m: [] for m in config.complexity_measures}
+        labels = []
+        
+        for model in config.models:
+            for layer in config.layers:
+                best = results[model][layer]['best']
+                for measure in config.complexity_measures:
+                    measures_data[measure].append(best['mdl_scores'][measure])
+                labels.append(f'{model}\nL{layer}')
+        
+        x = np.arange(len(labels))
+        width = 0.2
+        
+        for i, measure in enumerate(config.complexity_measures):
+            offset = (i - 1.5) * width
+            ax.bar(x + offset, measures_data[measure], width, label=measure.upper(), alpha=0.7)
+        
+        ax.set_xticks(x)
+        ax.set_xticklabels(labels, fontsize=8)
+        ax.set_ylabel('MDL (bits)')
+        ax.set_title(title, fontweight='bold')
+        ax.legend()
+        ax.grid(axis='y', alpha=0.3)
+    
+    plt.tight_layout()
+    plt.savefig(config.output_dir / "plots" / "complexity_measures_comparison.png", dpi=300, bbox_inches='tight')
+    plt.close()
+    log.log("✓ Saved complexity measures comparison")
+    
+    # 5. Prequential learning curves
+    fig, axes = plt.subplots(2, 2, figsize=(16, 12))
+    
+    for ax, (task_name, results, title) in zip(axes.flat, tasks):
+        for model in config.models:
+            layer = 6  # Use layer 6 for visualization
+            preq = results[model][layer]['prequential']
+            
+            chunk_sizes = sorted([int(k) for k in preq.keys()])
+            avg_codelengths = [preq[str(cs)]['avg_codelength_per_sample'] for cs in chunk_sizes]
+            
+            ax.plot(chunk_sizes, avg_codelengths, marker='o', label=model, linewidth=2)
+        
+        ax.set_xlabel('Training Samples')
+        ax.set_ylabel('Avg Codelength per Sample (bits)')
+        ax.set_title(f'{title} - Layer 6', fontweight='bold')
+        ax.legend()
+        ax.grid(alpha=0.3)
+    
+    plt.tight_layout()
+    plt.savefig(config.output_dir / "plots" / "prequential_learning_curves.png", dpi=300, bbox_inches='tight')
+    plt.close()
+    log.log("✓ Saved prequential learning curves")
 
-# ============================================================================
-# VISUALIZATION
-# ============================================================================
-
-class MDLVisualizer:
-    """Create publication-quality visualizations."""
-    
-    def __init__(self, config: MDLConfig):
-        self.config = config
-        sns.set_style("whitegrid")
-        plt.rcParams['figure.dpi'] = 300
-        
-    def plot_all(self, var_df: pd.DataFrame, preq_df: pd.DataFrame):
-        """Generate all visualization plots."""
-        logger.section("Creating Visualizations")
-        
-        self.plot_variational_curves(var_df)
-        self.plot_prequential_curves(preq_df)
-        self.plot_complexity_comparison(var_df)
-        self.plot_per_class_codelength(var_df)
-        self.plot_base_vs_instruct(var_df)
-        
-        logger.log("✓ All visualizations complete")
-    
-    def plot_variational_curves(self, var_df: pd.DataFrame):
-        """Plot codelength vs lambda for each complexity measure."""
-        logger.log("Plotting variational MDL curves...")
-        
-        real_tasks = var_df[~var_df['is_control']]['task'].unique()
-        
-        for task in real_tasks:
-            task_name = var_df[var_df['task'] == task]['task_name'].iloc[0]
-            
-            fig, axes = plt.subplots(2, 2, figsize=(16, 12))
-            
-            for idx, measure in enumerate(['l0', 'l1', 'l2', 'fisher']):
-                ax = axes[idx // 2, idx % 2]
-                
-                for model in self.config.models:
-                    for layer in self.config.layers:
-                        data = var_df[
-                            (var_df['task'] == task) &
-                            (var_df['model'] == model) &
-                            (var_df['layer'] == layer) &
-                            (var_df['complexity_measure'] == measure)
-                        ]
-                        
-                        ax.plot(data['lambda'], data['total_codelength'],
-                               marker='o', label=f'{model.capitalize()} L{layer}',
-                               linewidth=2, alpha=0.7)
-                
-                ax.set_xscale('log')
-                ax.set_xlabel('λ (Regularization)', fontsize=12)
-                ax.set_ylabel('Total Codelength (bits)', fontsize=12)
-                ax.set_title(f'Complexity: {measure.upper()}', fontsize=13, fontweight='bold')
-                ax.legend(fontsize=9)
-                ax.grid(True, alpha=0.3)
-            
-            plt.suptitle(f'Variational MDL: {task_name}', fontsize=16, fontweight='bold')
-            plt.tight_layout()
-            plt.savefig(self.config.output_dir / "curves" / f"variational_{task}.png",
-                       bbox_inches='tight')
-            plt.close()
-    
-    def plot_prequential_curves(self, preq_df: pd.DataFrame):
-        """Plot learning curves from prequential coding."""
-        logger.log("Plotting prequential MDL curves...")
-        
-        real_tasks = preq_df[~preq_df['is_control']]['task'].unique()
-        
-        for task in real_tasks:
-            task_name = preq_df[preq_df['task'] == task]['task_name'].iloc[0]
-            
-            fig, axes = plt.subplots(1, 3, figsize=(18, 6))
-            
-            for idx, layer in enumerate(self.config.layers):
-                ax = axes[idx]
-                
-                for model in self.config.models:
-                    data = preq_df[
-                        (preq_df['task'] == task) &
-                        (preq_df['model'] == model) &
-                        (preq_df['layer'] == layer)
-                    ]
-                    
-                    ax.plot(data['chunk_size'], data['test_misfit'],
-                           marker='o', label=f'{model.capitalize()}',
-                           linewidth=2.5)
-                
-                ax.set_xlabel('Training Examples', fontsize=12)
-                ax.set_ylabel('Test Misfit (bits)', fontsize=12)
-                ax.set_title(f'Layer {layer}', fontsize=13, fontweight='bold')
-                ax.legend()
-                ax.grid(True, alpha=0.3)
-            
-            plt.suptitle(f'Prequential MDL: {task_name}', fontsize=16, fontweight='bold')
-            plt.tight_layout()
-            plt.savefig(self.config.output_dir / "curves" / f"prequential_{task}.png",
-                       bbox_inches='tight')
-            plt.close()
-    
-    def plot_complexity_comparison(self, var_df: pd.DataFrame):
-        """Compare different complexity measures."""
-        logger.log("Plotting complexity measure comparison...")
-        
-        # Get optimal codelength for each measure
-        optimal = var_df.loc[var_df.groupby(
-            ['model', 'layer', 'task', 'complexity_measure']
-        )['total_codelength'].idxmin()]
-        
-        real_optimal = optimal[~optimal['is_control']]
-        
-        # Plot for layer 18 only
-        layer18 = real_optimal[real_optimal['layer'] == 18]
-        
-        fig, axes = plt.subplots(1, 3, figsize=(18, 6))
-        
-        tasks = layer18['task'].unique()
-        for idx, task in enumerate(tasks[:3]):
-            ax = axes[idx]
-            task_name = layer18[layer18['task'] == task]['task_name'].iloc[0]
-            
-            task_data = layer18[layer18['task'] == task]
-            
-            x_pos = np.arange(len(self.config.models))
-            width = 0.2
-            
-            for m_idx, measure in enumerate(['l0', 'l1', 'l2', 'fisher']):
-                measure_data = task_data[task_data['complexity_measure'] == measure]
-                codelengths = [
-                    measure_data[measure_data['model'] == m]['total_codelength'].values[0]
-                    for m in self.config.models
-                ]
-                
-                ax.bar(x_pos + m_idx * width, codelengths, width,
-                      label=measure.upper(), alpha=0.8)
-            
-            ax.set_xticks(x_pos + width * 1.5)
-            ax.set_xticklabels([m.capitalize() for m in self.config.models])
-            ax.set_ylabel('Codelength (bits)', fontsize=12)
-            ax.set_title(task_name, fontsize=13, fontweight='bold')
-            ax.legend()
-            ax.grid(True, alpha=0.3, axis='y')
-        
-        plt.suptitle('Complexity Measure Comparison (Layer 18)',
-                    fontsize=16, fontweight='bold')
-        plt.tight_layout()
-        plt.savefig(self.config.output_dir / "plots" / "complexity_comparison.png",
-                   bbox_inches='tight')
-        plt.close()
-    
-    def plot_per_class_codelength(self, var_df: pd.DataFrame):
-        """Plot per-class codelength breakdown."""
-        logger.log("Plotting per-class codelength...")
-        
-        # Get L2 optimal results for layer 18
-        optimal_l2 = var_df[
-            (var_df['complexity_measure'] == 'l2') &
-            (var_df['layer'] == 18)
-        ].loc[var_df.groupby(['model', 'layer', 'task'])['total_codelength'].idxmin()]
-        
-        real_optimal = optimal_l2[~optimal_l2['is_control']]
-        
-        # Extract per-class columns
-        class_cols = [col for col in real_optimal.columns if col.startswith('class_')]
-        
-        if len(class_cols) == 0:
-            logger.log("⚠ No per-class data available")
-            return
-        
-        for task in real_optimal['task'].unique():
-            task_name = real_optimal[real_optimal['task'] == task]['task_name'].iloc[0]
-            task_data = real_optimal[real_optimal['task'] == task]
-            
-            fig, ax = plt.subplots(figsize=(10, 6))
-            
-            x_pos = np.arange(len(class_cols))
-            width = 0.35
-            
-            for m_idx, model in enumerate(self.config.models):
-                model_data = task_data[task_data['model'] == model]
-                
-                if len(model_data) == 0:
-                    continue
-                
-                codelengths = [model_data[col].values[0] for col in class_cols]
-                
-                ax.bar(x_pos + m_idx * width, codelengths, width,
-                      label=model.capitalize(), alpha=0.8)
-            
-            ax.set_xticks(x_pos + width / 2)
-            ax.set_xticklabels([col.replace('class_', 'Class ').replace('_codelength', '')
-                               for col in class_cols])
-            ax.set_ylabel('Codelength (bits)', fontsize=12)
-            ax.set_title(f'Per-Class MDL: {task_name}', fontsize=14, fontweight='bold')
-            ax.legend()
-            ax.grid(True, alpha=0.3, axis='y')
-            
-            plt.tight_layout()
-            plt.savefig(self.config.output_dir / "per_class" / f"per_class_{task}.png",
-                       bbox_inches='tight')
-            plt.close()
-    
-    def plot_base_vs_instruct(self, var_df: pd.DataFrame):
-        """Direct base vs instruct comparison."""
-        logger.log("Plotting base vs instruct comparison...")
-        
-        # Get L2 optimal for layer 18
-        optimal_l2 = var_df[
-            (var_df['complexity_measure'] == 'l2') &
-            (var_df['layer'] == 18)
-        ].loc[var_df.groupby(['model', 'layer', 'task'])['total_codelength'].idxmin()]
-        
-        real_optimal = optimal_l2[~optimal_l2['is_control']]
-        
-        fig, ax = plt.subplots(figsize=(12, 7))
-        
-        tasks = real_optimal['task'].unique()
-        x_pos = np.arange(len(tasks))
-        width = 0.35
-        
-        base_vals = []
-        inst_vals = []
-        task_names = []
-        
-        for task in tasks:
-            task_data = real_optimal[real_optimal['task'] == task]
-            task_names.append(task_data['task_name'].iloc[0])
-            
-            base_cl = task_data[task_data['model'] == 'base']['total_codelength'].values[0]
-            inst_cl = task_data[task_data['model'] == 'instruct']['total_codelength'].values[0]
-            
-            base_vals.append(base_cl)
-            inst_vals.append(inst_cl)
-        
-        bars1 = ax.bar(x_pos - width/2, base_vals, width, label='Base', alpha=0.8, color='steelblue')
-        bars2 = ax.bar(x_pos + width/2, inst_vals, width, label='Instruct', alpha=0.8, color='coral')
-        
-        # Add difference annotations
-        for i, (base, inst) in enumerate(zip(base_vals, inst_vals)):
-            diff = inst - base
-            y_pos = max(base, inst) + 50
-            color = 'red' if diff > 0 else 'green'
-            ax.text(i, y_pos, f'{diff:+.0f}', ha='center', fontsize=10,
-                   fontweight='bold', color=color)
-        
-        ax.set_xticks(x_pos)
-        ax.set_xticklabels(task_names, rotation=15, ha='right')
-        ax.set_ylabel('Optimal Codelength (bits)', fontsize=13)
-        ax.set_title('Base vs Instruct MDL Comparison (Layer 18, L2 Complexity)',
-                    fontsize=15, fontweight='bold')
-        ax.legend(fontsize=12)
-        ax.grid(True, alpha=0.3, axis='y')
-        
-        plt.tight_layout()
-        plt.savefig(self.config.output_dir / "plots" / "base_vs_instruct_mdl.png",
-                   bbox_inches='tight')
-        plt.close()
 
 # ============================================================================
 # SUMMARY REPORT
 # ============================================================================
 
-class MDLReporter:
-    """Generate comprehensive analysis report."""
+def generate_summary_report(
+    attr_results, state_results, corr_results,
+    group_results, transfer_results
+):
+    """Generate comprehensive MDL summary report."""
+    log.section("Generating Summary Report")
     
-    def __init__(self, config: MDLConfig):
-        self.config = config
+    lines = []
+    
+    lines.append("="*80)
+    lines.append("MDL PROBING ANALYSIS - SUMMARY REPORT")
+    lines.append("="*80)
+    lines.append(f"\nGenerated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    
+    # Attribute MDL
+    lines.append("\n" + "-"*80)
+    lines.append("1. ATTRIBUTE MDL (16-CLASS)")
+    lines.append("-"*80)
+    
+    for model in config.models:
+        lines.append(f"\n{model.upper()}:")
+        for layer in config.layers:
+            best = attr_results[model][layer]['best']
+            lines.append(f"  Layer {layer}:")
+            lines.append(f"    MDL (L2):     {best['mdl_scores']['l2']:.2f} bits")
+            lines.append(f"    MDL (Fisher): {best['mdl_scores']['fisher']:.2f} bits")
+            lines.append(f"    Test Acc:     {best['test_accuracy']:.4f}")
+    
+    # State MDL
+    lines.append("\n" + "-"*80)
+    lines.append("2. STATE MDL (36-CLASS)")
+    lines.append("-"*80)
+    
+    for model in config.models:
+        lines.append(f"\n{model.upper()}:")
+        for layer in config.layers:
+            best = state_results[model][layer]['best']
+            lines.append(f"  Layer {layer}:")
+            lines.append(f"    MDL (L2):     {best['mdl_scores']['l2']:.2f} bits")
+            lines.append(f"    Test Acc:     {best['test_accuracy']:.4f}")
+    
+    # Correctness MDL
+    lines.append("\n" + "-"*80)
+    lines.append("3. CORRECTNESS MDL (BINARY)")
+    lines.append("-"*80)
+    
+    for model in config.models:
+        lines.append(f"\n{model.upper()}:")
+        for layer in config.layers:
+            best = corr_results[model][layer]['best']
+            lines.append(f"  Layer {layer}:")
+            lines.append(f"    MDL (L2):     {best['mdl_scores']['l2']:.2f} bits")
+            lines.append(f"    Test Acc:     {best['test_accuracy']:.4f}")
+    
+    # Group MDL
+    lines.append("\n" + "-"*80)
+    lines.append("4. GROUP MDL (3-CLASS)")
+    lines.append("-"*80)
+    
+    for model in config.models:
+        lines.append(f"\n{model.upper()}:")
+        for layer in config.layers:
+            best = group_results[model][layer]['best']
+            lines.append(f"  Layer {layer}:")
+            lines.append(f"    MDL (L2):     {best['mdl_scores']['l2']:.2f} bits")
+            lines.append(f"    Test Acc:     {best['test_accuracy']:.4f}")
+    
+    # Cross-model transfer
+    lines.append("\n" + "-"*80)
+    lines.append("5. CROSS-MODEL TRANSFER MDL")
+    lines.append("-"*80)
+    
+    for layer in config.layers:
+        lines.append(f"\nLayer {layer}:")
         
-    def generate(self, var_df: pd.DataFrame, preq_df: pd.DataFrame):
-        """Create text summary report."""
-        logger.section("Generating Summary Report")
+        attr_ratio = transfer_results[layer]['attribute']['ratio']
+        corr_ratio = transfer_results[layer]['correctness']['ratio']
         
-        lines = []
-        lines.append("="*80)
-        lines.append("MDL PROBING ANALYSIS - COMPREHENSIVE REPORT")
-        lines.append("="*80)
-        lines.append(f"\nGenerated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        lines.append(f"\nParameter Encoding: {config.bits_per_parameter} bits per parameter (float32)")
+        lines.append(f"  Attribute MDL Ratio:    {attr_ratio:.4f}")
+        lines.append(f"  Correctness MDL Ratio:  {corr_ratio:.4f}")
+    
+    # Key findings
+    lines.append("\n" + "-"*80)
+    lines.append("6. KEY FINDINGS")
+    lines.append("-"*80)
+    
+    # Compute average MDL ratios
+    avg_attr_ratio = np.mean([transfer_results[l]['attribute']['ratio'] for l in config.layers])
+    avg_corr_ratio = np.mean([transfer_results[l]['correctness']['ratio'] for l in config.layers])
+    
+    lines.append(f"\n• Average Attribute Transfer Ratio:   {avg_attr_ratio:.4f}")
+    lines.append(f"• Average Correctness Transfer Ratio: {avg_corr_ratio:.4f}")
+    
+    if avg_attr_ratio < 1.05 and avg_corr_ratio < 1.05:
+        lines.append("\n⚠️  NEAR-EQUAL MDL (<5% difference)")
+        lines.append("Base and Instruct models encode information with nearly identical complexity.")
+        lines.append("Representations remain highly aligned despite behavioral divergence.")
+        lines.append("CONCLUSION: Suppression operates via decision boundaries, NOT erasure.")
+    elif avg_attr_ratio > 1.2:
+        lines.append("\n⚠️  SIGNIFICANT MDL DIVERGENCE (>20% difference)")
+        lines.append("Instruct model requires more bits to encode same information.")
+        lines.append("Representations have been fundamentally altered by instruction-tuning.")
+    else:
+        lines.append("\n⚠️  MODERATE MDL DIVERGENCE (5-20% difference)")
+        lines.append("Partial representational changes detected.")
+        lines.append("Suppression involves both representational and decision-level effects.")
+    
+    # Compare Base vs Instruct MDL
+    lines.append("\n" + "-"*80)
+    lines.append("7. BASE VS INSTRUCT MDL COMPARISON")
+    lines.append("-"*80)
+    
+    for task_name, results, label in [
+        ('Attribute', attr_results, '16-class'),
+        ('State', state_results, '36-class'),
+        ('Correctness', corr_results, 'Binary'),
+        ('Group', group_results, '3-class')
+    ]:
+        lines.append(f"\n{task_name} ({label}):")
         
-        # Get optimal results (L2 complexity, layer 18)
-        optimal = var_df[
-            (var_df['complexity_measure'] == 'l2') &
-            (var_df['layer'] == 18)
-        ].loc[var_df.groupby(['model', 'layer', 'task'])['total_codelength'].idxmin()]
-        
-        real_optimal = optimal[~optimal['is_control']]
-        
-        # Section 1: Optimal Codelengths
-        lines.append("\n" + "-"*80)
-        lines.append("OPTIMAL CODELENGTHS (Layer 18, L2 Complexity)")
-        lines.append("-"*80)
-        
-        for task in real_optimal['task'].unique():
-            task_data = real_optimal[real_optimal['task'] == task]
-            lines.append(f"\n{task_data.iloc[0]['task_name']}:")
+        for layer in config.layers:
+            base_mdl = results['base'][layer]['best']['mdl_scores']['l2']
+            inst_mdl = results['instruct'][layer]['best']['mdl_scores']['l2']
+            diff_pct = ((inst_mdl - base_mdl) / base_mdl) * 100
             
-            for _, row in task_data.iterrows():
-                lines.append(
-                    f"  {row['model']:10s}: {row['total_codelength']:8.1f} bits "
-                    f"({row['n_parameters']} params, λ={row['lambda']:.2e}, "
-                    f"compression={row['compression_ratio']:.3f})"
-                )
-        
-        # Section 2: Base vs Instruct Comparison
-        lines.append("\n" + "-"*80)
-        lines.append("BASE VS INSTRUCT MDL COMPARISON")
-        lines.append("-"*80)
-        
-        for task in real_optimal['task'].unique():
-            task_data = real_optimal[real_optimal['task'] == task]
-            task_name = task_data.iloc[0]['task_name']
-            
-            base_cl = task_data[task_data['model'] == 'base']['total_codelength'].values[0]
-            inst_cl = task_data[task_data['model'] == 'instruct']['total_codelength'].values[0]
-            diff = inst_cl - base_cl
-            pct_diff = (diff / base_cl) * 100
-            
-            lines.append(f"\n{task_name}:")
-            lines.append(f"  Base:       {base_cl:.1f} bits")
-            lines.append(f"  Instruct:   {inst_cl:.1f} bits")
-            lines.append(f"  Difference: {diff:+.1f} bits ({pct_diff:+.1f}%)")
-            
-            if abs(diff) < 50:
-                status = "≈ EQUIVALENT"
-            elif diff > 0:
-                status = "↑ INSTRUCT HIGHER"
-            else:
-                status = "↓ INSTRUCT LOWER"
-            lines.append(f"  Status: {status}")
-        
-        # Section 3: Complexity Measure Comparison
-        lines.append("\n" + "-"*80)
-        lines.append("COMPLEXITY MEASURE COMPARISON (Suppression Task, Layer 18)")
-        lines.append("-"*80)
-        
-        supp_task = 'suppression_vs_control'
-        for measure in ['l0', 'l1', 'l2', 'fisher']:
-            measure_data = optimal[
-                (optimal['task'] == supp_task) &
-                (optimal['complexity_measure'] == measure)
-            ]
-            
-            if len(measure_data) > 0:
-                lines.append(f"\n{measure.upper()} Norm:")
-                for _, row in measure_data.iterrows():
-                    lines.append(
-                        f"  {row['model']:10s}: {row['total_codelength']:8.1f} bits"
-                    )
-        
-        # Section 4: Prequential Analysis
-        lines.append("\n" + "-"*80)
-        lines.append("PREQUENTIAL (ONLINE) LEARNING EFFICIENCY")
-        lines.append("-"*80)
-        
-        # Compare at 50% training data
-        preq_50 = preq_df[
-            (preq_df['data_fraction'].between(0.45, 0.55)) &
-            (preq_df['layer'] == 18) &
-            (~preq_df['is_control'])
-        ]
-        
-        for task in preq_50['task'].unique():
-            task_data = preq_50[preq_50['task'] == task]
-            task_name = task_data.iloc[0]['task_name']
-            
-            lines.append(f"\n{task_name} (at ~50% training data):")
-            for model in self.config.models:
-                model_data = task_data[task_data['model'] == model]
-                if len(model_data) > 0:
-                    misfit = model_data['test_misfit'].mean()
-                    acc = model_data['test_accuracy'].mean()
-                    lines.append(
-                        f"  {model:10s}: Misfit={misfit:6.1f} bits, Accuracy={acc:.3f}"
-                    )
-        
-        # Section 5: Key Findings
-        lines.append("\n" + "="*80)
-        lines.append("KEY FINDINGS")
-        lines.append("="*80)
-        
-        supp_data = real_optimal[real_optimal['task'] == supp_task]
-        base_cl = supp_data[supp_data['model'] == 'base']['total_codelength'].values[0]
-        inst_cl = supp_data[supp_data['model'] == 'instruct']['total_codelength'].values[0]
-        diff = inst_cl - base_cl
-        
-        lines.append(f"\n1. ENCODING EFFICIENCY:")
-        lines.append(f"   Base model:     {base_cl:.1f} bits")
-        lines.append(f"   Instruct model: {inst_cl:.1f} bits")
-        lines.append(f"   Difference:     {diff:+.1f} bits")
-        
-        if abs(diff) < 50:
-            lines.append("\n   ✓ IDENTICAL ENCODING COMPLEXITY")
-            lines.append("   Both models encode suppression groups with equal efficiency.")
-            lines.append("   This strongly supports the mechanistic hypothesis:")
-            lines.append("   Knowledge is preserved in activations, but downstream access blocked.")
-        elif diff > 50:
-            lines.append("\n   ⚠ DEGRADED ENCODING IN INSTRUCT")
-            lines.append("   Instruct model requires more bits to encode knowledge.")
-            lines.append("   Suggests instruction-tuning may degrade representation quality.")
-        else:
-            lines.append("\n   ⚠ IMPROVED ENCODING IN INSTRUCT")
-            lines.append("   Instruct model encodes knowledge more efficiently.")
-            lines.append("   Unexpected result - warrants deeper investigation.")
-        
-        lines.append("\n2. COMPLEXITY MEASURES:")
-        lines.append("   Multiple measures (L0, L1, L2, Fisher) show consistent patterns.")
-        lines.append("   Parameter encoding cost properly accounted for all measures.")
-        
-        lines.append("\n3. LEARNING EFFICIENCY:")
-        lines.append("   Prequential coding reveals sample efficiency of encoding.")
-        
-        lines.append("\n4. TECHNICAL NOTES:")
-        lines.append(f"   - Parameter precision: {config.bits_per_parameter} bits per float32")
-        lines.append("   - Fisher Information: Eigenvalue-based Hessian approximation")
-        lines.append("   - Uniform baseline: Computed on test set for fair comparison")
-        
-        lines.append("\n" + "="*80)
-        lines.append("END OF REPORT")
-        lines.append("="*80)
-        
-        report_text = '\n'.join(lines)
-        
-        with open(self.config.output_dir / "MDL_SUMMARY.txt", 'w') as f:
-            f.write(report_text)
-        
-        print("\n" + report_text)
-        logger.log("✓ Summary report saved")
+            lines.append(f"  Layer {layer}: Base={base_mdl:.2f}, Instruct={inst_mdl:.2f}, Δ={diff_pct:+.2f}%")
+    
+    lines.append("\n" + "="*80)
+    lines.append("END OF REPORT")
+    lines.append("="*80)
+    
+    report_text = '\n'.join(lines)
+    
+    with open(config.output_dir / "MDL_SUMMARY_REPORT.txt", 'w') as f:
+        f.write(report_text)
+    
+    print("\n" + report_text)
+    log.log("✓ Summary report saved")
+
 
 # ============================================================================
 # MAIN EXECUTION
 # ============================================================================
 
 def main():
-    """Execute complete MDL probing pipeline."""
+    """Main execution pipeline."""
     start_time = datetime.now()
     
-    logger.section("MDL Probing Pipeline")
-    logger.log(f"Start time: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
-    logger.log(f"Configuration: {len(config.lambda_values)} λ values, "
-              f"{len(config.complexity_measures)} complexity measures")
-    logger.log(f"Parameter encoding: {config.bits_per_parameter} bits per parameter")
+    log.section("MDL Probing Analysis Pipeline")
+    log.log(f"Start time: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
     
     try:
         # Load data
-        loader = DataLoader(config)
-        df, activations, train_mask, dev_mask, test_mask = loader.load()
+        df, activations, label_encoders = load_data()
         
-        # Run MDL analysis
-        pipeline = MDLPipeline(config)
-        var_df, preq_df = pipeline.run(df, activations, train_mask, dev_mask, test_mask)
+        # Create splits
+        train_idx, test_idx = create_splits(df)
         
-        # Create visualizations
-        visualizer = MDLVisualizer(config)
-        visualizer.plot_all(var_df, preq_df)
+        # Task 1: Attribute MDL
+        attr_results = mdl_attribute_probing(df, train_idx, test_idx, activations)
         
-        # Generate report
-        reporter = MDLReporter(config)
-        reporter.generate(var_df, preq_df)
+        # Task 2: State MDL
+        state_results = mdl_state_probing(df, train_idx, test_idx, activations)
+        
+        # Task 3: Correctness MDL
+        corr_results = mdl_correctness_probing(df, train_idx, test_idx, activations)
+        
+        # Task 4: Group MDL
+        group_results = mdl_group_probing(df, train_idx, test_idx, activations)
+        
+        # Task 5: Cross-model transfer MDL
+        transfer_results = mdl_cross_model_transfer(df, train_idx, test_idx, activations)
+        
+        # Visualizations
+        create_visualizations(
+            attr_results, state_results, corr_results,
+            group_results, transfer_results
+        )
+        
+        # Summary report
+        generate_summary_report(
+            attr_results, state_results, corr_results,
+            group_results, transfer_results
+        )
+        
+        log.log("✓ All tasks completed successfully")
         
     except Exception as e:
-        logger.log(f"\n❌ ERROR: {str(e)}")
+        log.log(f"\n❌ ERROR: {str(e)}")
         import traceback
-        logger.log(traceback.format_exc())
+        log.log(traceback.format_exc())
         raise
     
     end_time = datetime.now()
     duration = (end_time - start_time).total_seconds()
     
-    logger.section("Pipeline Complete")
-    logger.log(f"End time: {end_time.strftime('%Y-%m-%d %H:%M:%S')}")
-    logger.log(f"Total duration: {duration/60:.1f} minutes")
-    logger.log(f"\nAll outputs saved to:")
-    logger.log(f"  Results:   {config.output_dir / 'results'}")
-    logger.log(f"  Curves:    {config.output_dir / 'curves'}")
-    logger.log(f"  Plots:     {config.output_dir / 'plots'}")
-    logger.log(f"  Per-class: {config.output_dir / 'per_class'}")
+    log.section("Pipeline Complete")
+    log.log(f"End time: {end_time.strftime('%Y-%m-%d %H:%M:%S')}")
+    log.log(f"Total duration: {duration/60:.1f} minutes")
+    log.log(f"\nAll outputs saved to:")
+    log.log(f"  {config.output_dir}")
+
 
 if __name__ == "__main__":
     main()
