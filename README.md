@@ -160,14 +160,16 @@ cultural-alignment-study/
 │   ├── generate_sentences_sanskriti.py    # Claude-based sentence generation
 │   ├── extract_activations.py             # Hidden state extraction
 │   ├── eda_12k.py                         # Exploratory data analysis
-│   └── linear_probing_v2.py               # Linear probing experiments (ongoing)
+│   ├── linear_probing_v2.py               # Linear probing experiments (complete)
+│   └── mdl_probing_v2.py                  # MDL probing experiments (running)
 ├── outputs/
 │   ├── sanskriti_test_knowledge/          # Initial evaluation results
 │   ├── eda_results/                       # EDA plots and reports
 │   │   ├── plots/                         # Visualization outputs
 │   │   ├── reports/                       # JSON analysis reports
 │   │   └── SUMMARY_REPORT.txt            # Executive summary
-│   └── linear_probing/                    # Probing results (in progress)
+│   ├── linear_probing/                    # Linear probing results (complete)
+│   └── mdl_probing/                       # MDL probing results (in progress)
 └── README.md
 ```
 
