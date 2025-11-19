@@ -2,11 +2,11 @@
 CULTURAL ALIGNMENT EDA - EXECUTIVE SUMMARY
 ================================================================================
 
-Generated: 2025-11-18 16:16:00
+Generated: 2025-11-19 15:17:56
 
 Dataset: 33,522 sentences
 Models: Qwen2-1.5B Base & Instruct
-Layers analyzed: [8, 16, 24]
+Layers analyzed: [8, 16, 24, 28]
 
 --------------------------------------------------------------------------------
 1. DATA DISTRIBUTION
@@ -46,11 +46,11 @@ Accuracy by group:
 --------------------------------------------------------------------------------
 
 HDBSCAN results:
-  Clusters found: 267
-  Noise points: 6853 (20.4%)
+  Clusters found: 264
+  Noise points: 6612 (19.7%)
 
 Baseline probing (on embeddings):
-  Group type accuracy: 0.399 ± 0.026
+  Group type accuracy: 0.399 ± 0.025
   Attribute accuracy: 0.775 ± 0.016
 
 --------------------------------------------------------------------------------
@@ -70,6 +70,10 @@ Base-Instruct similarity (cosine):
     suppression    : 0.9990 ± 0.0002
     enhancement    : 0.9990 ± 0.0002
     control        : 0.9990 ± 0.0002
+  Layer 28: 0.9970
+    suppression    : 0.9970 ± 0.0005
+    enhancement    : 0.9970 ± 0.0005
+    control        : 0.9969 ± 0.0005
 
 --------------------------------------------------------------------------------
 6. KEY FINDINGS

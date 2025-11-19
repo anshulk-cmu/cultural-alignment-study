@@ -1,0 +1,50 @@
+{
+  "base": {
+    "compression_ratio": 6.335996721183051,
+    "triple_mdl": 4348881.194824219,
+    "single_sum_mdl": 686376.8063964844,
+    "acc_attribute": 0.10032217648111688,
+    "acc_state": 0.08618220869876499,
+    "acc_correctness": 0.6635045641668158,
+    "suppression_analysis": {
+      "triple_mdl": 5404772.046386719,
+      "acc_attribute": 0.09904474610356963,
+      "acc_state": 0.049773755656108594,
+      "acc_correctness": 0.799396681749623,
+      "data_cost": 95537.04638671875,
+      "model_cost": 5309235.0
+    },
+    "enhancement_analysis": {
+      "triple_mdl": 5408249.882324219,
+      "acc_attribute": 0.1037593984962406,
+      "acc_state": 0.09223057644110276,
+      "acc_correctness": 0.5847117794486215
+    }
+  },
+  "instruct": {
+    "compression_ratio": 6.358661087954939,
+    "triple_mdl": 4348916.519042969,
+    "single_sum_mdl": 683935.8882141113,
+    "acc_attribute": 0.10032217648111688,
+    "acc_state": 0.0318596742437802,
+    "acc_correctness": 0.638356899946304,
+    "suppression_analysis": {
+      "triple_mdl": 5407268.5703125,
+      "acc_attribute": 0.09904474610356963,
+      "acc_state": 0.049773755656108594,
+      "acc_correctness": 0.6251885369532428,
+      "data_cost": 98672.5703125,
+      "model_cost": 5308596.0
+    },
+    "enhancement_analysis": {
+      "triple_mdl": 5405542.189941406,
+      "acc_attribute": 0.1037593984962406,
+      "acc_state": 0.09223057644110276,
+      "acc_correctness": 0.7679197994987469
+    }
+  },
+  "comparison": {
+    "compression_ratio_diff": 0.02266436677188821,
+    "suppression_mdl_diff": 2496.52392578125,
+    "suppression_correctness_diff": -0.17420814479638014,
+    "policy_mask_indicator": 

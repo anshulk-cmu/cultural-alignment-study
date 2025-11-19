@@ -1,1362 +1,1448 @@
 #!/usr/bin/env python3
 """
-MDL (Minimum Description Length) Probing Analysis
-==================================================
-Information-theoretic analysis of cultural knowledge encoding in neural activations.
+MDL Probing: Information-Theoretic Analysis of RLHF Cultural Suppression
 
-Implements:
-- Variational coding with multiple complexity measures (L0, L1, L2, Fisher)
-- Prequential coding for online codelength estimation
-- Stratified sampling for class-balanced training
-- Nested cross-validation for hyperparameter selection
-- Per-class codelength decomposition
-- Proper parameter encoding costs
+This script implements comprehensive MDL-based probing experiments to analyze
+how RLHF affects cultural knowledge representations in language models.
 
-Models: Qwen2-1.5B Base & Instruct
-Layers: 6, 12, 18
-Dataset: 33,522 sentences
+Key experiments:
+- Online Prequential Coding (Data Efficiency Analysis)
+- Variational MDL with L0/L1/L2 Priors (Model Complexity)
+- Fisher Information Matrix (Decision Boundary Analysis)
+- Cross-Model Transfer MDL (Representational Isomorphism)
+- Multi-Task Joint Compression (Single, Dual, and Triple Task Probing)
+- Group-Stratified Analysis (Suppression/Enhancement/Control Groups)
+
+Triple Entanglement Test:
+Simultaneously probes State, Attribute, and Correctness predictions to test
+whether aligned models maintain unified representations despite behavioral
+suppression. Low joint compression with high semantic accuracy but low
+correctness accuracy indicates policy-layer blocking rather than information
+erasure.
 """
 
 import os
+import gc
+import json
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import DataLoader, TensorDataset
+from sklearn.preprocessing import LabelEncoder, StandardScaler
+from sklearn.utils import shuffle
 from pathlib import Path
 from datetime import datetime
-import json
-import warnings
-from typing import Dict, List, Tuple, Optional
-from dataclasses import dataclass, asdict
-from collections import defaultdict
-import pickle
-warnings.filterwarnings('ignore')
+import matplotlib.pyplot as plt
+import seaborn as sns
+from tqdm import tqdm
 
-from sklearn.linear_model import LogisticRegression, Ridge
-from sklearn.preprocessing import StandardScaler, LabelEncoder
-from sklearn.metrics import log_loss, accuracy_score
-from sklearn.model_selection import StratifiedKFold, train_test_split
-from scipy.stats import entropy
-from scipy.linalg import eigvalsh
-
-# ============================================================================
+# ==============================================================================
 # CONFIGURATION
-# ============================================================================
+# ==============================================================================
 
-@dataclass
-class MDLConfig:
-    """Configuration for MDL probing experiments."""
+class Config:
+    CSV_PATH = Path("/home/anshulk/cultural-alignment-study/outputs/eda_results/tables/enhanced_dataset.csv")
+    ACTIVATION_TEMPLATE = "/data/user_data/anshulk/cultural-alignment-study/activations/{model}_layer{layer}_activations.npy"
+    OUTPUT_DIR = Path("/home/anshulk/cultural-alignment-study/outputs/mdl_probing")
     
-    # Paths
-    activation_dir: Path = Path("/data/user_data/anshulk/cultural-alignment-study/sanskriti_data/Activations")
-    index_file: Path = activation_dir / "activation_index.csv"
-    enhanced_data: Path = Path("/home/anshulk/cultural-alignment-study/outputs/EDA_results/tables/enhanced_dataset.csv")
-    output_dir: Path = Path("/home/anshulk/cultural-alignment-study/outputs/mdl_probing_v2")
-    heavy_data_dir: Path = Path("/data/user_data/anshulk/cultural-alignment-study/sanskriti_data/MDL_Probing_v2")
+    MODELS = ['base', 'instruct']
+    LAYERS = [8, 16, 24]
+    INPUT_DIM = 1536
+    HIDDEN_DIM = 512
     
-    # Models and layers
-    models: List[str] = None
-    layers: List[int] = None
-    hidden_size: int = 1536
+    SEED = 42
+    DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
-    # MDL parameters
-    lambda_values: List[float] = None
-    prequential_chunk_sizes: List[int] = None
-    complexity_measures: List[str] = None
+    ONLINE_CHUNKS = np.unique(np.concatenate([
+        np.arange(0.02, 0.20, 0.02),
+        np.arange(0.20, 1.01, 0.05)
+    ]))
     
-    # Parameter encoding
-    bits_per_parameter: int = 32  # float32 precision
+    PRIORS = ['l0', 'l1', 'l2']
+    VAR_EPOCHS = 100
+    VAR_BATCH = 1024
+    VAR_LR = 1e-3
+    L0_TEMP = 2.0 / 3.0
+    L0_DROPRATE_INIT = 0.5
     
-    # Cross-validation
-    n_cv_folds: int = 5
-    random_state: int = 42
-    max_iter: int = 1000
-    test_size: float = 0.2
+    ONLINE_TRAIN_ITERS = 5
+    ONLINE_BATCH = 256
+    ONLINE_LR = 0.05
     
-    def __post_init__(self):
-        if self.models is None:
-            self.models = ['base', 'instruct']
-        if self.layers is None:
-            self.layers = [6, 12, 18]
-        if self.lambda_values is None:
-            self.lambda_values = [1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1.0, 10.0, 100.0, 1000.0]
-        if self.prequential_chunk_sizes is None:
-            self.prequential_chunk_sizes = [50, 100, 200, 500, 1000, 2000, 5000]
-        if self.complexity_measures is None:
-            self.complexity_measures = ['l0', 'l1', 'l2', 'fisher']
+    ISO_EPOCHS = 50
+    ISO_BATCH = 1024
+    
+    @staticmethod
+    def setup():
+        Config.OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+        (Config.OUTPUT_DIR / "data").mkdir(exist_ok=True)
+        (Config.OUTPUT_DIR / "plots").mkdir(exist_ok=True)
+        (Config.OUTPUT_DIR / "logs").mkdir(exist_ok=True)
         
-        # Create directories
-        self.output_dir.mkdir(parents=True, exist_ok=True)
-        self.heavy_data_dir.mkdir(parents=True, exist_ok=True)
-        (self.output_dir / "plots").mkdir(exist_ok=True)
-        (self.output_dir / "results").mkdir(exist_ok=True)
-        (self.output_dir / "curves").mkdir(exist_ok=True)
-        (self.output_dir / "per_class").mkdir(exist_ok=True)
+        torch.manual_seed(Config.SEED)
+        np.random.seed(Config.SEED)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(Config.SEED)
+            torch.backends.cudnn.deterministic = True
+            torch.backends.cudnn.benchmark = False
 
-config = MDLConfig()
+Config.setup()
 
-# ============================================================================
-# LOGGING
-# ============================================================================
+log_file = Config.OUTPUT_DIR / "logs" / f"run_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
 
-class Logger:
-    def __init__(self, log_file):
-        self.log_file = log_file
+def log(msg):
+    timestamp = datetime.now().strftime("%H:%M:%S")
+    formatted = f"[{timestamp}] {msg}"
+    print(formatted)
+    with open(log_file, "a") as f:
+        f.write(formatted + "\n")
+
+log(f"Device: {Config.DEVICE}")
+if torch.cuda.is_available():
+    log(f"GPU: {torch.cuda.get_device_name(0)}")
+    log(f"GPU Memory: {torch.cuda.get_device_properties(0).total_memory / 1e9:.2f} GB")
+
+# ==============================================================================
+# PROBE ARCHITECTURES
+# ==============================================================================
+
+class L0VariationalLayer(nn.Module):
+    """Concrete Dropout Layer for L0 Sparsity Regularization"""
+    
+    def __init__(self, in_dim, out_dim, weight_decay=1.0, droprate_init=0.5, temperature=2./3.):
+        super().__init__()
+        self.in_dim = in_dim
+        self.out_dim = out_dim
+        self.weight_decay = weight_decay
+        self.temperature = temperature
         
-    def section(self, title):
-        msg = f"\n{'='*80}\n{title.upper()}\n{'='*80}"
-        print(msg)
-        with open(self.log_file, 'a') as f:
-            f.write(msg + '\n')
+        self.weight = nn.Parameter(torch.Tensor(in_dim, out_dim).normal_(0, 0.01))
+        self.bias = nn.Parameter(torch.Tensor(out_dim).zero_())
+        
+        init_val = np.log(1 - droprate_init) - np.log(droprate_init)
+        self.qz_loga = nn.Parameter(torch.Tensor(in_dim, out_dim).normal_(init_val, 1e-2))
     
-    def log(self, message):
-        timestamp = datetime.now().strftime("%H:%M:%S")
-        msg = f"[{timestamp}] {message}"
-        print(msg)
-        with open(self.log_file, 'a') as f:
-            f.write(msg + '\n')
+    def quantile_concrete(self, u):
+        """Inverse CDF for sampling from concrete distribution"""
+        y = torch.sigmoid((torch.log(u) - torch.log(1 - u) + self.qz_loga) / self.temperature)
+        return (y * 2 - 1.0).clamp(0, 1)
     
-    def result(self, key, value):
-        msg = f"  • {key}: {value}"
-        print(msg)
-        with open(self.log_file, 'a') as f:
-            f.write(msg + '\n')
+    def regularization(self):
+        """Expected L0 norm for model complexity measurement"""
+        target = torch.sigmoid(self.qz_loga - self.temperature * np.log(0.1 / 1.1))
+        return torch.sum(target)
+    
+    def get_sparsity(self):
+        """Calculate proportion of pruned parameters"""
+        pruned = (self.qz_loga <= 0).float().sum()
+        total = self.in_dim * self.out_dim
+        return (pruned / total).item()
+    
+    def forward(self, x):
+        if self.training:
+            u = torch.rand_like(self.qz_loga)
+            z = self.quantile_concrete(u)
+        else:
+            z = (self.qz_loga > 0).float()
+        
+        return torch.matmul(x, self.weight * z) + self.bias
 
-log = Logger(config.output_dir / "mdl_log.txt")
 
-# ============================================================================
-# DATA LOADING
-# ============================================================================
+class UniversalProbe(nn.Module):
+    """Universal probe supporting single-task, multi-task, and all prior types"""
+    
+    def __init__(self, input_dim, task_dims, prior_type, dataset_size, use_bottleneck=False):
+        super().__init__()
+        self.prior_type = prior_type
+        self.dataset_size = dataset_size
+        self.task_dims = task_dims
+        self.use_bottleneck = use_bottleneck
+        
+        if len(task_dims) > 1 and use_bottleneck:
+            if prior_type == 'l0':
+                self.body = L0VariationalLayer(input_dim, Config.HIDDEN_DIM, weight_decay=1.0/dataset_size)
+            else:
+                self.body = nn.Linear(input_dim, Config.HIDDEN_DIM)
+            
+            self.heads = nn.ModuleDict({
+                task: nn.Linear(Config.HIDDEN_DIM, dim) for task, dim in task_dims.items()
+            })
+        else:
+            self.body = nn.Identity()
+            task_name = list(task_dims.keys())[0]
+            task_dim = list(task_dims.values())[0]
+            
+            if prior_type == 'l0':
+                self.heads = nn.ModuleDict({
+                    task_name: L0VariationalLayer(input_dim, task_dim, weight_decay=1.0/dataset_size)
+                })
+            else:
+                self.heads = nn.ModuleDict({
+                    task_name: nn.Linear(input_dim, task_dim)
+                })
+    
+    def forward(self, x):
+        features = self.body(x)
+        return {task: head(features) for task, head in self.heads.items()}
+    
+    def compute_loss(self, logits_dict, targets_dict):
+        """Compute data cost (negative log-likelihood) and model cost (regularization)"""
+        data_cost = 0
+        for task, logits in logits_dict.items():
+            data_cost += nn.functional.cross_entropy(logits, targets_dict[task], reduction='sum')
+        
+        model_cost = torch.tensor(0.0, device=data_cost.device)
+        
+        all_params = []
+        
+        if isinstance(self.body, L0VariationalLayer):
+            model_cost += self.body.regularization()
+        elif not isinstance(self.body, nn.Identity):
+            all_params.extend(self.body.parameters())
+        
+        for head in self.heads.values():
+            if isinstance(head, L0VariationalLayer):
+                model_cost += head.regularization()
+            else:
+                all_params.extend(head.parameters())
+        
+        if self.prior_type == 'l1':
+            l1_norm = sum(p.abs().sum() for p in all_params)
+            model_cost += 1e-4 * self.dataset_size * l1_norm
+        elif self.prior_type == 'l2':
+            l2_norm = sum(p.pow(2).sum() for p in all_params)
+            model_cost += 1e-4 * self.dataset_size * l2_norm
+        
+        return data_cost, model_cost
+    
+    def get_sparsity(self):
+        """Calculate overall sparsity for L0 layers"""
+        if self.prior_type != 'l0':
+            return 0.0
+        
+        sparsities = []
+        if isinstance(self.body, L0VariationalLayer):
+            sparsities.append(self.body.get_sparsity())
+        
+        for head in self.heads.values():
+            if isinstance(head, L0VariationalLayer):
+                sparsities.append(head.get_sparsity())
+        
+        return np.mean(sparsities) if sparsities else 0.0
 
-def load_data():
-    """Load activations and metadata."""
-    log.section("Loading Data")
+
+class SimpleOnlineProbe(nn.Module):
+    """Lightweight linear probe for online coding experiments"""
     
-    # Load metadata
-    log.log("Loading metadata...")
-    df = pd.read_csv(config.enhanced_data)
-    log.result("Total sentences", len(df))
+    def __init__(self, input_dim, num_classes):
+        super().__init__()
+        self.linear = nn.Linear(input_dim, num_classes)
     
-    # Load activations
+    def forward(self, x):
+        return self.linear(x)
+
+# ==============================================================================
+# DATA UTILITIES
+# ==============================================================================
+
+def load_layer_data(layer):
+    """Load dataset and activations for specified layer"""
+    log(f"Loading Layer {layer} data...")
+    
+    df = pd.read_csv(Config.CSV_PATH)
+    
+    if 'activation_idx' not in df.columns:
+        raise ValueError("activation_idx column not found in dataset")
+    
+    if df['activation_idx'].isna().any():
+        log(f"  WARNING: {df['activation_idx'].isna().sum()} rows missing activation indices")
+        df = df.dropna(subset=['activation_idx'])
+    
+    df['activation_idx'] = df['activation_idx'].astype(int)
+    
     activations = {}
-    for model in config.models:
-        activations[model] = {}
-        for layer in config.layers:
-            file_path = config.activation_dir / f"{model}_layer{layer}_activations.npy"
-            log.log(f"Loading {model} layer {layer}...")
-            activations[model][layer] = np.load(file_path)
-            log.result(f"  Shape", activations[model][layer].shape)
+    for model in Config.MODELS:
+        path = Config.ACTIVATION_TEMPLATE.format(model=model, layer=layer)
+        acts_full = np.load(path)
+        activations[model] = acts_full[df['activation_idx'].values]
+        log(f"  {model}: {activations[model].shape}")
     
-    # Prepare labels
-    log.log("\nPreparing labels...")
+    return df, activations
+
+
+def encode_all_labels(df):
+    """Encode categorical and binary task labels"""
+    labels = {}
+    dims = {}
     
-    label_encoders = {}
-    
-    # Attribute (16 classes)
     le_attr = LabelEncoder()
-    df['attribute_label'] = le_attr.fit_transform(df['attribute'])
-    label_encoders['attribute'] = le_attr
-    log.result("Attributes", len(le_attr.classes_))
+    labels['attribute'] = le_attr.fit_transform(df['attribute'])
+    dims['attribute'] = len(le_attr.classes_)
     
-    # State (36 classes)
     le_state = LabelEncoder()
-    df['state_label'] = le_state.fit_transform(df['state'])
-    label_encoders['state'] = le_state
-    log.result("States", len(le_state.classes_))
+    labels['state'] = le_state.fit_transform(df['state'])
+    dims['state'] = len(le_state.classes_)
     
-    # Group (3 classes)
-    le_group = LabelEncoder()
-    df['group_label'] = le_group.fit_transform(df['group_type'])
-    label_encoders['group'] = le_group
-    log.result("Groups", len(le_group.classes_))
+    labels['correctness_base'] = df['base_correct'].astype(int).values
+    labels['correctness_instruct'] = df['instruct_correct'].astype(int).values
+    dims['correctness'] = 2
     
-    # Correctness
-    df['base_correct_label'] = df['base_correct'].astype(int)
-    df['instruct_correct_label'] = df['instruct_correct'].astype(int)
+    return labels, dims
+
+
+def create_dataloaders(X, y_dict, batch_size, shuffle_data=True):
+    """Create PyTorch dataloaders for multi-task learning"""
+    X_tensor = torch.FloatTensor(X).to(Config.DEVICE)
+    y_tensors = [torch.LongTensor(y).to(Config.DEVICE) for y in y_dict.values()]
     
-    return df, activations, label_encoders
-
-
-def create_splits(df: pd.DataFrame):
-    """Create stratified train/test splits."""
-    log.section("Creating Splits")
+    dataset = TensorDataset(X_tensor, *y_tensors)
+    loader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle_data)
     
-    train_idx, test_idx = train_test_split(
-        df.index,
-        test_size=config.test_size,
-        random_state=config.random_state,
-        stratify=df['group_type']
-    )
+    return loader
+
+# ==============================================================================
+# METRIC COMPUTATIONS
+# ==============================================================================
+
+def compute_fisher_information(model, dataloader, task_names):
+    """Compute diagonal Fisher Information Matrix for decision boundary analysis"""
+    model.eval()
+    fisher_diag = {name: torch.zeros_like(param) for name, param in model.named_parameters()}
     
-    log.result("Train size", len(train_idx))
-    log.result("Test size", len(test_idx))
-    
-    return train_idx, test_idx
-
-
-# ============================================================================
-# COMPLEXITY MEASURES
-# ============================================================================
-
-def compute_l0_norm(weights: np.ndarray, threshold: float = 1e-6) -> float:
-    """Count non-zero parameters."""
-    return np.sum(np.abs(weights) > threshold)
-
-
-def compute_l1_norm(weights: np.ndarray) -> float:
-    """L1 norm (sum of absolute values)."""
-    return np.sum(np.abs(weights))
-
-
-def compute_l2_norm(weights: np.ndarray) -> float:
-    """L2 norm (Euclidean norm)."""
-    return np.sqrt(np.sum(weights ** 2))
-
-
-def compute_fisher_information(
-    probe,
-    X: np.ndarray,
-    y: np.ndarray,
-    epsilon: float = 1e-8
-) -> float:
-    """
-    Compute Fisher Information as trace of Hessian.
-    Approximated via eigenvalues of X^T W X where W is diagonal weight matrix.
-    """
-    try:
-        # Get predictions
-        probs = probe.predict_proba(X)
+    for batch in dataloader:
+        xb = batch[0]
+        yb_dict = {task: batch[i+1] for i, task in enumerate(task_names)}
         
-        # Compute diagonal weight matrix (variance of predictions)
-        if probs.shape[1] == 2:
-            # Binary case
-            p = probs[:, 1]
-            weights = p * (1 - p) + epsilon
-        else:
-            # Multi-class case
-            weights = np.sum(probs * (1 - probs), axis=1) + epsilon
+        model.zero_grad()
+        logits = model(xb)
         
-        # Weighted covariance: X^T W X
-        X_weighted = X * np.sqrt(weights)[:, np.newaxis]
-        cov = X_weighted.T @ X_weighted / len(X)
+        loss = sum(nn.functional.cross_entropy(logits[task], yb_dict[task]) 
+                   for task in task_names)
+        loss.backward()
         
-        # Compute eigenvalues (more stable than full Hessian)
-        eigenvals = eigvalsh(cov)
-        eigenvals = np.maximum(eigenvals, 0)  # Numerical stability
-        
-        # Fisher information is trace
-        fisher = np.sum(eigenvals)
-        
-        return float(fisher)
-        
-    except Exception as e:
-        log.log(f"Warning: Fisher computation failed: {e}")
-        return 0.0
+        for name, param in model.named_parameters():
+            if param.grad is not None:
+                fisher_diag[name] += param.grad.pow(2)
+    
+    num_samples = len(dataloader.dataset)
+    fisher_means = {name: (f / num_samples).mean().item() for name, f in fisher_diag.items()}
+    
+    return np.mean(list(fisher_means.values()))
 
 
-def compute_all_complexity_measures(
-    probe,
-    X: np.ndarray,
-    y: np.ndarray
-) -> Dict[str, float]:
-    """Compute all complexity measures for a probe."""
+def compute_accuracy(model, dataloader, task_names):
+    """Compute classification accuracy for all tasks"""
+    model.eval()
+    correct = {task: 0 for task in task_names}
+    total = 0
     
-    # Get weights (flatten all parameters)
-    if hasattr(probe, 'coef_'):
-        weights = probe.coef_.ravel()
-        if hasattr(probe, 'intercept_'):
-            weights = np.concatenate([weights, probe.intercept_.ravel()])
-    else:
-        weights = np.array([])
+    with torch.no_grad():
+        for batch in dataloader:
+            xb = batch[0]
+            yb_dict = {task: batch[i+1] for i, task in enumerate(task_names)}
+            
+            logits = model(xb)
+            
+            for task in task_names:
+                preds = logits[task].argmax(dim=1)
+                correct[task] += (preds == yb_dict[task]).sum().item()
+            
+            total += len(xb)
     
-    measures = {
-        'l0': compute_l0_norm(weights),
-        'l1': compute_l1_norm(weights),
-        'l2': compute_l2_norm(weights),
-        'fisher': compute_fisher_information(probe, X, y)
-    }
-    
-    return measures
+    return {task: correct[task] / total for task in task_names}
 
+# ==============================================================================
+# EXPERIMENT 1: ONLINE PREQUENTIAL CODING
+# ==============================================================================
 
-# ============================================================================
-# MDL COMPUTATION
-# ============================================================================
-
-def compute_data_codelength(
-    probe,
-    X: np.ndarray,
-    y: np.ndarray,
-    scaler: Optional[StandardScaler] = None
-) -> float:
-    """
-    Compute data codelength: -log P(y|X,θ) in bits.
-    Uses cross-entropy loss.
-    """
-    if scaler is not None:
-        X = scaler.transform(X)
+def experiment_online_coding(X, y_dict, task_dims, metadata):
+    """Online MDL with prequential coding for data efficiency analysis"""
+    X_shuf, indices = shuffle(X, np.arange(len(X)), random_state=Config.SEED)
+    y_shuf = {task: y[indices] for task, y in y_dict.items()}
     
-    # Get predicted probabilities
-    y_proba = probe.predict_proba(X)
+    X_tensor = torch.FloatTensor(X_shuf).to(Config.DEVICE)
+    y_tensors = {task: torch.LongTensor(y).to(Config.DEVICE) for task, y in y_shuf.items()}
     
-    # Compute cross-entropy in nats
-    loss_nats = log_loss(y, y_proba, normalize=False)
+    task_names = list(task_dims.keys())
+    num_classes = list(task_dims.values())[0] if len(task_dims) == 1 else Config.HIDDEN_DIM
     
-    # Convert to bits
-    loss_bits = loss_nats / np.log(2)
+    probe = SimpleOnlineProbe(Config.INPUT_DIM, num_classes).to(Config.DEVICE)
+    optimizer = optim.SGD(probe.parameters(), lr=Config.ONLINE_LR)
+    criterion = nn.CrossEntropyLoss(reduction='sum')
     
-    return float(loss_bits)
-
-def compute_parameter_codelength(n_params: int) -> float:
-    """
-    Compute parameter codelength: fixed cost to transmit parameters.
-    
-    Standard MDL: Each float32 parameter requires 32 bits to encode.
-    Complexity is already handled by regularization λ during training.
-    
-    Args:
-        n_params: Number of parameters in the model
-        
-    Returns:
-        Parameter codelength in bits
-    """
-    return n_params * config.bits_per_parameter
-
-
-def compute_mdl_score(
-    probe,
-    X: np.ndarray,
-    y: np.ndarray,
-    scaler: Optional[StandardScaler] = None
-) -> Dict[str, float]:
-    """
-    Compute full MDL score: data codelength + parameter codelength.
-    
-    MDL = L(D|θ) + L(θ)
-    where:
-        L(D|θ) = data codelength (negative log likelihood)
-        L(θ) = parameter codelength (fixed encoding cost)
-    
-    Complexity measures (L0, L1, L2, Fisher) are computed for analysis
-    but don't affect the MDL score (regularization λ already handled them).
-    """
-    # Data codelength: -log P(y|X,θ) in bits
-    data_codelength = compute_data_codelength(probe, X, y, scaler)
-    
-    # Number of parameters
-    if hasattr(probe, 'coef_'):
-        n_params = probe.coef_.size
-        if hasattr(probe, 'intercept_'):
-            n_params += probe.intercept_.size
-    else:
-        n_params = 0
-    
-    # Fixed parameter codelength (standard MDL)
-    param_codelength = compute_parameter_codelength(n_params)
-    
-    # Total MDL score
-    mdl_score = data_codelength + param_codelength
-    
-    # Compute complexity measures for reporting/analysis
-    complexity_measures = compute_all_complexity_measures(probe, X, y)
-    
-    result = {
-        'data_codelength': data_codelength,
-        'parameter_codelength': param_codelength,
-        'mdl_score': mdl_score,
-        'n_parameters': n_params,
-        'complexity_measures': complexity_measures,  # For analysis only
-    }
-    
-    return result
-
-# ============================================================================
-# VARIATIONAL MDL
-# ============================================================================
-
-def variational_mdl(
-    X_train: np.ndarray,
-    y_train: np.ndarray,
-    X_test: np.ndarray,
-    y_test: np.ndarray,
-    lambda_values: List[float],
-    task_type: str = 'multiclass'
-) -> Dict:
-    """
-    Compute MDL across multiple regularization strengths.
-    """
     results = []
+    cumulative_bits = 0.0
+    prev_idx = 0
     
-    # Scale features
-    scaler = StandardScaler()
-    X_train_scaled = scaler.fit_transform(X_train)
-    X_test_scaled = scaler.transform(X_test)
+    N = len(X)
     
-    for lam in lambda_values:
-        if task_type == 'binary':
-            probe = LogisticRegression(
-                C=1.0/lam if lam > 0 else 1e10,
-                max_iter=config.max_iter,
-                random_state=config.random_state,
-                penalty='l2',
-                solver='lbfgs'
-            )
-        else:
-            probe = LogisticRegression(
-                C=1.0/lam if lam > 0 else 1e10,
-                max_iter=config.max_iter,
-                random_state=config.random_state,
-                penalty='l2',
-                solver='lbfgs',
-                multi_class='multinomial'
-            )
+    for pct in tqdm(Config.ONLINE_CHUNKS, desc="Online Coding", leave=False):
+        curr_idx = int(pct * N)
+        if curr_idx <= prev_idx:
+            continue
         
-        probe.fit(X_train_scaled, y_train)
+        X_eval = X_tensor[prev_idx:curr_idx]
+        y_eval = list(y_tensors.values())[0][prev_idx:curr_idx]
         
-        # Compute MDL on test set
-        mdl_result = compute_mdl_score(probe, X_test_scaled, y_test, scaler=None)
+        probe.eval()
+        with torch.no_grad():
+            logits = probe(X_eval)
+            chunk_bits = criterion(logits, y_eval).item()
+            acc = (logits.argmax(1) == y_eval).float().mean().item()
         
-        # Add metadata
-        mdl_result['lambda'] = lam
-        mdl_result['test_accuracy'] = accuracy_score(y_test, probe.predict(X_test_scaled))
+        cumulative_bits += chunk_bits
         
-        results.append(mdl_result)
+        probe.train()
+        if curr_idx > 0:
+            X_train = X_tensor[:curr_idx]
+            y_train = list(y_tensors.values())[0][:curr_idx]
+            
+            for _ in range(Config.ONLINE_TRAIN_ITERS):
+                if len(X_train) > Config.ONLINE_BATCH:
+                    idx = torch.randperm(len(X_train))[:Config.ONLINE_BATCH]
+                    X_batch = X_train[idx]
+                    y_batch = y_train[idx]
+                else:
+                    X_batch = X_train
+                    y_batch = y_train
+                
+                optimizer.zero_grad()
+                loss = criterion(probe(X_batch), y_batch) / len(X_batch)
+                loss.backward()
+                optimizer.step()
+        
+        results.append({
+            **metadata,
+            'data_pct': pct,
+            'chunk_bits': chunk_bits,
+            'cumulative_bits': cumulative_bits,
+            'bits_per_sample': cumulative_bits / curr_idx,
+            'accuracy': acc
+        })
+        
+        prev_idx = curr_idx
     
-    return {
-        'results': results,
-        'scaler': scaler
-    }
+    return results
 
+# ==============================================================================
+# EXPERIMENT 2: VARIATIONAL MDL
+# ==============================================================================
 
-# ============================================================================
-# PREQUENTIAL MDL
-# ============================================================================
-
-def prequential_mdl(
-    X: np.ndarray,
-    y: np.ndarray,
-    chunk_sizes: List[int],
-    task_type: str = 'multiclass',
-    lambda_reg: float = 1.0
-) -> Dict:
-    """
-    Compute prequential (online) codelength.
-    Train on chunks sequentially and test on next chunk.
-    """
-    n_samples = len(X)
-    
-    # Scale once
+def experiment_variational_mdl(X, y_dict, task_dims, metadata):
+    """Variational complexity analysis with L0/L1/L2 priors"""
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
     
-    results = {}
+    task_names = list(task_dims.keys())
+    loader = create_dataloaders(X_scaled, y_dict, Config.VAR_BATCH, shuffle_data=True)
     
-    for chunk_size in chunk_sizes:
-        if chunk_size >= n_samples:
-            continue
+    results = []
+    
+    for prior in Config.PRIORS:
+        use_bottleneck = len(task_dims) > 1
+        probe = UniversalProbe(Config.INPUT_DIM, task_dims, prior, len(X), use_bottleneck).to(Config.DEVICE)
+        optimizer = optim.Adam(probe.parameters(), lr=Config.VAR_LR)
         
-        n_chunks = n_samples // chunk_size
+        epochs = Config.VAR_EPOCHS if prior == 'l0' else Config.VAR_EPOCHS // 2
         
-        cumulative_codelength = 0.0
-        cumulative_samples = 0
-        chunk_codelengths = []
+        probe.train()
+        for epoch in tqdm(range(epochs), desc=f"VAR-{prior}", leave=False):
+            for batch in loader:
+                xb = batch[0]
+                yb_dict = {task: batch[i+1] for i, task in enumerate(task_names)}
+                
+                optimizer.zero_grad()
+                logits = probe(xb)
+                data_cost, model_cost = probe.compute_loss(logits, yb_dict)
+                loss = data_cost + model_cost
+                loss.backward()
+                optimizer.step()
         
-        for i in range(n_chunks - 1):
-            # Train on chunks 0 to i
-            train_end = (i + 1) * chunk_size
-            X_train_chunk = X_scaled[:train_end]
-            y_train_chunk = y[:train_end]
-            
-            # Test on chunk i+1
-            test_start = train_end
-            test_end = test_start + chunk_size
-            X_test_chunk = X_scaled[test_start:test_end]
-            y_test_chunk = y[test_start:test_end]
-            
-            # Train probe
-            if task_type == 'binary':
-                probe = LogisticRegression(
-                    C=1.0/lambda_reg,
-                    max_iter=config.max_iter,
-                    random_state=config.random_state,
-                    penalty='l2'
-                )
-            else:
-                probe = LogisticRegression(
-                    C=1.0/lambda_reg,
-                    max_iter=config.max_iter,
-                    random_state=config.random_state,
-                    penalty='l2',
-                    multi_class='multinomial'
-                )
-            
-            probe.fit(X_train_chunk, y_train_chunk)
-            
-            # Compute codelength on test chunk
-            codelength = compute_data_codelength(probe, X_test_chunk, y_test_chunk, scaler=None)
-            
-            cumulative_codelength += codelength
-            cumulative_samples += len(y_test_chunk)
-            chunk_codelengths.append(codelength)
+        probe.eval()
         
-        results[chunk_size] = {
-            'total_codelength': cumulative_codelength,
-            'n_samples': cumulative_samples,
-            'avg_codelength_per_sample': cumulative_codelength / cumulative_samples,
-            'chunk_codelengths': chunk_codelengths
-        }
+        total_data_cost = 0.0
+        total_model_cost = 0.0
+        
+        with torch.no_grad():
+            for batch in loader:
+                xb = batch[0]
+                yb_dict = {task: batch[i+1] for i, task in enumerate(task_names)}
+                
+                logits = probe(xb)
+                dc, mc = probe.compute_loss(logits, yb_dict)
+                total_data_cost += dc.item()
+                total_model_cost += mc.item()
+        
+        accuracies = compute_accuracy(probe, loader, task_names)
+        fisher_info = compute_fisher_information(probe, loader, task_names)
+        sparsity = probe.get_sparsity()
+        
+        results.append({
+            **metadata,
+            'prior': prior,
+            'data_cost': total_data_cost,
+            'model_cost': total_model_cost,
+            'total_mdl': total_data_cost + total_model_cost,
+            'fisher_info': fisher_info,
+            'sparsity': sparsity,
+            **{f'acc_{task}': acc for task, acc in accuracies.items()}
+        })
+        
+        del probe, optimizer
+        torch.cuda.empty_cache()
     
     return results
 
+# ==============================================================================
+# EXPERIMENT 3: ISOMORPHISM TEST
+# ==============================================================================
 
-# ============================================================================
-# PER-CLASS CODELENGTH
-# ============================================================================
-
-def compute_per_class_codelength(
-    probe,
-    X: np.ndarray,
-    y: np.ndarray,
-    scaler: Optional[StandardScaler] = None
-) -> Dict[int, float]:
-    """
-    Compute codelength separately for each class.
-    """
-    if scaler is not None:
-        X = scaler.transform(X)
+def experiment_isomorphism(df, activations, labels, layer):
+    """Cross-model transfer MDL for representational isomorphism testing"""
+    suppression_mask = df['group_type'] == 'suppression'
     
-    classes = np.unique(y)
-    per_class = {}
+    if suppression_mask.sum() < 100:
+        log(f"  Insufficient suppression samples ({suppression_mask.sum()}), skipping isomorphism")
+        return []
     
-    for cls in classes:
-        mask = y == cls
-        X_cls = X[mask]
-        y_cls = y[mask]
-        
-        if len(y_cls) == 0:
-            continue
-        
-        codelength = compute_data_codelength(probe, X_cls, y_cls, scaler=None)
-        per_class[int(cls)] = {
-            'codelength': codelength,
-            'n_samples': len(y_cls),
-            'avg_codelength': codelength / len(y_cls)
-        }
+    results = []
     
-    return per_class
-
-
-# ============================================================================
-# TASK 1: ATTRIBUTE PROBING
-# ============================================================================
-
-def mdl_attribute_probing(df, train_idx, test_idx, activations):
-    """MDL analysis for attribute classification."""
-    log.section("Task 1: Attribute MDL (16-class)")
-    
-    results = {}
-    
-    for model in config.models:
-        results[model] = {}
-        
-        for layer in config.layers:
-            log.log(f"\n{model.upper()} Layer {layer}")
-            
-            X = activations[model][layer]
-            y = df['attribute_label'].values
-            
-            X_train, y_train = X[train_idx], y[train_idx]
-            X_test, y_test = X[test_idx], y[test_idx]
-            
-            # Variational MDL
-            log.log("  Computing variational MDL...")
-            var_result = variational_mdl(
-                X_train, y_train, X_test, y_test,
-                config.lambda_values,
-                task_type='multiclass'
-            )
-            
-            # Find best lambda by MDL (L2 measure)
-            best_idx = np.argmin([r['mdl_scores']['l2'] for r in var_result['results']])
-            best_result = var_result['results'][best_idx]
-            
-            log.result("Best λ", f"{best_result['lambda']:.2e}")
-            log.result("MDL (L2)", f"{best_result['mdl_scores']['l2']:.2f} bits")
-            log.result("Data CL", f"{best_result['data_codelength']:.2f} bits")
-            log.result("Param CL (L2)", f"{best_result['parameter_codelengths']['l2']:.2f} bits")
-            log.result("Test Acc", f"{best_result['test_accuracy']:.4f}")
-            
-            # Prequential MDL
-            log.log("  Computing prequential MDL...")
-            preq_result = prequential_mdl(
-                X_test, y_test,
-                config.prequential_chunk_sizes,
-                task_type='multiclass',
-                lambda_reg=best_result['lambda']
-            )
-            
-            # Per-class codelength
-            log.log("  Computing per-class codelength...")
-            scaler = var_result['scaler']
-            best_lambda = best_result['lambda']
-            
-            probe = LogisticRegression(
-                C=1.0/best_lambda,
-                max_iter=config.max_iter,
-                random_state=config.random_state,
-                multi_class='multinomial'
-            )
-            probe.fit(scaler.transform(X_train), y_train)
-            
-            per_class = compute_per_class_codelength(
-                probe, X_test, y_test, scaler
-            )
-            
-            results[model][layer] = {
-                'variational': var_result['results'],
-                'best': best_result,
-                'prequential': preq_result,
-                'per_class': per_class
-            }
-    
-    # Save results
-    with open(config.output_dir / "results" / "attribute_mdl.json", 'w') as f:
-        # Convert to serializable format
-        save_results = {}
-        for model in results:
-            save_results[model] = {}
-            for layer in results[model]:
-                save_results[model][layer] = {
-                    'variational': results[model][layer]['variational'],
-                    'best': results[model][layer]['best'],
-                    'prequential': {
-                        str(k): v for k, v in results[model][layer]['prequential'].items()
-                    },
-                    'per_class': {
-                        str(k): v for k, v in results[model][layer]['per_class'].items()
-                    }
-                }
-        json.dump(save_results, f, indent=2)
-    
-    return results
-
-
-# ============================================================================
-# TASK 2: STATE PROBING
-# ============================================================================
-
-def mdl_state_probing(df, train_idx, test_idx, activations):
-    """MDL analysis for state classification."""
-    log.section("Task 2: State MDL (36-class)")
-    
-    results = {}
-    
-    for model in config.models:
-        results[model] = {}
-        
-        for layer in config.layers:
-            log.log(f"\n{model.upper()} Layer {layer}")
-            
-            X = activations[model][layer]
-            y = df['state_label'].values
-            
-            X_train, y_train = X[train_idx], y[train_idx]
-            X_test, y_test = X[test_idx], y[test_idx]
-            
-            # Variational MDL
-            log.log("  Computing variational MDL...")
-            var_result = variational_mdl(
-                X_train, y_train, X_test, y_test,
-                config.lambda_values,
-                task_type='multiclass'
-            )
-            
-            best_idx = np.argmin([r['mdl_scores']['l2'] for r in var_result['results']])
-            best_result = var_result['results'][best_idx]
-            
-            log.result("Best λ", f"{best_result['lambda']:.2e}")
-            log.result("MDL (L2)", f"{best_result['mdl_scores']['l2']:.2f} bits")
-            log.result("Test Acc", f"{best_result['test_accuracy']:.4f}")
-            
-            # Prequential MDL
-            log.log("  Computing prequential MDL...")
-            preq_result = prequential_mdl(
-                X_test, y_test,
-                config.prequential_chunk_sizes,
-                task_type='multiclass',
-                lambda_reg=best_result['lambda']
-            )
-            
-            # Per-class (per-state) codelength
-            scaler = var_result['scaler']
-            probe = LogisticRegression(
-                C=1.0/best_result['lambda'],
-                max_iter=config.max_iter,
-                random_state=config.random_state,
-                multi_class='multinomial'
-            )
-            probe.fit(scaler.transform(X_train), y_train)
-            
-            per_class = compute_per_class_codelength(
-                probe, X_test, y_test, scaler
-            )
-            
-            results[model][layer] = {
-                'variational': var_result['results'],
-                'best': best_result,
-                'prequential': preq_result,
-                'per_class': per_class
-            }
-    
-    # Save results
-    with open(config.output_dir / "results" / "state_mdl.json", 'w') as f:
-        save_results = {}
-        for model in results:
-            save_results[model] = {}
-            for layer in results[model]:
-                save_results[model][layer] = {
-                    'variational': results[model][layer]['variational'],
-                    'best': results[model][layer]['best'],
-                    'prequential': {
-                        str(k): v for k, v in results[model][layer]['prequential'].items()
-                    },
-                    'per_class': {
-                        str(k): v for k, v in results[model][layer]['per_class'].items()
-                    }
-                }
-        json.dump(save_results, f, indent=2)
-    
-    return results
-
-
-# ============================================================================
-# TASK 3: CORRECTNESS PROBING
-# ============================================================================
-
-def mdl_correctness_probing(df, train_idx, test_idx, activations):
-    """MDL analysis for correctness prediction."""
-    log.section("Task 3: Correctness MDL (Binary)")
-    
-    results = {}
-    
-    for model in config.models:
-        results[model] = {}
-        
-        for layer in config.layers:
-            log.log(f"\n{model.upper()} Layer {layer}")
-            
-            X = activations[model][layer]
-            y = df[f'{model}_correct_label'].values
-            
-            X_train, y_train = X[train_idx], y[train_idx]
-            X_test, y_test = X[test_idx], y[test_idx]
-            
-            # Variational MDL
-            log.log("  Computing variational MDL...")
-            var_result = variational_mdl(
-                X_train, y_train, X_test, y_test,
-                config.lambda_values,
-                task_type='binary'
-            )
-            
-            best_idx = np.argmin([r['mdl_scores']['l2'] for r in var_result['results']])
-            best_result = var_result['results'][best_idx]
-            
-            log.result("Best λ", f"{best_result['lambda']:.2e}")
-            log.result("MDL (L2)", f"{best_result['mdl_scores']['l2']:.2f} bits")
-            log.result("Test Acc", f"{best_result['test_accuracy']:.4f}")
-            
-            # Prequential MDL
-            preq_result = prequential_mdl(
-                X_test, y_test,
-                config.prequential_chunk_sizes,
-                task_type='binary',
-                lambda_reg=best_result['lambda']
-            )
-            
-            # Per-class codelength
-            scaler = var_result['scaler']
-            probe = LogisticRegression(
-                C=1.0/best_result['lambda'],
-                max_iter=config.max_iter,
-                random_state=config.random_state
-            )
-            probe.fit(scaler.transform(X_train), y_train)
-            
-            per_class = compute_per_class_codelength(
-                probe, X_test, y_test, scaler
-            )
-            
-            results[model][layer] = {
-                'variational': var_result['results'],
-                'best': best_result,
-                'prequential': preq_result,
-                'per_class': per_class
-            }
-    
-    # Save results
-    with open(config.output_dir / "results" / "correctness_mdl.json", 'w') as f:
-        save_results = {}
-        for model in results:
-            save_results[model] = {}
-            for layer in results[model]:
-                save_results[model][layer] = {
-                    'variational': results[model][layer]['variational'],
-                    'best': results[model][layer]['best'],
-                    'prequential': {
-                        str(k): v for k, v in results[model][layer]['prequential'].items()
-                    },
-                    'per_class': {
-                        str(k): v for k, v in results[model][layer]['per_class'].items()
-                    }
-                }
-        json.dump(save_results, f, indent=2)
-    
-    return results
-
-
-# ============================================================================
-# TASK 4: GROUP PROBING
-# ============================================================================
-
-def mdl_group_probing(df, train_idx, test_idx, activations):
-    """MDL analysis for group classification."""
-    log.section("Task 4: Group MDL (3-class)")
-    
-    results = {}
-    
-    for model in config.models:
-        results[model] = {}
-        
-        for layer in config.layers:
-            log.log(f"\n{model.upper()} Layer {layer}")
-            
-            X = activations[model][layer]
-            y = df['group_label'].values
-            
-            X_train, y_train = X[train_idx], y[train_idx]
-            X_test, y_test = X[test_idx], y[test_idx]
-            
-            # Variational MDL
-            log.log("  Computing variational MDL...")
-            var_result = variational_mdl(
-                X_train, y_train, X_test, y_test,
-                config.lambda_values,
-                task_type='multiclass'
-            )
-            
-            best_idx = np.argmin([r['mdl_scores']['l2'] for r in var_result['results']])
-            best_result = var_result['results'][best_idx]
-            
-            log.result("Best λ", f"{best_result['lambda']:.2e}")
-            log.result("MDL (L2)", f"{best_result['mdl_scores']['l2']:.2f} bits")
-            log.result("Test Acc", f"{best_result['test_accuracy']:.4f}")
-            
-            # Prequential MDL
-            preq_result = prequential_mdl(
-                X_test, y_test,
-                config.prequential_chunk_sizes,
-                task_type='multiclass',
-                lambda_reg=best_result['lambda']
-            )
-            
-            # Per-group codelength
-            scaler = var_result['scaler']
-            probe = LogisticRegression(
-                C=1.0/best_result['lambda'],
-                max_iter=config.max_iter,
-                random_state=config.random_state,
-                multi_class='multinomial'
-            )
-            probe.fit(scaler.transform(X_train), y_train)
-            
-            per_class = compute_per_class_codelength(
-                probe, X_test, y_test, scaler
-            )
-            
-            results[model][layer] = {
-                'variational': var_result['results'],
-                'best': best_result,
-                'prequential': preq_result,
-                'per_class': per_class
-            }
-    
-    # Save results
-    with open(config.output_dir / "results" / "group_mdl.json", 'w') as f:
-        save_results = {}
-        for model in results:
-            save_results[model] = {}
-            for layer in results[model]:
-                save_results[model][layer] = {
-                    'variational': results[model][layer]['variational'],
-                    'best': results[model][layer]['best'],
-                    'prequential': {
-                        str(k): v for k, v in results[model][layer]['prequential'].items()
-                    },
-                    'per_class': {
-                        str(k): v for k, v in results[model][layer]['per_class'].items()
-                    }
-                }
-        json.dump(save_results, f, indent=2)
-    
-    return results
-
-
-# ============================================================================
-# TASK 5: CROSS-MODEL TRANSFER MDL
-# ============================================================================
-
-def mdl_cross_model_transfer(df, train_idx, test_idx, activations):
-    """MDL analysis for cross-model transfer."""
-    log.section("Task 5: Cross-Model Transfer MDL")
-    
-    results = {}
-    
-    for layer in config.layers:
-        log.log(f"\nLayer {layer}: Train on Base → Test on Instruct")
-        
-        results[layer] = {}
-        
-        X_base = activations['base'][layer]
-        X_instruct = activations['instruct'][layer]
-        
-        # Attribute transfer
-        log.log("\n  Attribute Transfer:")
-        y = df['attribute_label'].values
-        
-        X_train = X_base[train_idx]
-        y_train = y[train_idx]
-        X_test_base = X_base[test_idx]
-        X_test_instruct = X_instruct[test_idx]
-        y_test = y[test_idx]
-        
-        # Scale
-        scaler = StandardScaler()
-        X_train_scaled = scaler.fit_transform(X_train)
-        X_test_base_scaled = scaler.transform(X_test_base)
-        X_test_instruct_scaled = scaler.transform(X_test_instruct)
-        
-        # Train on base
-        probe = LogisticRegression(
-            C=1.0,
-            max_iter=config.max_iter,
-            random_state=config.random_state,
-            multi_class='multinomial'
-        )
-        probe.fit(X_train_scaled, y_train)
-        
-        # MDL on base (in-model)
-        mdl_base = compute_mdl_score(probe, X_test_base_scaled, y_test, scaler=None)
-        
-        # MDL on instruct (cross-model)
-        mdl_instruct = compute_mdl_score(probe, X_test_instruct_scaled, y_test, scaler=None)
-        
-        log.result("  Base→Base MDL (L2)", f"{mdl_base['mdl_scores']['l2']:.2f} bits")
-        log.result("  Base→Instruct MDL (L2)", f"{mdl_instruct['mdl_scores']['l2']:.2f} bits")
-        log.result("  MDL Ratio", f"{mdl_instruct['mdl_scores']['l2'] / mdl_base['mdl_scores']['l2']:.4f}")
-        
-        results[layer]['attribute'] = {
-            'base_to_base': mdl_base,
-            'base_to_instruct': mdl_instruct,
-            'ratio': mdl_instruct['mdl_scores']['l2'] / mdl_base['mdl_scores']['l2']
-        }
-        
-        # Correctness transfer
-        log.log("\n  Correctness Transfer:")
-        y = df['base_correct_label'].values
-        y_train = y[train_idx]
-        y_test = y[test_idx]
-        
-        probe = LogisticRegression(
-            C=1.0,
-            max_iter=config.max_iter,
-            random_state=config.random_state
-        )
-        probe.fit(X_train_scaled, y_train)
-        
-        mdl_base = compute_mdl_score(probe, X_test_base_scaled, y_test, scaler=None)
-        mdl_instruct = compute_mdl_score(probe, X_test_instruct_scaled, y_test, scaler=None)
-        
-        log.result("  Base→Base MDL (L2)", f"{mdl_base['mdl_scores']['l2']:.2f} bits")
-        log.result("  Base→Instruct MDL (L2)", f"{mdl_instruct['mdl_scores']['l2']:.2f} bits")
-        log.result("  MDL Ratio", f"{mdl_instruct['mdl_scores']['l2'] / mdl_base['mdl_scores']['l2']:.4f}")
-        
-        results[layer]['correctness'] = {
-            'base_to_base': mdl_base,
-            'base_to_instruct': mdl_instruct,
-            'ratio': mdl_instruct['mdl_scores']['l2'] / mdl_base['mdl_scores']['l2']
-        }
-    
-    # Save results
-    with open(config.output_dir / "results" / "cross_model_mdl.json", 'w') as f:
-        json.dump(results, f, indent=2, default=str)
-    
-    return results
-
-
-# ============================================================================
-# VISUALIZATIONS
-# ============================================================================
-
-def create_visualizations(
-    attr_results, state_results, corr_results, 
-    group_results, transfer_results
-):
-    """Create comprehensive MDL visualizations."""
-    log.section("Creating Visualizations")
-    
-    # 1. Variational MDL curves
-    fig, axes = plt.subplots(2, 2, figsize=(16, 12))
-    
-    tasks = [
-        ('attribute', attr_results, 'Attribute (16-class)'),
-        ('state', state_results, 'State (36-class)'),
-        ('correctness', corr_results, 'Correctness (Binary)'),
-        ('group', group_results, 'Group (3-class)')
+    tasks_to_test = [
+        ('attribute', {'attribute': labels['attribute']}, {'attribute': 16}),
+        ('state', {'state': labels['state']}, {'state': 36})
     ]
     
-    for ax, (task_name, results, title) in zip(axes.flat, tasks):
-        for model in config.models:
-            for layer in config.layers:
-                var_results = results[model][layer]['variational']
-                lambdas = [r['lambda'] for r in var_results]
-                mdls = [r['mdl_scores']['l2'] for r in var_results]
-                
-                ax.plot(lambdas, mdls, marker='o', label=f'{model} L{layer}', alpha=0.7)
+    for task_name, y_dict, task_dims in tasks_to_test:
+        scaler = StandardScaler()
+        X_base_scaled = scaler.fit_transform(activations['base'])
         
-        ax.set_xscale('log')
-        ax.set_xlabel('Regularization λ')
-        ax.set_ylabel('MDL (L2, bits)')
-        ax.set_title(title, fontweight='bold')
-        ax.legend(fontsize=8)
-        ax.grid(alpha=0.3)
+        task_list = list(task_dims.keys())
+        y_base = {task: y for task, y in y_dict.items()}
+        
+        probe = UniversalProbe(Config.INPUT_DIM, task_dims, 'l0', len(X_base_scaled), use_bottleneck=False).to(Config.DEVICE)
+        optimizer = optim.Adam(probe.parameters(), lr=Config.VAR_LR)
+        
+        loader = create_dataloaders(X_base_scaled, y_base, Config.ISO_BATCH, shuffle_data=True)
+        
+        probe.train()
+        for epoch in tqdm(range(Config.ISO_EPOCHS), desc=f"ISO-{task_name}", leave=False):
+            for batch in loader:
+                xb = batch[0]
+                yb_dict = {task: batch[i+1] for i, task in enumerate(task_list)}
+                
+                optimizer.zero_grad()
+                logits = probe(xb)
+                dc, mc = probe.compute_loss(logits, yb_dict)
+                loss = dc + mc
+                loss.backward()
+                optimizer.step()
+        
+        probe.eval()
+        
+        X_instruct_scaled = scaler.transform(activations['instruct'])
+        
+        supp_indices = np.where(suppression_mask)[0]
+        
+        if len(supp_indices) == 0:
+            log(f"  No suppression samples found for {task_name}, skipping")
+            continue
+        
+        X_base_supp = torch.FloatTensor(X_base_scaled[supp_indices]).to(Config.DEVICE)
+        X_instruct_supp = torch.FloatTensor(X_instruct_scaled[supp_indices]).to(Config.DEVICE)
+        y_supp = {task: torch.LongTensor(y[supp_indices]).to(Config.DEVICE) for task, y in y_base.items()}
+        
+        with torch.no_grad():
+            logits_base = probe(X_base_supp)
+            dc_base, _ = probe.compute_loss(logits_base, y_supp)
+            mdl_base = dc_base.item() / len(supp_indices)
+            
+            logits_instruct = probe(X_instruct_supp)
+            dc_instruct, _ = probe.compute_loss(logits_instruct, y_supp)
+            mdl_instruct = dc_instruct.item() / len(supp_indices)
+            
+            drift = mdl_instruct - mdl_base
+        
+        results.append({
+            'layer': layer,
+            'task': task_name,
+            'mdl_base_self': mdl_base,
+            'mdl_instruct_transfer': mdl_instruct,
+            'drift': drift,
+            'is_isomorphic': abs(drift) < 0.1
+        })
+        
+        del probe, optimizer
+        torch.cuda.empty_cache()
+    
+    return results
+
+# ==============================================================================
+# VISUALIZATION
+# ==============================================================================
+
+def plot_online_curves(df_online):
+    """Plot online code length learning curves"""
+    if len(df_online) == 0:
+        log("  No online data to plot, skipping")
+        return
+    
+    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+    
+    for idx, layer in enumerate(Config.LAYERS):
+        ax = axes[idx // 2, idx % 2]
+        
+        layer_data = df_online[df_online['layer'] == layer]
+        
+        if len(layer_data) == 0:
+            ax.text(0.5, 0.5, f'No data for Layer {layer}', 
+                   ha='center', va='center', transform=ax.transAxes)
+            continue
+        
+        for model in ['base', 'instruct']:
+            for task in ['attribute', 'state', 'correctness_base', 'correctness_instruct']:
+                subset = layer_data[(layer_data['model'] == model) & 
+                                   (layer_data['task'] == task) &
+                                   (layer_data['group'] == 'all')]
+                
+                if len(subset) > 0:
+                    ax.plot(subset['data_pct'], subset['bits_per_sample'], 
+                           label=f"{model}-{task}", alpha=0.7)
+        
+        ax.set_xlabel('Data Fraction', fontsize=10)
+        ax.set_ylabel('Bits per Sample', fontsize=10)
+        ax.set_title(f'Layer {layer}', fontsize=12)
+        ax.legend(fontsize=7, loc='best')
+        ax.grid(True, alpha=0.3)
+    
+    axes[1, 1].axis('off')
     
     plt.tight_layout()
-    plt.savefig(config.output_dir / "plots" / "variational_mdl_curves.png", dpi=300, bbox_inches='tight')
+    plt.savefig(Config.OUTPUT_DIR / "plots" / "online_coding_curves.png", dpi=300, bbox_inches='tight')
     plt.close()
-    log.log("✓ Saved variational MDL curves")
     
-    # 2. Best MDL comparison
-    fig, axes = plt.subplots(2, 2, figsize=(16, 12))
+    log("  Saved: online_coding_curves.png")
+
+
+def plot_variational_comparison(df_var):
+    """Plot variational MDL across priors"""
+    if len(df_var) == 0:
+        log("  No variational data to plot, skipping")
+        return
     
-    for ax, (task_name, results, title) in zip(axes.flat, tasks):
-        mdl_data = []
-        labels = []
+    fig, axes = plt.subplots(1, 3, figsize=(18, 5))
+    
+    metrics = ['data_cost', 'model_cost', 'total_mdl']
+    titles = ['Data Cost (NLL)', 'Model Cost (Reg)', 'Total MDL']
+    
+    for ax, metric, title in zip(axes, metrics, titles):
+        data = []
+        labels_list = []
         
-        for model in config.models:
-            for layer in config.layers:
-                best = results[model][layer]['best']
-                mdl_data.append(best['mdl_scores']['l2'])
-                labels.append(f'{model}\nL{layer}')
+        for layer in Config.LAYERS:
+            for model in Config.MODELS:
+                subset = df_var[(df_var['layer'] == layer) & 
+                               (df_var['model'] == model) &
+                               (df_var['group'] == 'all') &
+                               (df_var['task'] == 'attribute')]
+                
+                if len(subset) > 0:
+                    for prior in Config.PRIORS:
+                        val = subset[subset['prior'] == prior][metric].values
+                        if len(val) > 0:
+                            data.append(val[0])
+                            labels_list.append(f"L{layer}\n{model}\n{prior}")
         
-        x = np.arange(len(labels))
-        colors = ['blue', 'blue', 'blue', 'red', 'red', 'red']
+        if len(data) == 0:
+            ax.text(0.5, 0.5, 'No data available', 
+                   ha='center', va='center', transform=ax.transAxes)
+            continue
         
-        ax.bar(x, mdl_data, color=colors, alpha=0.7)
-        ax.set_xticks(x)
-        ax.set_xticklabels(labels, fontsize=8)
-        ax.set_ylabel('MDL (L2, bits)')
-        ax.set_title(title, fontweight='bold')
+        ax.bar(range(len(data)), data, color=sns.color_palette("husl", len(data)))
+        ax.set_xticks(range(len(data)))
+        ax.set_xticklabels(labels_list, rotation=60, ha='right', fontsize=6)
+        ax.set_ylabel(title, fontsize=10)
+        ax.set_title(title, fontsize=12)
         ax.grid(axis='y', alpha=0.3)
     
     plt.tight_layout()
-    plt.savefig(config.output_dir / "plots" / "best_mdl_comparison.png", dpi=300, bbox_inches='tight')
+    plt.savefig(Config.OUTPUT_DIR / "plots" / "variational_mdl_comparison.png", dpi=300, bbox_inches='tight')
     plt.close()
-    log.log("✓ Saved best MDL comparison")
     
-    # 3. Cross-model transfer ratios
+    log("  Saved: variational_mdl_comparison.png")
+
+
+def plot_fisher_information(df_var):
+    """Plot Fisher information across layers"""
+    if len(df_var) == 0:
+        log("  No variational data to plot Fisher, skipping")
+        return
+    
+    fig, ax = plt.subplots(figsize=(10, 6))
+    
+    plotted_any = False
+    
+    for model in Config.MODELS:
+        for prior in Config.PRIORS:
+            fisher_vals = []
+            layers_list = []
+            
+            for layer in Config.LAYERS:
+                for task in ['state', 'attribute']:
+                    subset = df_var[(df_var['layer'] == layer) & 
+                                   (df_var['model'] == model) &
+                                   (df_var['prior'] == prior) &
+                                   (df_var['group'] == 'all') &
+                                   (df_var['task'] == task)]
+                    
+                    if len(subset) > 0:
+                        fisher_vals.append(subset['fisher_info'].values[0])
+                        layers_list.append(layer)
+                        break
+            
+            if fisher_vals:
+                ax.plot(layers_list, fisher_vals, marker='o', 
+                       label=f"{model}-{prior}", linewidth=2)
+                plotted_any = True
+    
+    if not plotted_any:
+        ax.text(0.5, 0.5, 'No data available', 
+               ha='center', va='center', transform=ax.transAxes)
+    else:
+        ax.set_xlabel('Layer', fontsize=12)
+        ax.set_ylabel('Fisher Information', fontsize=12)
+        ax.set_title('Decision Boundary Sharpness', fontsize=14)
+        ax.legend(fontsize=10)
+        ax.grid(True, alpha=0.3)
+    
+    plt.tight_layout()
+    plt.savefig(Config.OUTPUT_DIR / "plots" / "fisher_information.png", dpi=300, bbox_inches='tight')
+    plt.close()
+    
+    log("  Saved: fisher_information.png")
+
+
+def plot_isomorphism_drift(df_iso):
+    """Plot cross-model representational drift"""
+    if len(df_iso) == 0:
+        log("  No isomorphism data to plot, skipping")
+        return
+    
+    fig, ax = plt.subplots(figsize=(10, 6))
+    
+    x_pos = []
+    drift_vals = []
+    labels_list = []
+    colors = []
+    
+    pos = 0
+    for layer in Config.LAYERS:
+        for task in ['attribute', 'state']:
+            subset = df_iso[(df_iso['layer'] == layer) & (df_iso['task'] == task)]
+            
+            if len(subset) > 0:
+                drift = subset['drift'].values[0]
+                drift_vals.append(drift)
+                x_pos.append(pos)
+                labels_list.append(f"L{layer}\n{task}")
+                colors.append('green' if abs(drift) < 0.1 else 'red')
+                pos += 1
+    
+    if len(drift_vals) == 0:
+        ax.text(0.5, 0.5, 'No data available', 
+               ha='center', va='center', transform=ax.transAxes)
+    else:
+        ax.bar(x_pos, drift_vals, color=colors, alpha=0.7)
+        ax.axhline(y=0, color='black', linestyle='--', linewidth=1)
+        ax.axhline(y=0.1, color='gray', linestyle=':', linewidth=1, label='Isomorphism Threshold')
+        ax.axhline(y=-0.1, color='gray', linestyle=':', linewidth=1)
+        
+        ax.set_xticks(x_pos)
+        ax.set_xticklabels(labels_list, rotation=45, ha='right')
+        ax.set_ylabel('MDL Drift (Instruct - Base)', fontsize=12)
+        ax.set_title('Cross-Model Representational Drift', fontsize=14)
+        ax.legend()
+        ax.grid(axis='y', alpha=0.3)
+    
+    plt.tight_layout()
+    plt.savefig(Config.OUTPUT_DIR / "plots" / "isomorphism_drift.png", dpi=300, bbox_inches='tight')
+    plt.close()
+    
+    log("  Saved: isomorphism_drift.png")
+
+
+def plot_sparsity_analysis(df_var):
+    """Plot L0 sparsity patterns across layers"""
+    if len(df_var) == 0:
+        log("  No variational data to plot sparsity, skipping")
+        return
+    
+    fig, ax = plt.subplots(figsize=(10, 6))
+    
+    l0_data = df_var[df_var['prior'] == 'l0']
+    
+    if len(l0_data) == 0:
+        ax.text(0.5, 0.5, 'No L0 data available', 
+               ha='center', va='center', transform=ax.transAxes)
+    else:
+        plotted_any = False
+        
+        for model in Config.MODELS:
+            sparsity_vals = []
+            layers_list = []
+            
+            for layer in Config.LAYERS:
+                for task in ['attribute', 'state']:
+                    subset = l0_data[(l0_data['layer'] == layer) & 
+                                    (l0_data['model'] == model) &
+                                    (l0_data['group'] == 'all') &
+                                    (l0_data['task'] == task)]
+                    
+                    if len(subset) > 0:
+                        sparsity_vals.append(subset['sparsity'].values[0] * 100)
+                        layers_list.append(layer)
+                        break
+            
+            if sparsity_vals:
+                ax.plot(layers_list, sparsity_vals, marker='s', 
+                       label=model, linewidth=2, markersize=8)
+                plotted_any = True
+        
+        if plotted_any:
+            ax.set_xlabel('Layer', fontsize=12)
+            ax.set_ylabel('Sparsity (%)', fontsize=12)
+            ax.set_title('L0 Pruning Patterns', fontsize=14)
+            ax.legend(fontsize=12)
+            ax.grid(True, alpha=0.3)
+        else:
+            ax.text(0.5, 0.5, 'No data available', 
+                   ha='center', va='center', transform=ax.transAxes)
+    
+    plt.tight_layout()
+    plt.savefig(Config.OUTPUT_DIR / "plots" / "sparsity_analysis.png", dpi=300, bbox_inches='tight')
+    plt.close()
+    
+    log("  Saved: sparsity_analysis.png")
+
+
+def plot_group_comparison(df_var):
+    """Compare MDL across different sample groups"""
+    if len(df_var) == 0:
+        log("  No variational data to plot group comparison, skipping")
+        return
+    
     fig, axes = plt.subplots(1, 2, figsize=(14, 5))
     
-    transfer_tasks = ['attribute', 'correctness']
-    titles = ['Attribute Transfer', 'Correctness Transfer']
+    available_layers = sorted(df_var['layer'].unique())
+    layer = available_layers[len(available_layers)//2] if len(available_layers) > 0 else 16
     
-    for ax, task, title in zip(axes, transfer_tasks, titles):
-        layers_list = []
-        ratios = []
+    for idx, model in enumerate(Config.MODELS):
+        ax = axes[idx]
         
-        for layer in config.layers:
-            ratio = transfer_results[layer][task]['ratio']
-            layers_list.append(layer)
-            ratios.append(ratio)
+        groups = ['all', 'suppression', 'enhancement']
+        group_data = {g: [] for g in groups}
         
-        ax.bar(range(len(layers_list)), ratios, alpha=0.7)
-        ax.axhline(y=1.0, color='red', linestyle='--', label='Perfect Transfer')
-        ax.set_xticks(range(len(layers_list)))
-        ax.set_xticklabels([f'L{l}' for l in layers_list])
-        ax.set_ylabel('MDL Ratio (Instruct/Base)')
-        ax.set_title(title, fontweight='bold')
-        ax.legend()
-        ax.grid(axis='y', alpha=0.3)
+        for group in groups:
+            for task in ['state', 'attribute']:
+                subset = df_var[(df_var['layer'] == layer) & 
+                               (df_var['model'] == model) &
+                               (df_var['group'] == group) &
+                               (df_var['prior'] == 'l0') &
+                               (df_var['task'] == task)]
+                
+                if len(subset) > 0:
+                    group_data[group].append(subset['total_mdl'].values[0])
+                    break
+            else:
+                group_data[group].append(0)
+        
+        if any(group_data[g] for g in groups):
+            x_pos = range(len(groups))
+            heights = [group_data[g][0] if group_data[g] else 0 for g in groups]
+            
+            ax.bar(x_pos, heights, color=['blue', 'red', 'green'], alpha=0.7)
+            ax.set_xticks(x_pos)
+            ax.set_xticklabels(groups, rotation=45)
+            ax.set_ylabel('Total MDL', fontsize=12)
+            ax.set_title(f'{model.capitalize()} - Layer {layer}', fontsize=12)
+            ax.grid(axis='y', alpha=0.3)
+        else:
+            ax.text(0.5, 0.5, 'No data available', 
+                   ha='center', va='center', transform=ax.transAxes)
     
     plt.tight_layout()
-    plt.savefig(config.output_dir / "plots" / "cross_model_transfer_ratios.png", dpi=300, bbox_inches='tight')
+    plt.savefig(Config.OUTPUT_DIR / "plots" / "group_comparison.png", dpi=300, bbox_inches='tight')
     plt.close()
-    log.log("✓ Saved cross-model transfer ratios")
     
-    # 4. Complexity measures comparison
-    fig, axes = plt.subplots(2, 2, figsize=(16, 12))
+    log("  Saved: group_comparison.png")
+
+
+def plot_triple_entanglement(df_var):
+    """
+    Comprehensive analysis of joint compression for State, Attribute, and Correctness.
     
-    for ax, (task_name, results, title) in zip(axes.flat, tasks):
-        measures_data = {m: [] for m in config.complexity_measures}
-        labels = []
+    Tests whether models maintain unified representations by examining compression
+    efficiency when probing multiple tasks simultaneously versus independently.
+    """
+    if len(df_var) == 0:
+        log("  No variational data to plot triple entanglement, skipping")
+        return
+    
+    fig, axes = plt.subplots(2, 3, figsize=(18, 12))
+    
+    available_layers = sorted(df_var['layer'].unique())
+    layer = available_layers[len(available_layers)//2] if len(available_layers) > 0 else 16
+    
+    for col_idx, model in enumerate(Config.MODELS):
+        ax = axes[0, col_idx]
         
-        for model in config.models:
-            for layer in config.layers:
-                best = results[model][layer]['best']
-                for measure in config.complexity_measures:
-                    measures_data[measure].append(best['mdl_scores'][measure])
-                labels.append(f'{model}\nL{layer}')
+        mdl_values = []
+        task_labels = []
+        colors = []
         
-        x = np.arange(len(labels))
+        for task in ['attribute', 'state']:
+            for corr_task in [f'correctness_{model}']:
+                combined_tasks = [task, corr_task]
+                for t in combined_tasks:
+                    subset = df_var[(df_var['layer'] == layer) & 
+                                   (df_var['model'] == model) &
+                                   (df_var['group'] == 'all') &
+                                   (df_var['prior'] == 'l0') &
+                                   (df_var['task'] == t)]
+                    if len(subset) > 0:
+                        mdl_values.append(subset['total_mdl'].values[0])
+                        task_labels.append(t.replace('correctness_', 'corr_'))
+                        colors.append('lightblue')
+        
+        subset = df_var[(df_var['layer'] == layer) & 
+                       (df_var['model'] == model) &
+                       (df_var['group'] == 'all') &
+                       (df_var['prior'] == 'l0') &
+                       (df_var['task'] == 'multitask_dual')]
+        if len(subset) > 0:
+            mdl_values.append(subset['total_mdl'].values[0])
+            task_labels.append('Dual\n(S+A)')
+            colors.append('orange')
+        
+        subset = df_var[(df_var['layer'] == layer) & 
+                       (df_var['model'] == model) &
+                       (df_var['group'] == 'all') &
+                       (df_var['prior'] == 'l0') &
+                       (df_var['task'] == f'multitask_triple_{model}')]
+        if len(subset) > 0:
+            mdl_values.append(subset['total_mdl'].values[0])
+            task_labels.append('Triple\n(S+A+C)')
+            colors.append('red')
+        
+        if mdl_values:
+            x_pos = range(len(mdl_values))
+            ax.bar(x_pos, mdl_values, color=colors, alpha=0.7, edgecolor='black')
+            ax.set_xticks(x_pos)
+            ax.set_xticklabels(task_labels, rotation=45, ha='right', fontsize=8)
+            ax.set_ylabel('Total MDL', fontsize=11)
+            ax.set_title(f'{model.capitalize()} - Task Complexity', fontsize=12, fontweight='bold')
+            ax.grid(axis='y', alpha=0.3)
+        else:
+            ax.text(0.5, 0.5, 'No data available', 
+                   ha='center', va='center', transform=ax.transAxes)
+    
+    ax = axes[0, 2]
+    
+    compression_data = {'base': {}, 'instruct': {}}
+    
+    for model in Config.MODELS:
+        single_sum = 0
+        for task in ['attribute', 'state', f'correctness_{model}']:
+            subset = df_var[(df_var['layer'] == layer) & 
+                           (df_var['model'] == model) &
+                           (df_var['group'] == 'all') &
+                           (df_var['prior'] == 'l0') &
+                           (df_var['task'] == task)]
+            if len(subset) > 0:
+                single_sum += subset['total_mdl'].values[0]
+        
+        subset = df_var[(df_var['layer'] == layer) & 
+                       (df_var['model'] == model) &
+                       (df_var['group'] == 'all') &
+                       (df_var['prior'] == 'l0') &
+                       (df_var['task'] == f'multitask_triple_{model}')]
+        
+        if len(subset) > 0 and single_sum > 0:
+            triple_mdl = subset['total_mdl'].values[0]
+            compression_data[model] = {
+                'single_sum': single_sum,
+                'triple': triple_mdl,
+                'compression_ratio': triple_mdl / single_sum
+            }
+    
+    if compression_data['base'] and compression_data['instruct']:
+        models = ['Base', 'Instruct']
+        x_pos = np.arange(len(models))
+        width = 0.35
+        
+        single_sums = [compression_data['base']['single_sum'], 
+                      compression_data['instruct']['single_sum']]
+        triple_mdls = [compression_data['base']['triple'], 
+                      compression_data['instruct']['triple']]
+        
+        ax.bar(x_pos - width/2, single_sums, width, label='Sum(Single Tasks)', 
+              color='lightblue', alpha=0.7)
+        ax.bar(x_pos + width/2, triple_mdls, width, label='Triple Task', 
+              color='red', alpha=0.7)
+        
+        ax.set_ylabel('Total MDL', fontsize=11)
+        ax.set_title('Compression: Single Sum vs Triple', fontsize=12, fontweight='bold')
+        ax.set_xticks(x_pos)
+        ax.set_xticklabels(models)
+        ax.legend()
+        ax.grid(axis='y', alpha=0.3)
+        
+        for i, model in enumerate(['base', 'instruct']):
+            ratio = compression_data[model]['compression_ratio']
+            ax.text(i, max(single_sums + triple_mdls) * 1.05, 
+                   f'Ratio: {ratio:.2f}', 
+                   ha='center', fontsize=9, fontweight='bold',
+                   color='green' if ratio < 0.9 else 'red')
+    else:
+        ax.text(0.5, 0.5, 'Insufficient data', 
+               ha='center', va='center', transform=ax.transAxes)
+    
+    for col_idx, model in enumerate(Config.MODELS):
+        ax = axes[1, col_idx]
+        
+        layers_list = []
+        triple_mdls = []
+        
+        for lyr in Config.LAYERS:
+            subset = df_var[(df_var['layer'] == lyr) & 
+                           (df_var['model'] == model) &
+                           (df_var['group'] == 'all') &
+                           (df_var['prior'] == 'l0') &
+                           (df_var['task'] == f'multitask_triple_{model}')]
+            
+            if len(subset) > 0:
+                layers_list.append(lyr)
+                triple_mdls.append(subset['total_mdl'].values[0])
+        
+        if triple_mdls:
+            ax.plot(layers_list, triple_mdls, marker='o', linewidth=3, 
+                   markersize=10, color='red', label='Triple MDL')
+            ax.set_xlabel('Layer', fontsize=11)
+            ax.set_ylabel('Total MDL', fontsize=11)
+            ax.set_title(f'{model.capitalize()} - Triple Task Across Layers', 
+                        fontsize=12, fontweight='bold')
+            ax.grid(True, alpha=0.3)
+            ax.legend()
+        else:
+            ax.text(0.5, 0.5, 'No data available', 
+                   ha='center', va='center', transform=ax.transAxes)
+    
+    ax = axes[1, 2]
+    
+    analysis_data = []
+    
+    for group in ['all', 'suppression']:
+        subset = df_var[(df_var['layer'] == layer) & 
+                       (df_var['model'] == 'instruct') &
+                       (df_var['group'] == group) &
+                       (df_var['prior'] == 'l0') &
+                       (df_var['task'] == 'multitask_triple_instruct')]
+        
+        if len(subset) > 0:
+            row = subset.iloc[0]
+            analysis_data.append({
+                'group': group.capitalize(),
+                'mdl': row['total_mdl'],
+                'acc_attr': row.get('acc_attribute', 0) * 100,
+                'acc_state': row.get('acc_state', 0) * 100,
+                'acc_corr': row.get('acc_correctness_instruct', 0) * 100
+            })
+    
+    if analysis_data:
+        groups = [d['group'] for d in analysis_data]
+        x_pos = np.arange(len(groups))
         width = 0.2
         
-        for i, measure in enumerate(config.complexity_measures):
-            offset = (i - 1.5) * width
-            ax.bar(x + offset, measures_data[measure], width, label=measure.upper(), alpha=0.7)
+        mdls = [d['mdl'] for d in analysis_data]
+        acc_attrs = [d['acc_attr'] for d in analysis_data]
+        acc_states = [d['acc_state'] for d in analysis_data]
+        acc_corrs = [d['acc_corr'] for d in analysis_data]
         
-        ax.set_xticks(x)
-        ax.set_xticklabels(labels, fontsize=8)
-        ax.set_ylabel('MDL (bits)')
-        ax.set_title(title, fontweight='bold')
-        ax.legend()
+        max_mdl = max(mdls)
+        mdls_norm = [(m/max_mdl)*100 for m in mdls]
+        
+        ax.bar(x_pos - 1.5*width, mdls_norm, width, label='MDL (norm)', 
+              color='red', alpha=0.7)
+        ax.bar(x_pos - 0.5*width, acc_attrs, width, label='Acc: Attribute', 
+              color='blue', alpha=0.7)
+        ax.bar(x_pos + 0.5*width, acc_states, width, label='Acc: State', 
+              color='green', alpha=0.7)
+        ax.bar(x_pos + 1.5*width, acc_corrs, width, label='Acc: Correctness', 
+              color='orange', alpha=0.7)
+        
+        ax.set_ylabel('Score (%)', fontsize=11)
+        ax.set_title('Compression vs Accuracy Analysis\nSuppression Group', 
+                    fontsize=11, fontweight='bold')
+        ax.set_xticks(x_pos)
+        ax.set_xticklabels(groups)
+        ax.legend(fontsize=8, loc='best')
         ax.grid(axis='y', alpha=0.3)
-    
-    plt.tight_layout()
-    plt.savefig(config.output_dir / "plots" / "complexity_measures_comparison.png", dpi=300, bbox_inches='tight')
-    plt.close()
-    log.log("✓ Saved complexity measures comparison")
-    
-    # 5. Prequential learning curves
-    fig, axes = plt.subplots(2, 2, figsize=(16, 12))
-    
-    for ax, (task_name, results, title) in zip(axes.flat, tasks):
-        for model in config.models:
-            layer = 6  # Use layer 6 for visualization
-            preq = results[model][layer]['prequential']
-            
-            chunk_sizes = sorted([int(k) for k in preq.keys()])
-            avg_codelengths = [preq[str(cs)]['avg_codelength_per_sample'] for cs in chunk_sizes]
-            
-            ax.plot(chunk_sizes, avg_codelengths, marker='o', label=model, linewidth=2)
+        ax.axhline(y=50, color='black', linestyle='--', linewidth=1, alpha=0.5)
         
-        ax.set_xlabel('Training Samples')
-        ax.set_ylabel('Avg Codelength per Sample (bits)')
-        ax.set_title(f'{title} - Layer 6', fontweight='bold')
-        ax.legend()
-        ax.grid(alpha=0.3)
-    
-    plt.tight_layout()
-    plt.savefig(config.output_dir / "plots" / "prequential_learning_curves.png", dpi=300, bbox_inches='tight')
-    plt.close()
-    log.log("✓ Saved prequential learning curves")
-
-
-# ============================================================================
-# SUMMARY REPORT
-# ============================================================================
-
-def generate_summary_report(
-    attr_results, state_results, corr_results,
-    group_results, transfer_results
-):
-    """Generate comprehensive MDL summary report."""
-    log.section("Generating Summary Report")
-    
-    lines = []
-    
-    lines.append("="*80)
-    lines.append("MDL PROBING ANALYSIS - SUMMARY REPORT")
-    lines.append("="*80)
-    lines.append(f"\nGenerated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    
-    # Attribute MDL
-    lines.append("\n" + "-"*80)
-    lines.append("1. ATTRIBUTE MDL (16-CLASS)")
-    lines.append("-"*80)
-    
-    for model in config.models:
-        lines.append(f"\n{model.upper()}:")
-        for layer in config.layers:
-            best = attr_results[model][layer]['best']
-            lines.append(f"  Layer {layer}:")
-            lines.append(f"    MDL (L2):     {best['mdl_scores']['l2']:.2f} bits")
-            lines.append(f"    MDL (Fisher): {best['mdl_scores']['fisher']:.2f} bits")
-            lines.append(f"    Test Acc:     {best['test_accuracy']:.4f}")
-    
-    # State MDL
-    lines.append("\n" + "-"*80)
-    lines.append("2. STATE MDL (36-CLASS)")
-    lines.append("-"*80)
-    
-    for model in config.models:
-        lines.append(f"\n{model.upper()}:")
-        for layer in config.layers:
-            best = state_results[model][layer]['best']
-            lines.append(f"  Layer {layer}:")
-            lines.append(f"    MDL (L2):     {best['mdl_scores']['l2']:.2f} bits")
-            lines.append(f"    Test Acc:     {best['test_accuracy']:.4f}")
-    
-    # Correctness MDL
-    lines.append("\n" + "-"*80)
-    lines.append("3. CORRECTNESS MDL (BINARY)")
-    lines.append("-"*80)
-    
-    for model in config.models:
-        lines.append(f"\n{model.upper()}:")
-        for layer in config.layers:
-            best = corr_results[model][layer]['best']
-            lines.append(f"  Layer {layer}:")
-            lines.append(f"    MDL (L2):     {best['mdl_scores']['l2']:.2f} bits")
-            lines.append(f"    Test Acc:     {best['test_accuracy']:.4f}")
-    
-    # Group MDL
-    lines.append("\n" + "-"*80)
-    lines.append("4. GROUP MDL (3-CLASS)")
-    lines.append("-"*80)
-    
-    for model in config.models:
-        lines.append(f"\n{model.upper()}:")
-        for layer in config.layers:
-            best = group_results[model][layer]['best']
-            lines.append(f"  Layer {layer}:")
-            lines.append(f"    MDL (L2):     {best['mdl_scores']['l2']:.2f} bits")
-            lines.append(f"    Test Acc:     {best['test_accuracy']:.4f}")
-    
-    # Cross-model transfer
-    lines.append("\n" + "-"*80)
-    lines.append("5. CROSS-MODEL TRANSFER MDL")
-    lines.append("-"*80)
-    
-    for layer in config.layers:
-        lines.append(f"\nLayer {layer}:")
-        
-        attr_ratio = transfer_results[layer]['attribute']['ratio']
-        corr_ratio = transfer_results[layer]['correctness']['ratio']
-        
-        lines.append(f"  Attribute MDL Ratio:    {attr_ratio:.4f}")
-        lines.append(f"  Correctness MDL Ratio:  {corr_ratio:.4f}")
-    
-    # Key findings
-    lines.append("\n" + "-"*80)
-    lines.append("6. KEY FINDINGS")
-    lines.append("-"*80)
-    
-    # Compute average MDL ratios
-    avg_attr_ratio = np.mean([transfer_results[l]['attribute']['ratio'] for l in config.layers])
-    avg_corr_ratio = np.mean([transfer_results[l]['correctness']['ratio'] for l in config.layers])
-    
-    lines.append(f"\n• Average Attribute Transfer Ratio:   {avg_attr_ratio:.4f}")
-    lines.append(f"• Average Correctness Transfer Ratio: {avg_corr_ratio:.4f}")
-    
-    if avg_attr_ratio < 1.05 and avg_corr_ratio < 1.05:
-        lines.append("\n⚠️  NEAR-EQUAL MDL (<5% difference)")
-        lines.append("Base and Instruct models encode information with nearly identical complexity.")
-        lines.append("Representations remain highly aligned despite behavioral divergence.")
-        lines.append("CONCLUSION: Suppression operates via decision boundaries, NOT erasure.")
-    elif avg_attr_ratio > 1.2:
-        lines.append("\n⚠️  SIGNIFICANT MDL DIVERGENCE (>20% difference)")
-        lines.append("Instruct model requires more bits to encode same information.")
-        lines.append("Representations have been fundamentally altered by instruction-tuning.")
+        if len(analysis_data) > 1:
+            supp_data = next((d for d in analysis_data if d['group'] == 'Suppression'), None)
+            if supp_data and supp_data['acc_corr'] < 60 and mdls_norm[1] < 80:
+                ax.text(0.5, 0.95, 
+                       'Low MDL with low correctness detected',
+                       transform=ax.transAxes,
+                       ha='center', va='top',
+                       bbox=dict(boxstyle='round', facecolor='yellow', alpha=0.7),
+                       fontsize=9, fontweight='bold')
     else:
-        lines.append("\n⚠️  MODERATE MDL DIVERGENCE (5-20% difference)")
-        lines.append("Partial representational changes detected.")
-        lines.append("Suppression involves both representational and decision-level effects.")
+        ax.text(0.5, 0.5, 'No suppression data', 
+               ha='center', va='center', transform=ax.transAxes)
     
-    # Compare Base vs Instruct MDL
-    lines.append("\n" + "-"*80)
-    lines.append("7. BASE VS INSTRUCT MDL COMPARISON")
-    lines.append("-"*80)
+    plt.tight_layout()
+    plt.savefig(Config.OUTPUT_DIR / "plots" / "triple_entanglement_analysis.png", 
+               dpi=300, bbox_inches='tight')
+    plt.close()
     
-    for task_name, results, label in [
-        ('Attribute', attr_results, '16-class'),
-        ('State', state_results, '36-class'),
-        ('Correctness', corr_results, 'Binary'),
-        ('Group', group_results, '3-class')
-    ]:
-        lines.append(f"\n{task_name} ({label}):")
+    log("  Saved: triple_entanglement_analysis.png")
+
+# ==============================================================================
+# TRIPLE ENTANGLEMENT METRICS
+# ==============================================================================
+
+def compute_triple_entanglement_metrics(df_var):
+    """
+    Compute comprehensive metrics for triple entanglement analysis.
+    
+    Extracts compression ratios, task accuracies, and group-stratified statistics
+    for evaluating whether models maintain unified representations across semantic
+    and behavioral dimensions.
+    """
+    if len(df_var) == 0:
+        return {}
+    
+    available_layers = sorted(df_var['layer'].unique())
+    layer = available_layers[len(available_layers)//2] if len(available_layers) > 0 else 16
+    
+    evidence = {}
+    
+    for model in Config.MODELS:
+        model_evidence = {}
         
-        for layer in config.layers:
-            base_mdl = results['base'][layer]['best']['mdl_scores']['l2']
-            inst_mdl = results['instruct'][layer]['best']['mdl_scores']['l2']
-            diff_pct = ((inst_mdl - base_mdl) / base_mdl) * 100
+        single_sum = 0
+        single_accs = {}
+        
+        for task in ['attribute', 'state', f'correctness_{model}']:
+            subset = df_var[(df_var['layer'] == layer) & 
+                           (df_var['model'] == model) &
+                           (df_var['group'] == 'all') &
+                           (df_var['prior'] == 'l0') &
+                           (df_var['task'] == task)]
             
-            lines.append(f"  Layer {layer}: Base={base_mdl:.2f}, Instruct={inst_mdl:.2f}, Δ={diff_pct:+.2f}%")
+            if len(subset) > 0:
+                single_sum += subset['total_mdl'].values[0]
+                acc_col = f'acc_{task}'
+                if acc_col in subset.columns:
+                    single_accs[task] = subset[acc_col].values[0]
+        
+        subset = df_var[(df_var['layer'] == layer) & 
+                       (df_var['model'] == model) &
+                       (df_var['group'] == 'all') &
+                       (df_var['prior'] == 'l0') &
+                       (df_var['task'] == f'multitask_triple_{model}')]
+        
+        if len(subset) > 0 and single_sum > 0:
+            row = subset.iloc[0]
+            triple_mdl = row['total_mdl']
+            
+            model_evidence['compression_ratio'] = triple_mdl / single_sum
+            model_evidence['triple_mdl'] = triple_mdl
+            model_evidence['single_sum_mdl'] = single_sum
+            
+            model_evidence['acc_attribute'] = row.get('acc_attribute', 0)
+            model_evidence['acc_state'] = row.get('acc_state', 0)
+            model_evidence['acc_correctness'] = row.get(f'acc_correctness_{model}', 0)
+        
+        subset = df_var[(df_var['layer'] == layer) & 
+                       (df_var['model'] == model) &
+                       (df_var['group'] == 'suppression') &
+                       (df_var['prior'] == 'l0') &
+                       (df_var['task'] == f'multitask_triple_{model}')]
+        
+        if len(subset) > 0:
+            row = subset.iloc[0]
+            model_evidence['suppression_analysis'] = {
+                'triple_mdl': row['total_mdl'],
+                'acc_attribute': row.get('acc_attribute', 0),
+                'acc_state': row.get('acc_state', 0),
+                'acc_correctness': row.get(f'acc_correctness_{model}', 0),
+                'data_cost': row.get('data_cost', 0),
+                'model_cost': row.get('model_cost', 0)
+            }
+        
+        subset = df_var[(df_var['layer'] == layer) & 
+                       (df_var['model'] == model) &
+                       (df_var['group'] == 'enhancement') &
+                       (df_var['prior'] == 'l0') &
+                       (df_var['task'] == f'multitask_triple_{model}')]
+        
+        if len(subset) > 0:
+            row = subset.iloc[0]
+            model_evidence['enhancement_analysis'] = {
+                'triple_mdl': row['total_mdl'],
+                'acc_attribute': row.get('acc_attribute', 0),
+                'acc_state': row.get('acc_state', 0),
+                'acc_correctness': row.get(f'acc_correctness_{model}', 0)
+            }
+        
+        if model_evidence:
+            evidence[model] = model_evidence
     
-    lines.append("\n" + "="*80)
-    lines.append("END OF REPORT")
-    lines.append("="*80)
+    if 'base' in evidence and 'instruct' in evidence:
+        evidence['comparison'] = {
+            'compression_ratio_diff': (
+                evidence['instruct'].get('compression_ratio', 0) - 
+                evidence['base'].get('compression_ratio', 0)
+            ),
+            'suppression_mdl_diff': 0,
+            'suppression_correctness_diff': 0
+        }
+        
+        if ('suppression_analysis' in evidence['base'] and 
+            'suppression_analysis' in evidence['instruct']):
+            
+            base_supp = evidence['base']['suppression_analysis']
+            inst_supp = evidence['instruct']['suppression_analysis']
+            
+            evidence['comparison']['suppression_mdl_diff'] = (
+                inst_supp['triple_mdl'] - base_supp['triple_mdl']
+            )
+            evidence['comparison']['suppression_correctness_diff'] = (
+                inst_supp['acc_correctness'] - base_supp['acc_correctness']
+            )
+            
+            compression_similar = abs(evidence['comparison']['compression_ratio_diff']) < 0.15
+            correctness_divergent = evidence['comparison']['suppression_correctness_diff'] < -0.2
+            
+            evidence['comparison']['policy_mask_indicator'] = bool(
+                compression_similar and correctness_divergent
+            )
     
-    report_text = '\n'.join(lines)
-    
-    with open(config.output_dir / "MDL_SUMMARY_REPORT.txt", 'w') as f:
-        f.write(report_text)
-    
-    print("\n" + report_text)
-    log.log("✓ Summary report saved")
+    return evidence
 
-
-# ============================================================================
-# MAIN EXECUTION
-# ============================================================================
+# ==============================================================================
+# MAIN PIPELINE
+# ==============================================================================
 
 def main():
-    """Main execution pipeline."""
-    start_time = datetime.now()
+    log("="*80)
+    log("STARTING MDL PROBING ")
+    log("="*80)
     
-    log.section("MDL Probing Analysis Pipeline")
-    log.log(f"Start time: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
+    all_online = []
+    all_variational = []
+    all_isomorphism = []
     
-    try:
-        # Load data
-        df, activations, label_encoders = load_data()
+    for layer in Config.LAYERS:
+        log(f"\n{'='*60}")
+        log(f"PROCESSING LAYER {layer}")
+        log(f"{'='*60}")
         
-        # Create splits
-        train_idx, test_idx = create_splits(df)
+        df, activations = load_layer_data(layer)
+        labels, dims = encode_all_labels(df)
         
-        # Task 1: Attribute MDL
-        attr_results = mdl_attribute_probing(df, train_idx, test_idx, activations)
+        groups_config = {
+            'all': slice(None),
+            'suppression': df['group_type'] == 'suppression',
+            'enhancement': df['group_type'] == 'enhancement'
+        }
         
-        # Task 2: State MDL
-        state_results = mdl_state_probing(df, train_idx, test_idx, activations)
+        for group_name, mask in groups_config.items():
+            if isinstance(mask, pd.Series) and mask.sum() < 50:
+                log(f"  Skipping {group_name}: insufficient samples ({mask.sum()})")
+                continue
+            
+            log(f"\n  Processing Group: {group_name}")
+            
+            if isinstance(mask, pd.Series):
+                mask_array = mask.values
+                group_acts = {m: acts[mask_array] for m, acts in activations.items()}
+                group_labels = {k: v[mask_array] for k, v in labels.items()}
+            else:
+                group_acts = activations
+                group_labels = labels
+            
+            tasks_config = [
+                ('attribute', {'attribute': group_labels['attribute']}, {'attribute': dims['attribute']}),
+                ('state', {'state': group_labels['state']}, {'state': dims['state']}),
+                ('correctness_base', {'correctness_base': group_labels['correctness_base']}, 
+                 {'correctness_base': dims['correctness']}),
+                ('correctness_instruct', {'correctness_instruct': group_labels['correctness_instruct']}, 
+                 {'correctness_instruct': dims['correctness']}),
+                ('multitask_dual', {'attribute': group_labels['attribute'], 
+                                    'state': group_labels['state']}, 
+                 {'attribute': dims['attribute'], 'state': dims['state']}),
+                ('multitask_triple_base', {
+                    'attribute': group_labels['attribute'],
+                    'state': group_labels['state'],
+                    'correctness_base': group_labels['correctness_base']
+                }, {
+                    'attribute': dims['attribute'],
+                    'state': dims['state'],
+                    'correctness_base': dims['correctness']
+                }),
+                ('multitask_triple_instruct', {
+                    'attribute': group_labels['attribute'],
+                    'state': group_labels['state'],
+                    'correctness_instruct': group_labels['correctness_instruct']
+                }, {
+                    'attribute': dims['attribute'],
+                    'state': dims['state'],
+                    'correctness_instruct': dims['correctness']
+                })
+            ]
+            
+            for model in Config.MODELS:
+                X = group_acts[model]
+                
+                for task_name, y_dict, task_dims in tasks_config:
+                    if 'correctness' in task_name and model not in task_name:
+                        continue
+                    
+                    if 'multitask_triple' in task_name and model not in task_name:
+                        continue
+                    
+                    log(f"    {model} - {task_name}")
+                    
+                    metadata = {
+                        'layer': layer,
+                        'model': model,
+                        'task': task_name,
+                        'group': group_name
+                    }
+                    
+                    online_results = experiment_online_coding(X, y_dict, task_dims, metadata)
+                    all_online.extend(online_results)
+                    
+                    var_results = experiment_variational_mdl(X, y_dict, task_dims, metadata)
+                    all_variational.extend(var_results)
+                    
+                    if group_name == 'all' and task_name in ['attribute', 'state']:
+                        y_control = {k: shuffle(v, random_state=Config.SEED) 
+                                    for k, v in y_dict.items()}
+                        
+                        metadata_ctrl = metadata.copy()
+                        metadata_ctrl['model'] = f"{model}_control"
+                        
+                        online_ctrl = experiment_online_coding(X, y_control, task_dims, metadata_ctrl)
+                        all_online.extend(online_ctrl)
+                        
+                        var_ctrl = experiment_variational_mdl(X, y_control, task_dims, metadata_ctrl)
+                        all_variational.extend(var_ctrl)
+                    
+                    gc.collect()
+                    torch.cuda.empty_cache()
         
-        # Task 3: Correctness MDL
-        corr_results = mdl_correctness_probing(df, train_idx, test_idx, activations)
+        log(f"\n  Running Isomorphism Test (Layer {layer})")
+        iso_results = experiment_isomorphism(df, activations, labels, layer)
+        all_isomorphism.extend(iso_results)
         
-        # Task 4: Group MDL
-        group_results = mdl_group_probing(df, train_idx, test_idx, activations)
-        
-        # Task 5: Cross-model transfer MDL
-        transfer_results = mdl_cross_model_transfer(df, train_idx, test_idx, activations)
-        
-        # Visualizations
-        create_visualizations(
-            attr_results, state_results, corr_results,
-            group_results, transfer_results
-        )
-        
-        # Summary report
-        generate_summary_report(
-            attr_results, state_results, corr_results,
-            group_results, transfer_results
-        )
-        
-        log.log("✓ All tasks completed successfully")
-        
-    except Exception as e:
-        log.log(f"\n❌ ERROR: {str(e)}")
-        import traceback
-        log.log(traceback.format_exc())
-        raise
+        del df, activations, labels
+        gc.collect()
+        torch.cuda.empty_cache()
     
-    end_time = datetime.now()
-    duration = (end_time - start_time).total_seconds()
+    log("\n" + "="*80)
+    log("SAVING RESULTS")
+    log("="*80)
     
-    log.section("Pipeline Complete")
-    log.log(f"End time: {end_time.strftime('%Y-%m-%d %H:%M:%S')}")
-    log.log(f"Total duration: {duration/60:.1f} minutes")
-    log.log(f"\nAll outputs saved to:")
-    log.log(f"  {config.output_dir}")
+    df_online = pd.DataFrame(all_online)
+    df_variational = pd.DataFrame(all_variational)
+    df_isomorphism = pd.DataFrame(all_isomorphism)
+    
+    df_online.to_csv(Config.OUTPUT_DIR / "data" / "online_mdl.csv", index=False)
+    df_variational.to_csv(Config.OUTPUT_DIR / "data" / "variational_mdl.csv", index=False)
+    df_isomorphism.to_csv(Config.OUTPUT_DIR / "data" / "isomorphism.csv", index=False)
+    
+    log("  online_mdl.csv")
+    log("  variational_mdl.csv")
+    log("  isomorphism.csv")
+    
+    log("\n" + "="*80)
+    log("GENERATING VISUALIZATIONS")
+    log("="*80)
+    
+    plot_online_curves(df_online)
+    plot_variational_comparison(df_variational)
+    plot_fisher_information(df_variational)
+    plot_isomorphism_drift(df_isomorphism)
+    plot_sparsity_analysis(df_variational)
+    plot_group_comparison(df_variational)
+    plot_triple_entanglement(df_variational)
+    
+    log("\n" + "="*80)
+    log("COMPUTING TRIPLE ENTANGLEMENT METRICS")
+    log("="*80)
+    
+    entanglement_metrics = compute_triple_entanglement_metrics(df_variational)
+    
+    if entanglement_metrics:
+        metrics_path = Config.OUTPUT_DIR / "data" / "triple_entanglement_metrics.json"
+        with open(metrics_path, 'w') as f:
+            json.dump(entanglement_metrics, f, indent=2)
+        
+        log(f"  Saved: triple_entanglement_metrics.json")
+        log("\n" + "="*60)
+        log("TRIPLE ENTANGLEMENT ANALYSIS SUMMARY:")
+        log("="*60)
+        
+        for model, stats in entanglement_metrics.items():
+            if model in ['base', 'instruct']:
+                log(f"\n{model.upper()} Model:")
+                log(f"  Compression Ratio (Triple/Single): {stats.get('compression_ratio', 'N/A'):.3f}")
+                log(f"  Triple Task Accuracy:")
+                log(f"    - Attribute: {stats.get('acc_attribute', 0)*100:.1f}%")
+                log(f"    - State: {stats.get('acc_state', 0)*100:.1f}%")
+                log(f"    - Correctness: {stats.get('acc_correctness', 0)*100:.1f}%")
+                
+                if 'suppression_analysis' in stats:
+                    supp = stats['suppression_analysis']
+                    log(f"  Suppression Group:")
+                    log(f"    - Triple MDL: {supp.get('triple_mdl', 'N/A'):.2f}")
+                    log(f"    - Correctness Acc: {supp.get('acc_correctness', 0)*100:.1f}%")
+                    
+                    if model == 'instruct':
+                        compression = stats.get('compression_ratio', 1.0)
+                        corr_acc = supp.get('acc_correctness', 0)
+                        
+                        if compression < 0.9 and corr_acc < 0.6:
+                            log(f"\n  Policy mask indicator detected:")
+                            log(f"    Compression ratio: {compression:.3f} (efficient)")
+                            log(f"    Correctness accuracy: {corr_acc*100:.1f}% (suppressed)")
+                            log(f"    Pattern suggests output-layer blocking mechanism")
+    else:
+        log("  Insufficient data for triple entanglement analysis")
+    
+    log("\n" + "="*80)
+    log("PIPELINE COMPLETE")
+    log("="*80)
+    
+    log(f"\nTotal Experiments:")
+    log(f"  Online Coding: {len(df_online)} data points")
+    log(f"  Variational MDL: {len(df_variational)} configurations")
+    log(f"  Isomorphism Tests: {len(df_isomorphism)} comparisons")
+    
+    log(f"\nOutputs saved to: {Config.OUTPUT_DIR}")
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        log(f"\nFATAL ERROR: {str(e)}")
+        import traceback
+        log(traceback.format_exc())
+        raise

@@ -26,7 +26,7 @@ BASE_MODEL_PATH = "Qwen/Qwen2-1.5B"
 INSTRUCT_MODEL_PATH = "Qwen/Qwen2-1.5B-Instruct"
 
 # Layer configuration
-TARGET_LAYERS = [8, 16, 24]
+TARGET_LAYERS = [8, 16, 24, 28]
 TOTAL_LAYERS = 28
 
 # GPU configuration
@@ -335,14 +335,13 @@ def main():
     print("EXTRACTION COMPLETE")
     print(f"{'='*80}")
     print(f"\nOutput files in: {OUTPUT_DIR}")
-    print(f"  - base_layer{{8,16,24}}_activations.npy")
-    print(f"  - instruct_layer{{8,16,24}}_activations.npy")
+    print(f"  - base_layer{{8,16,24, 28}}_activations.npy")
+    print(f"  - instruct_layer{{8,16,24, 28}}_activations.npy")
     print(f"  - base_metadata.json")
     print(f"  - instruct_metadata.json")
     print(f"  - activation_index.csv")
     print(f"\nTotal sentences processed: {len(sentences_data)}")
     print(f"Activation shape per layer: ({len(sentences_data)}, 1536)")
-    print(f"\nReady for probing analysis!")
 
 
 if __name__ == "__main__":

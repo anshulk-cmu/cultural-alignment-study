@@ -4,7 +4,7 @@ Comprehensive EDA for Cultural Alignment Activation Dataset
 ============================================================
 
 Analyzes 33,522 culturally-grounded sentences with their activations from
-Qwen2-1.5B base and instruct models across layers 8, 16, 24.
+Qwen2-1.5B base and instruct models across layers 8, 16, 24, 28.
 """
 
 import os
@@ -54,7 +54,7 @@ class Config:
     HEAVY_DATA_DIR = Path("/data/user_data/anshulk/cultural-alignment-study/eda_data")
     
     # Analysis parameters
-    LAYERS = [8, 16, 24]
+    LAYERS = [8, 16, 24, 28]
     HIDDEN_SIZE = 1536
     N_SAMPLES_MANUAL = 1000  # For manual validation sampling
     SIMILARITY_THRESHOLD = 0.95  # For near-duplicate detection
@@ -795,7 +795,7 @@ def analyze_activations(df, activations):
     results['activation_stats'] = stats
     
     # Plot per-dimension statistics
-    fig, axes = plt.subplots(3, 2, figsize=(15, 15))
+    fig, axes = plt.subplots(4, 2, figsize=(15, 15))
     
     for layer_idx, layer in enumerate(config.LAYERS):
         # Base model
@@ -940,145 +940,163 @@ def analyze_activations(df, activations):
             plt.close()
             log.log(f"✓ Saved UMAP visualization for {model} layer {layer}")
     
-    # 4.3.5 HDBSCAN Clustering on Activations (Layer 24)
+    # 4.3.5 HDBSCAN Clustering on Activations (Layers 24 & 28)
     log.subsection("4.3.5 HDBSCAN Clustering on Activation Space")
-    
+
     clustering_results = {}
-    
-    for model in ['base', 'instruct']:
-        log.log(f"Running HDBSCAN on {model} layer 24 activations...")
+
+    for target_layer in [24, 28]:
+        log.log(f"\n{'='*60}")
+        log.log(f"Processing Layer {target_layer}")
+        log.log(f"{'='*60}")
         
-        acts = activations[model][24]
-        
-        # Run HDBSCAN
-        clusterer = hdbscan.HDBSCAN(
-            min_cluster_size=50,
-            min_samples=10,
-            metric='euclidean'
-        )
-        
-        cluster_labels = clusterer.fit_predict(acts_2d)
-        
-        n_clusters = len(set(cluster_labels)) - (1 if -1 in cluster_labels else 0)
-        n_noise = list(cluster_labels).count(-1)
-        
-        log.log(f"{model.upper()} Layer 24:")
-        log.result("  Clusters found", n_clusters)
-        log.result("  Noise points", f"{n_noise} ({n_noise/len(df)*100:.1f}%)")
-        
-        # Analyze cluster composition
-        cluster_composition = []
-        for cluster_id in sorted(set(cluster_labels)):
-            if cluster_id == -1:
-                continue  # Skip noise
+        for model in ['base', 'instruct']:
+            log.log(f"\nRunning HDBSCAN on {model} layer {target_layer} activations...")
             
-            cluster_mask = cluster_labels == cluster_id
-            cluster_data = df[cluster_mask]
+            # Load the UMAP coordinates for this specific layer
+            umap_file = config.HEAVY_DATA_DIR / f"umap_activations_{model}_layer{target_layer}.npy"
+            acts_2d = np.load(umap_file)
             
-            composition = {
-                'model': model,
-                'layer': 24,
-                'cluster_id': int(cluster_id),
-                'size': int(cluster_mask.sum()),
-                'suppression_count': int((cluster_data['group_type'] == 'suppression').sum()),
-                'enhancement_count': int((cluster_data['group_type'] == 'enhancement').sum()),
-                'control_count': int((cluster_data['group_type'] == 'control').sum()),
-                'suppression_pct': float((cluster_data['group_type'] == 'suppression').mean() * 100),
-                'enhancement_pct': float((cluster_data['group_type'] == 'enhancement').mean() * 100),
-                'control_pct': float((cluster_data['group_type'] == 'control').mean() * 100),
-                'base_accuracy': float(cluster_data['base_correct'].mean()),
-                'instruct_accuracy': float(cluster_data['instruct_correct'].mean()),
-                'top_states': cluster_data['state'].value_counts().head(3).to_dict(),
-                'top_attributes': cluster_data['attribute'].value_counts().head(3).to_dict()
+            # Run HDBSCAN
+            clusterer = hdbscan.HDBSCAN(
+                min_cluster_size=50,
+                min_samples=10,
+                metric='euclidean'
+            )
+            
+            cluster_labels = clusterer.fit_predict(acts_2d)
+            
+            n_clusters = len(set(cluster_labels)) - (1 if -1 in cluster_labels else 0)
+            n_noise = list(cluster_labels).count(-1)
+            
+            log.log(f"{model.upper()} Layer {target_layer}:")
+            log.result("  Clusters found", n_clusters)
+            log.result("  Noise points", f"{n_noise} ({n_noise/len(df)*100:.1f}%)")
+            
+            # Analyze cluster composition
+            cluster_composition = []
+            for cluster_id in sorted(set(cluster_labels)):
+                if cluster_id == -1:
+                    continue  # Skip noise
+                
+                cluster_mask = cluster_labels == cluster_id
+                cluster_data = df[cluster_mask]
+                
+                composition = {
+                    'model': model,
+                    'layer': target_layer,
+                    'cluster_id': int(cluster_id),
+                    'size': int(cluster_mask.sum()),
+                    'suppression_count': int((cluster_data['group_type'] == 'suppression').sum()),
+                    'enhancement_count': int((cluster_data['group_type'] == 'enhancement').sum()),
+                    'control_count': int((cluster_data['group_type'] == 'control').sum()),
+                    'suppression_pct': float((cluster_data['group_type'] == 'suppression').mean() * 100),
+                    'enhancement_pct': float((cluster_data['group_type'] == 'enhancement').mean() * 100),
+                    'control_pct': float((cluster_data['group_type'] == 'control').mean() * 100),
+                    'base_accuracy': float(cluster_data['base_correct'].mean()),
+                    'instruct_accuracy': float(cluster_data['instruct_correct'].mean()),
+                    'top_states': cluster_data['state'].value_counts().head(3).to_dict(),
+                    'top_attributes': cluster_data['attribute'].value_counts().head(3).to_dict()
+                }
+                cluster_composition.append(composition)
+            
+            # Save cluster composition
+            comp_df = pd.DataFrame(cluster_composition)
+            comp_df.to_csv(
+                config.OUTPUT_DIR / "tables" / f"activation_clusters_{model}_layer{target_layer}.csv",
+                index=False
+            )
+            log.log(f"✓ Saved {model} layer {target_layer} cluster composition to CSV")
+            
+            # Calculate cluster purity metrics
+            if len(comp_df) > 0:
+                # Find clusters dominated by each group (>70% purity)
+                supp_pure = comp_df[comp_df['suppression_pct'] > 70.0]
+                enh_pure = comp_df[comp_df['enhancement_pct'] > 70.0]
+                ctrl_pure = comp_df[comp_df['control_pct'] > 70.0]
+                
+                log.log(f"\n{model.upper()} Layer {target_layer} - Cluster purity analysis:")
+                log.result("  Suppression-pure clusters (>70%)", 
+                        f"{len(supp_pure)} clusters, {supp_pure['size'].sum():,} sentences")
+                log.result("  Enhancement-pure clusters (>70%)", 
+                        f"{len(enh_pure)} clusters, {enh_pure['size'].sum():,} sentences")
+                log.result("  Control-pure clusters (>70%)", 
+                        f"{len(ctrl_pure)} clusters, {ctrl_pure['size'].sum():,} sentences")
+                
+                # Average within-cluster purity
+                avg_purity = comp_df[['suppression_pct', 'enhancement_pct', 'control_pct']].max(axis=1).mean()
+                log.result("  Average cluster purity", f"{avg_purity:.1f}%")
+            
+            # Store results with unique key
+            clustering_results[f'{model}_layer{target_layer}'] = {
+                'n_clusters': int(n_clusters),
+                'n_noise': int(n_noise),
+                'noise_percentage': float(n_noise/len(df)*100),
+                'cluster_compositions': cluster_composition
             }
-            cluster_composition.append(composition)
-        
-        # Save cluster composition
-        comp_df = pd.DataFrame(cluster_composition)
-        comp_df.to_csv(
-            config.OUTPUT_DIR / "tables" / f"activation_clusters_{model}_layer24.csv",
-            index=False
-        )
-        log.log(f"✓ Saved {model} cluster composition to CSV")
-        
-        # Calculate cluster purity metrics
-        if len(comp_df) > 0:
-            # Find clusters dominated by each group (>70% purity)
-            supp_pure = comp_df[comp_df['suppression_pct'] > 70.0]
-            enh_pure = comp_df[comp_df['enhancement_pct'] > 70.0]
-            ctrl_pure = comp_df[comp_df['control_pct'] > 70.0]
             
-            log.log(f"\n{model.upper()} Cluster purity analysis:")
-            log.result("  Suppression-pure clusters (>70%)", 
-                      f"{len(supp_pure)} clusters, {supp_pure['size'].sum():,} sentences")
-            log.result("  Enhancement-pure clusters (>70%)", 
-                      f"{len(enh_pure)} clusters, {enh_pure['size'].sum():,} sentences")
-            log.result("  Control-pure clusters (>70%)", 
-                      f"{len(ctrl_pure)} clusters, {ctrl_pure['size'].sum():,} sentences")
+            # Add cluster labels to temporary column for visualization
+            df[f'{model}_act_cluster_layer{target_layer}'] = cluster_labels
+        
+        # Compare base vs instruct clustering for this layer
+        log.log(f"\nLayer {target_layer} - Cross-model cluster comparison:")
+        
+        # How many sentences stay in same vs different clusters?
+        same_cluster_type = 0
+        both_clustered = 0
+        
+        for i in range(len(df)):
+            base_cluster = df.iloc[i][f'base_act_cluster_layer{target_layer}']
+            inst_cluster = df.iloc[i][f'instruct_act_cluster_layer{target_layer}']
             
-            # Average within-cluster purity
-            avg_purity = comp_df[['suppression_pct', 'enhancement_pct', 'control_pct']].max(axis=1).mean()
-            log.result("  Average cluster purity", f"{avg_purity:.1f}%")
+            # Both in actual clusters (not noise)
+            if base_cluster != -1 and inst_cluster != -1:
+                both_clustered += 1
+                # This is simplified - you could do more sophisticated comparison
+                if base_cluster == inst_cluster:
+                    same_cluster_type += 1
         
-        clustering_results[model] = {
-            'n_clusters': int(n_clusters),
-            'n_noise': int(n_noise),
-            'noise_percentage': float(n_noise/len(df)*100),
-            'cluster_compositions': cluster_composition
-        }
+        if both_clustered > 0:
+            log.result(f"  Sentences in non-noise clusters (both models)", both_clustered)
+            log.result(f"  Same cluster ID in both models", 
+                    f"{same_cluster_type} ({same_cluster_type/both_clustered*100:.1f}%)")
         
-        # Add cluster labels to temporary array for visualization
-        df[f'{model}_act_cluster'] = cluster_labels
-    
-    # Compare base vs instruct clustering
-    log.log("\nCross-model cluster comparison:")
-    
-    # How many sentences stay in same vs different clusters?
-    same_cluster_type = 0
-    for i in range(len(df)):
-        base_cluster = df.iloc[i]['base_act_cluster']
-        inst_cluster = df.iloc[i]['instruct_act_cluster']
+        # Visualize clusters side by side for this layer
+        fig, axes = plt.subplots(1, 2, figsize=(16, 6))
         
-        # Both in actual clusters (not noise)
-        if base_cluster != -1 and inst_cluster != -1:
-            # Check if they're in same group-dominant cluster
-            base_group = df.iloc[i]['group_type']
-            # This is simplified - you could do more sophisticated comparison
-            same_cluster_type += 1
-    
-    # Visualize clusters side by side
-    fig, axes = plt.subplots(1, 2, figsize=(16, 6))
-    
-    for model_idx, model in enumerate(['base', 'instruct']):
-        # Use the UMAP coordinates from earlier
-        umap_file = config.HEAVY_DATA_DIR / f"umap_activations_{model}_layer24.npy"
-        acts_2d = np.load(umap_file)
+        for model_idx, model in enumerate(['base', 'instruct']):
+            # Load the UMAP coordinates for this layer
+            umap_file = config.HEAVY_DATA_DIR / f"umap_activations_{model}_layer{target_layer}.npy"
+            acts_2d = np.load(umap_file)
+            
+            cluster_labels = df[f'{model}_act_cluster_layer{target_layer}'].values
+            
+            scatter = axes[model_idx].scatter(
+                acts_2d[:, 0], acts_2d[:, 1],
+                c=cluster_labels, cmap='tab20',
+                alpha=0.3, s=10
+            )
+            axes[model_idx].set_title(f'{model.upper()} Layer {target_layer}: HDBSCAN Clusters')
+            axes[model_idx].set_xlabel('UMAP 1')
+            axes[model_idx].set_ylabel('UMAP 2')
+            plt.colorbar(scatter, ax=axes[model_idx])
         
-        cluster_labels = df[f'{model}_act_cluster'].values
-        
-        scatter = axes[model_idx].scatter(
-            acts_2d[:, 0], acts_2d[:, 1],
-            c=cluster_labels, cmap='tab20',
-            alpha=0.3, s=10
+        plt.tight_layout()
+        plt.savefig(
+            config.OUTPUT_DIR / "plots" / f"04_activation_clusters_comparison_layer{target_layer}.png",
+            dpi=300, bbox_inches='tight'
         )
-        axes[model_idx].set_title(f'{model.upper()} Layer 24: HDBSCAN Clusters')
-        axes[model_idx].set_xlabel('UMAP 1')
-        axes[model_idx].set_ylabel('UMAP 2')
-        plt.colorbar(scatter, ax=axes[model_idx])
-    
-    plt.tight_layout()
-    plt.savefig(config.OUTPUT_DIR / "plots" / "04_activation_clusters_comparison.png",
-               dpi=300, bbox_inches='tight')
-    plt.close()
-    log.log("✓ Saved activation cluster comparison plot")
-    
+        plt.close()
+        log.log(f"✓ Saved activation cluster comparison plot for layer {target_layer}")
+        
+        # Clean up temporary columns for this layer
+        df.drop(columns=[f'base_act_cluster_layer{target_layer}', 
+                        f'instruct_act_cluster_layer{target_layer}'], 
+                inplace=True)
+
     # Save clustering results
     results['activation_clustering'] = clustering_results
     
-    # Clean up temporary columns
-    df.drop(columns=['base_act_cluster', 'instruct_act_cluster'], inplace=True)
-
-    # 4.4 Cross-model comparison
     log.subsection("4.4 Base vs Instruct Comparison")
     
     comparison = {}

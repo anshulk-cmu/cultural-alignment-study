@@ -1,13 +1,13 @@
 {
   "clustering": {
-    "n_clusters": 267,
-    "n_noise": 6853,
-    "noise_percentage": 20.4432909730923
+    "n_clusters": 264,
+    "n_noise": 6612,
+    "noise_percentage": 19.724360121711115
   },
   "probing": {
-    "group_type_accuracy": 0.3986949547856389,
-    "group_type_std": 0.025549488172881846,
-    "attribute_accuracy": 0.7748334561355738,
-    "attribute_std": 0.01573318614306467
+    "group_type_accuracy": 0.3985457856584781,
+    "group_type_std": 0.025314815663544217,
+    "attribute_accuracy": 0.7753405848946126,
+    "attribute_std": 0.015655701315465943
   }
 }

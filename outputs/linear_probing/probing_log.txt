@@ -1,0 +1,58 @@
+
+================================================================================
+LINEAR PROBING ANALYSIS PIPELINE
+================================================================================
+[16:03:01] Start time: 2025-11-19 16:03:01
+
+================================================================================
+LOADING DATA
+================================================================================
+[16:03:01] Loading metadata...
+  • Total sentences: 33522
+[16:03:01] Loading base layer 8...
+  •   Shape: (33522, 1536)
+[16:03:01] Loading base layer 16...
+  •   Shape: (33522, 1536)
+[16:03:02] Loading base layer 24...
+  •   Shape: (33522, 1536)
+[16:03:03] Loading base layer 28...
+  •   Shape: (33522, 1536)
+[16:03:04] Loading instruct layer 8...
+  •   Shape: (33522, 1536)
+[16:03:04] Loading instruct layer 16...
+  •   Shape: (33522, 1536)
+[16:03:05] Loading instruct layer 24...
+  •   Shape: (33522, 1536)
+[16:03:05] Loading instruct layer 28...
+  •   Shape: (33522, 1536)
+[16:03:05] 
+Preparing labels...
+  • Attributes: 16
+  • States: 36
+[16:03:05] 
+Label distributions:
+  • Attribute balance: {'Tourism': 5613, 'History': 3528, 'Cultural_Common_Sense': 3363, 'Festivals': 3267, 'Cuisine': 3177, 'Dance_and_Music': 2874, 'Art': 2781, 'Costume': 2103, 'Rituals_and_Ceremonies': 2019, 'Language': 1710, 'Personalities': 1482, 'Religion': 888, 'Sports': 342, 'Transport': 183, 'Medicine': 135, 'Nightlife': 57}
+  • State balance: {'Telangana': 2889, 'Uttarakhand': 1806, 'Tamil_Nadu': 1590, 'Sikkim': 1485, 'Tripura': 1449, 'Manipur': 1449, 'Arunachal_Pradesh': 1431, 'Himachal_Pradesh': 1422, 'Jharkhand': 1389, 'Karnataka': 1308}
+  • Base correctness: 22242/33522
+  • Instruct correctness: 21399/33522
+
+================================================================================
+CREATING TRAIN/TEST SPLITS
+================================================================================
+  • Train size: 25141
+  • Test size: 8381
+[16:03:05] 
+Group distribution in splits:
+  •   suppression: Train: 35.60%, Test: 35.60%
+  •   enhancement: Train: 35.71%, Test: 35.71%
+  •   control: Train: 28.69%, Test: 28.68%
+
+================================================================================
+PROBE 1: ATTRIBUTE CLASSIFICATION (16-CLASS)
+================================================================================
+[16:03:05] 
+BASE Layer 8
+  • Accuracy: 0.8067
+  • Precision: 0.8094
+  • Recall: 0.8067
+  • F1: 0.8079

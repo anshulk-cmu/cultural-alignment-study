@@ -37,12 +37,12 @@ class Config:
     ENHANCED_DATA = Path("/home/anshulk/cultural-alignment-study/outputs/eda_results/tables/enhanced_dataset.csv")
     
     # Output paths
-    OUTPUT_DIR = Path("/home/anshulk/cultural-alignment-study/outputs/linear_probing/v2")
-    HEAVY_DATA_DIR = Path("/data/user_data/anshulk/cultural-alignment-study/sanskriti_data/Linear_Probing/v2")
+    OUTPUT_DIR = Path("/home/anshulk/cultural-alignment-study/outputs/linear_probing")
+    HEAVY_DATA_DIR = Path("/data/user_data/anshulk/cultural-alignment-study/Linear_Probing/v2")
     
     # Models and layers
     MODELS = ['base', 'instruct']
-    LAYERS = [8, 16, 24]
+    LAYERS = [8, 16, 24, 28]
     HIDDEN_SIZE = 1536
     
     # Probing settings
