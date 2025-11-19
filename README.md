@@ -1,8 +1,8 @@
 # Mechanistic Interpretability of RLHF-Induced Information Suppression in Language Models
 
-**Author**: Anshul Kumar
-**Email**: anshulk@andrew.cmu.edu
-**Institution**: Carnegie Mellon University
+- **Author**: Anshul Kumar
+- **Email**: anshulk@andrew.cmu.edu
+- **Institution**: Carnegie Mellon University
 
 ## Abstract
 
@@ -12,9 +12,9 @@ This study investigates information suppression mechanisms in RLHF-aligned langu
 
 ### 1. Initial Knowledge Testing (`sanskriti_knowledge_test.py`)
 
-**Dataset**: Sanskriti Cultural Knowledge Benchmark
-**Total Questions**: 21,853 multiple-choice questions
-**Coverage**: 36 Indian states × 16 cultural attributes × 4 question types
+- **Dataset**: Sanskriti Cultural Knowledge Benchmark
+- **Total Questions**: 21,853 multiple-choice questions
+- **Coverage**: 36 Indian states × 16 cultural attributes × 4 question types
 
 **Models Evaluated**:
 - Qwen2-1.5B (base model)

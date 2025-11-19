@@ -56,3 +56,452 @@ BASE Layer 8
   • Precision: 0.8094
   • Recall: 0.8067
   • F1: 0.8079
+  • CV Accuracy: 0.8073 ± 0.0050
+[16:08:47] 
+BASE Layer 16
+  • Accuracy: 0.7926
+  • Precision: 0.7945
+  • Recall: 0.7926
+  • F1: 0.7934
+  • CV Accuracy: 0.7976 ± 0.0031
+[16:14:31] 
+BASE Layer 24
+  • Accuracy: 0.8409
+  • Precision: 0.8411
+  • Recall: 0.8409
+  • F1: 0.8408
+  • CV Accuracy: 0.8369 ± 0.0029
+[16:20:16] 
+BASE Layer 28
+  • Accuracy: 0.8350
+  • Precision: 0.8350
+  • Recall: 0.8350
+  • F1: 0.8347
+  • CV Accuracy: 0.8398 ± 0.0055
+[16:26:07] 
+INSTRUCT Layer 8
+  • Accuracy: 0.8046
+  • Precision: 0.8076
+  • Recall: 0.8046
+  • F1: 0.8059
+  • CV Accuracy: 0.8083 ± 0.0052
+[16:31:30] 
+INSTRUCT Layer 16
+  • Accuracy: 0.7901
+  • Precision: 0.7923
+  • Recall: 0.7901
+  • F1: 0.7910
+  • CV Accuracy: 0.7970 ± 0.0036
+[16:37:06] 
+INSTRUCT Layer 24
+  • Accuracy: 0.8328
+  • Precision: 0.8332
+  • Recall: 0.8328
+  • F1: 0.8329
+  • CV Accuracy: 0.8377 ± 0.0026
+[16:42:54] 
+INSTRUCT Layer 28
+  • Accuracy: 0.8369
+  • Precision: 0.8366
+  • Recall: 0.8369
+  • F1: 0.8365
+  • CV Accuracy: 0.8404 ± 0.0054
+
+================================================================================
+PROBE 2: CORRECTNESS PREDICTION (BINARY)
+================================================================================
+[16:48:35] 
+BASE Layer 8
+  • Accuracy: 0.6294
+  • Precision: 0.6658
+  • Recall: 0.6294
+  • F1: 0.6392
+  • ROC-AUC: 0.6769
+  • CV Accuracy: 0.6244 ± 0.0039
+[16:50:07] 
+BASE Layer 16
+  • Accuracy: 0.6240
+  • Precision: 0.6635
+  • Recall: 0.6240
+  • F1: 0.6342
+  • ROC-AUC: 0.6741
+  • CV Accuracy: 0.6238 ± 0.0070
+[16:51:52] 
+BASE Layer 24
+  • Accuracy: 0.6252
+  • Precision: 0.6641
+  • Recall: 0.6252
+  • F1: 0.6354
+  • ROC-AUC: 0.6785
+  • CV Accuracy: 0.6275 ± 0.0022
+[16:53:53] 
+BASE Layer 28
+  • Accuracy: 0.6224
+  • Precision: 0.6605
+  • Recall: 0.6224
+  • F1: 0.6325
+  • ROC-AUC: 0.6785
+  • CV Accuracy: 0.6239 ± 0.0050
+[16:56:13] 
+INSTRUCT Layer 8
+  • Accuracy: 0.6184
+  • Precision: 0.6498
+  • Recall: 0.6184
+  • F1: 0.6265
+  • ROC-AUC: 0.6670
+  • CV Accuracy: 0.6183 ± 0.0089
+[16:58:04] 
+INSTRUCT Layer 16
+  • Accuracy: 0.6227
+  • Precision: 0.6553
+  • Recall: 0.6227
+  • F1: 0.6308
+  • ROC-AUC: 0.6698
+  • CV Accuracy: 0.6176 ± 0.0052
+[16:59:45] 
+INSTRUCT Layer 24
+  • Accuracy: 0.6232
+  • Precision: 0.6528
+  • Recall: 0.6232
+  • F1: 0.6310
+  • ROC-AUC: 0.6719
+  • CV Accuracy: 0.6166 ± 0.0048
+[17:01:48] 
+INSTRUCT Layer 28
+  • Accuracy: 0.6140
+  • Precision: 0.6481
+  • Recall: 0.6140
+  • F1: 0.6223
+  • ROC-AUC: 0.6632
+  • CV Accuracy: 0.6166 ± 0.0032
+
+================================================================================
+PROBE 3: STATE CLASSIFICATION (36-CLASS)
+================================================================================
+[17:03:54] 
+BASE Layer 8
+  • Accuracy: 0.9394
+  • Precision: 0.9398
+  • Recall: 0.9394
+  • F1: 0.9393
+  • CV Accuracy: 0.9430 ± 0.0023
+[17:04:38] 
+BASE Layer 16
+  • Accuracy: 0.9043
+  • Precision: 0.9046
+  • Recall: 0.9043
+  • F1: 0.9041
+  • CV Accuracy: 0.9085 ± 0.0032
+[17:05:26] 
+BASE Layer 24
+  • Accuracy: 0.9604
+  • Precision: 0.9607
+  • Recall: 0.9604
+  • F1: 0.9604
+  • CV Accuracy: 0.9604 ± 0.0023
+[17:06:12] 
+BASE Layer 28
+  • Accuracy: 0.9637
+  • Precision: 0.9640
+  • Recall: 0.9637
+  • F1: 0.9637
+  • CV Accuracy: 0.9624 ± 0.0011
+[17:06:59] 
+INSTRUCT Layer 8
+  • Accuracy: 0.9428
+  • Precision: 0.9430
+  • Recall: 0.9428
+  • F1: 0.9428
+  • CV Accuracy: 0.9434 ± 0.0025
+[17:07:44] 
+INSTRUCT Layer 16
+  • Accuracy: 0.9060
+  • Precision: 0.9062
+  • Recall: 0.9060
+  • F1: 0.9058
+  • CV Accuracy: 0.9092 ± 0.0045
+[17:08:37] 
+INSTRUCT Layer 24
+  • Accuracy: 0.9613
+  • Precision: 0.9616
+  • Recall: 0.9613
+  • F1: 0.9614
+  • CV Accuracy: 0.9618 ± 0.0021
+[17:09:20] 
+INSTRUCT Layer 28
+  • Accuracy: 0.9664
+  • Precision: 0.9667
+  • Recall: 0.9664
+  • F1: 0.9664
+  • CV Accuracy: 0.9635 ± 0.0014
+
+================================================================================
+PROBE 4: CROSS-MODEL TRANSFER (CRITICAL TEST)
+================================================================================
+[17:10:03] 
+Layer 8: Train on Base → Test on Instruct
+[17:10:03] 
+  Attribute Transfer:
+  •   Base → Base: 0.8067
+  •   Base → Instruct: 0.7985
+  •   Transfer Rate: 0.9898 (-1.02%)
+[17:10:54] 
+  Correctness Transfer (Base):
+  •   Base → Base: 0.6294
+  •   Base → Instruct: 0.5793
+  •   Transfer Rate: 0.9204
+[17:11:10] 
+  State Transfer:
+  •   Base → Base: 0.9394
+  •   Base → Instruct: 0.9383
+  •   Transfer Rate: 0.9989
+[17:11:17] 
+Layer 16: Train on Base → Test on Instruct
+[17:11:17] 
+  Attribute Transfer:
+  •   Base → Base: 0.7926
+  •   Base → Instruct: 0.7626
+  •   Transfer Rate: 0.9621 (-3.79%)
+[17:12:12] 
+  Correctness Transfer (Base):
+  •   Base → Base: 0.6240
+  •   Base → Instruct: 0.6453
+  •   Transfer Rate: 1.0340
+[17:12:31] 
+  State Transfer:
+  •   Base → Base: 0.9043
+  •   Base → Instruct: 0.8933
+  •   Transfer Rate: 0.9879
+[17:12:39] 
+Layer 24: Train on Base → Test on Instruct
+[17:12:39] 
+  Attribute Transfer:
+  •   Base → Base: 0.8409
+  •   Base → Instruct: 0.8124
+  •   Transfer Rate: 0.9661 (-3.39%)
+[17:13:28] 
+  Correctness Transfer (Base):
+  •   Base → Base: 0.6252
+  •   Base → Instruct: 0.6053
+  •   Transfer Rate: 0.9681
+[17:13:51] 
+  State Transfer:
+  •   Base → Base: 0.9604
+  •   Base → Instruct: 0.9616
+  •   Transfer Rate: 1.0012
+[17:13:59] 
+Layer 28: Train on Base → Test on Instruct
+[17:13:59] 
+  Attribute Transfer:
+  •   Base → Base: 0.8350
+  •   Base → Instruct: 0.8122
+  •   Transfer Rate: 0.9727 (-2.73%)
+[17:14:57] 
+  Correctness Transfer (Base):
+  •   Base → Base: 0.6224
+  •   Base → Instruct: 0.6447
+  •   Transfer Rate: 1.0359
+[17:15:20] 
+  State Transfer:
+  •   Base → Base: 0.9637
+  •   Base → Instruct: 0.9605
+  •   Transfer Rate: 0.9967
+
+================================================================================
+PROBE 5: MULTI-TASK JOINT PROBING
+================================================================================
+[17:15:27] 
+BASE Layer 8
+[17:15:27]   Strategy 1: Independent Probes
+  •     Attribute: 0.8067
+  •     Correctness: 0.6294
+  •     State: 0.9394
+  •     Average: 0.7918
+[17:16:38]   Strategy 2: Joint Multi-Task
+  •     Attribute: 0.8067
+  •     Correctness: 0.6294
+  •     State: 0.9394
+  •     Average: 0.7918
+[17:17:00]   Comparison:
+  •     Attribute Δ: +0.0000
+  •     Correctness Δ: +0.0000
+  •     State Δ: +0.0000
+[17:17:00] 
+BASE Layer 16
+[17:17:01]   Strategy 1: Independent Probes
+  •     Attribute: 0.7926
+  •     Correctness: 0.6240
+  •     State: 0.9043
+  •     Average: 0.7737
+[17:18:25]   Strategy 2: Joint Multi-Task
+  •     Attribute: 0.7924
+  •     Correctness: 0.6234
+  •     State: 0.9043
+  •     Average: 0.7734
+[17:18:50]   Comparison:
+  •     Attribute Δ: -0.0002
+  •     Correctness Δ: -0.0006
+  •     State Δ: +0.0000
+[17:18:50] 
+BASE Layer 24
+[17:18:51]   Strategy 1: Independent Probes
+  •     Attribute: 0.8409
+  •     Correctness: 0.6252
+  •     State: 0.9604
+  •     Average: 0.8089
+[17:20:11]   Strategy 2: Joint Multi-Task
+  •     Attribute: 0.8408
+  •     Correctness: 0.6241
+  •     State: 0.9604
+  •     Average: 0.8085
+[17:20:33]   Comparison:
+  •     Attribute Δ: -0.0001
+  •     Correctness Δ: -0.0011
+  •     State Δ: +0.0000
+[17:20:33] 
+BASE Layer 28
+[17:20:34]   Strategy 1: Independent Probes
+  •     Attribute: 0.8350
+  •     Correctness: 0.6224
+  •     State: 0.9637
+  •     Average: 0.8070
+[17:22:01]   Strategy 2: Joint Multi-Task
+  •     Attribute: 0.8361
+  •     Correctness: 0.6221
+  •     State: 0.9637
+  •     Average: 0.8073
+[17:22:24]   Comparison:
+  •     Attribute Δ: +0.0011
+  •     Correctness Δ: -0.0002
+  •     State Δ: +0.0000
+[17:22:24] 
+INSTRUCT Layer 8
+[17:22:24]   Strategy 1: Independent Probes
+  •     Attribute: 0.8046
+  •     Correctness: 0.6184
+  •     State: 0.9428
+  •     Average: 0.7886
+[17:23:32]   Strategy 2: Joint Multi-Task
+  •     Attribute: 0.8055
+  •     Correctness: 0.6200
+  •     State: 0.9428
+  •     Average: 0.7894
+[17:23:53]   Comparison:
+  •     Attribute Δ: +0.0010
+  •     Correctness Δ: +0.0016
+  •     State Δ: +0.0000
+[17:23:53] 
+INSTRUCT Layer 16
+[17:23:54]   Strategy 1: Independent Probes
+  •     Attribute: 0.7901
+  •     Correctness: 0.6227
+  •     State: 0.9060
+  •     Average: 0.7729
+[17:25:14]   Strategy 2: Joint Multi-Task
+  •     Attribute: 0.7898
+  •     Correctness: 0.6228
+  •     State: 0.9060
+  •     Average: 0.7729
+[17:25:36]   Comparison:
+  •     Attribute Δ: -0.0004
+  •     Correctness Δ: +0.0001
+  •     State Δ: +0.0000
+[17:25:36] 
+INSTRUCT Layer 24
+[17:25:36]   Strategy 1: Independent Probes
+  •     Attribute: 0.8328
+  •     Correctness: 0.6232
+  •     State: 0.9613
+  •     Average: 0.8058
+[17:26:58]   Strategy 2: Joint Multi-Task
+  •     Attribute: 0.8347
+  •     Correctness: 0.6224
+  •     State: 0.9613
+  •     Average: 0.8061
+[17:27:20]   Comparison:
+  •     Attribute Δ: +0.0019
+  •     Correctness Δ: -0.0008
+  •     State Δ: +0.0000
+[17:27:20] 
+INSTRUCT Layer 28
+[17:27:20]   Strategy 1: Independent Probes
+  •     Attribute: 0.8369
+  •     Correctness: 0.6140
+  •     State: 0.9664
+  •     Average: 0.8058
+[17:28:54]   Strategy 2: Joint Multi-Task
+  •     Attribute: 0.8373
+  •     Correctness: 0.6150
+  •     State: 0.9664
+  •     Average: 0.8062
+[17:29:20]   Comparison:
+  •     Attribute Δ: +0.0004
+  •     Correctness Δ: +0.0010
+  •     State Δ: +0.0000
+
+================================================================================
+GROUP-WISE ANALYSIS
+================================================================================
+[17:29:20] 
+BASE Layer 8
+  •   suppression: Attr: 0.8006, Corr: 0.5741
+  •   enhancement: Attr: 0.8106, Corr: 0.6121
+  •   control: Attr: 0.8095, Corr: 0.7196
+[17:30:30] 
+BASE Layer 16
+  •   suppression: Attr: 0.7905, Corr: 0.5744
+  •   enhancement: Attr: 0.7918, Corr: 0.6104
+  •   control: Attr: 0.7962, Corr: 0.7026
+[17:31:46] 
+BASE Layer 24
+  •   suppression: Attr: 0.8361, Corr: 0.5717
+  •   enhancement: Attr: 0.8450, Corr: 0.6108
+  •   control: Attr: 0.8419, Corr: 0.7097
+[17:33:01] 
+BASE Layer 28
+  •   suppression: Attr: 0.8311, Corr: 0.5710
+  •   enhancement: Attr: 0.8356, Corr: 0.6044
+  •   control: Attr: 0.8390, Corr: 0.7084
+[17:34:26] 
+INSTRUCT Layer 8
+  •   suppression: Attr: 0.8003, Corr: 0.5972
+  •   enhancement: Attr: 0.8055, Corr: 0.5683
+  •   control: Attr: 0.8087, Corr: 0.7072
+[17:35:30] 
+INSTRUCT Layer 16
+  •   suppression: Attr: 0.7899, Corr: 0.6082
+  •   enhancement: Attr: 0.7918, Corr: 0.5680
+  •   control: Attr: 0.7883, Corr: 0.7088
+[17:36:45] 
+INSTRUCT Layer 24
+  •   suppression: Attr: 0.8271, Corr: 0.5962
+  •   enhancement: Attr: 0.8376, Corr: 0.5720
+  •   control: Attr: 0.8340, Corr: 0.7205
+[17:38:02] 
+INSTRUCT Layer 28
+  •   suppression: Attr: 0.8324, Corr: 0.5888
+  •   enhancement: Attr: 0.8370, Corr: 0.5563
+  •   control: Attr: 0.8423, Corr: 0.7171
+
+================================================================================
+CREATING VISUALIZATIONS
+================================================================================
+[17:39:23] ✓ Saved probe accuracies plot
+[17:39:23] ✓ Saved cross-model transfer plot
+[17:39:25] ✓ Saved group-wise performance plot
+[17:39:25] ✓ Saved transfer rate heatmap
+
+================================================================================
+GENERATING SUMMARY REPORT
+================================================================================
+[17:39:25] ✓ Summary report saved
+[17:39:25] ✓ Label encoders saved
+
+================================================================================
+PIPELINE COMPLETE
+================================================================================
+[17:39:25] End time: 2025-11-19 17:39:25
+[17:39:25] Total duration: 96.4 minutes
+[17:39:25] 
+All outputs saved to:
+[17:39:25]   /home/anshulk/cultural-alignment-study/outputs/linear_probing
