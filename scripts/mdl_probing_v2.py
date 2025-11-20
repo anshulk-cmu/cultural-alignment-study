@@ -48,7 +48,7 @@ class Config:
     OUTPUT_DIR = Path("/home/anshulk/cultural-alignment-study/outputs/mdl_probing")
     
     MODELS = ['base', 'instruct']
-    LAYERS = [8, 16, 24]
+    LAYERS = [8, 16, 24, 28]
     INPUT_DIM = 1536
     HIDDEN_DIM = 512
     
