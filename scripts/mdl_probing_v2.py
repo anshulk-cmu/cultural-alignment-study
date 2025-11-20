@@ -189,9 +189,22 @@ class UniversalProbe(nn.Module):
     
     def compute_loss(self, logits_dict, targets_dict):
         """Compute data cost (negative log-likelihood) and model cost (regularization)"""
+
+        # Task-specific loss weights to balance gradient contributions
+        task_weights = {
+            'attribute': 1.0,      # 16 classes
+            'state': 2.25,         # 36 classes (36/16 = 2.25)
+            'correctness_base': 0.125,   # 2 classes (2/16 = 0.125)
+            'correctness_instruct': 0.125  # 2 classes
+        }
+
         data_cost = 0
         for task, logits in logits_dict.items():
-            data_cost += nn.functional.cross_entropy(logits, targets_dict[task], reduction='sum')
+            task_loss = nn.functional.cross_entropy(logits, targets_dict[task], reduction='sum')
+
+            # Apply weight based on task complexity (proportional to num_classes)
+            weight = task_weights.get(task, 1.0)
+            data_cost += weight * task_loss
         
         model_cost = torch.tensor(0.0, device=data_cost.device)
         

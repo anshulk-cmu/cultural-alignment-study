@@ -150,6 +150,93 @@ Cosine similarity between base and instruct model activations (per-sentence, lay
 
 **Mechanistic Interpretation**: The 96-100% cross-model transfer rates with weak correctness encoding (62%) prove RLHF operates via **policy-layer blocking mechanisms**, not representational erasure. Knowledge exists internally but is gated at output layers—textbook decision-boundary suppression.
 
+### 7. MDL Probing Analysis (`mdl_probing_v2.py`)
+
+**Status**: 🔄 In Progress
+
+**Method**: Information-theoretic analysis using Minimum Description Length (MDL) principle to measure compression efficiency and model complexity across representations.
+
+**Experiments**:
+
+**Online Prequential Coding**:
+- Sequential prediction with adaptive model updates
+- Measures data efficiency across learning trajectory
+- Tracks cumulative bits per sample as model observes more data
+- Tests: Single-task probes for attribute, state, and correctness
+
+**Variational MDL with Multiple Priors**:
+- **L0 Prior**: Concrete dropout for automatic feature selection and sparsity measurement
+- **L1 Prior**: Lasso-style regularization for soft sparsity
+- **L2 Prior**: Ridge regularization for baseline complexity
+- Decomposes total MDL = Data Cost (NLL) + Model Cost (Regularization)
+- Measures Fisher Information Matrix for decision boundary sharpness
+
+**Triple-Task Entanglement Test** (Critical Innovation):
+- Simultaneous probing of State (36-class) + Attribute (16-class) + Correctness (2-class)
+- **Balanced loss weights**: Attribute=1.0, State=2.25, Correctness=0.125 (proportional to task complexity)
+- Tests whether models maintain unified representations despite behavioral suppression
+- Compression ratio = Triple-task MDL / Sum(Single-task MDLs)
+- **Hypothesis**: Low joint compression with high semantic accuracy but low correctness accuracy → policy-layer masking
+
+**Cross-Model Isomorphism Test**:
+- Train probe on Base activations, evaluate on Instruct activations
+- Measure MDL drift for suppression group
+- Complementary to linear probing transfer rates
+
+**Group-Stratified Analysis**:
+- Separate MDL measurements for suppression/enhancement/control groups
+- Tests if suppression affects compression efficiency differently
+
+**Expected Insights**:
+- Sparsity patterns reveal which features are critical vs. redundant
+- Fisher information quantifies decision boundary sharpness
+- Triple-task compression tests unified vs. fragmented representations
+- MDL drift confirms or refutes representational isomorphism from linear probing
+
+### 8. Causal Intervention Analysis (`causal_intervention_v1.py`)
+
+**Status**: 🔄 Planned
+
+**Method**: Layer-wise activation patching to causally identify where suppression occurs in the forward pass.
+
+**Intervention Protocol**:
+- Replace Instruct model activations with Base model activations at specific layers
+- Measure answer entity probability in top-k predictions (k=10)
+- Recovery rate = (Intervention accuracy - Instruct baseline) / (Base baseline - Instruct baseline)
+- Dual-GPU parallel processing for efficiency
+
+**Multi-Level Analysis**:
+
+**Group-Level Recovery**:
+- Suppression group: Test if Base activations restore suppressed answers
+- Enhancement group: Test if Base activations reduce enhanced performance
+- Control group: Verify minimal intervention effects
+
+**Attribute-Level Localization**:
+- 16 cultural attributes analyzed separately
+- Identify which attributes are most sensitive to intervention
+- Heatmap visualization across layers
+
+**State-Level Granularity**:
+- 36 states analyzed for geographic patterns
+- Rank states by suppression strength and recovery rates
+
+**Combined Analysis**:
+- Fine-grained State × Attribute × Group interactions
+- Identify top-20 combinations with strongest suppression
+- Test if recovery varies by specific cultural domain
+
+**Expected Results**:
+- **Early layers (8, 16)**: Low recovery → semantic encoding still shared
+- **Middle layers (24)**: Moderate recovery → divergence begins
+- **Late layers (28)**: High recovery → causal locus of suppression
+- Confirms temporal dynamics of when/where suppression emerges
+
+**Complementarity with Probing**:
+- Linear probing shows *what* information exists (high transfer rates)
+- MDL probing shows *how efficiently* it's encoded (compression ratios)
+- Causal intervention shows *where* it's blocked (recovery by layer)
+
 ## Repository Structure
 
 ```
@@ -160,29 +247,75 @@ cultural-alignment-study/
 │   ├── generate_sentences_sanskriti.py    # Claude-based sentence generation
 │   ├── extract_activations.py             # Hidden state extraction
 │   ├── eda_12k.py                         # Exploratory data analysis
-│   └── linear_probing_v2.py               # Linear probing experiments (ongoing)
+│   ├── linear_probing_v2.py               # Linear probing experiments
+│   ├── mdl_probing_v2.py                  # MDL information-theoretic analysis
+│   └── causal_intervention_v1.py          # Layer-wise activation patching
 ├── outputs/
 │   ├── sanskriti_test_knowledge/          # Initial evaluation results
 │   ├── eda_results/                       # EDA plots and reports
 │   │   ├── plots/                         # Visualization outputs
 │   │   ├── reports/                       # JSON analysis reports
 │   │   └── SUMMARY_REPORT.txt            # Executive summary
-│   └── linear_probing/                    # Probing results (in progress)
+│   ├── linear_probing/                    # Linear probing results
+│   │   ├── plots/                         # Accuracy curves, transfer rates
+│   │   ├── results/                       # JSON metrics files
+│   │   └── SUMMARY_REPORT.txt            # Probing analysis summary
+│   ├── mdl_probing/                       # MDL analysis outputs
+│   │   ├── data/                          # Online coding, variational MDL data
+│   │   ├── plots/                         # Compression curves, Fisher info
+│   │   └── logs/                          # Execution logs
+│   └── causal_intervention/               # Intervention experiment results
+│       ├── data/                          # Recovery rates by group/attr/state
+│       ├── plots/                         # Layer-wise recovery visualizations
+│       └── logs/                          # Intervention logs
 └── README.md
 ```
 
 ## Key Findings
 
-1. **Behavioral Divergence**: RLHF instruction-tuning creates massive behavioral differences (42.30% suppression, 35.25% enhancement)
+### Tripartite Evidence for Policy-Layer Suppression
 
-2. **Representational Preservation**: Despite behavioral divergence, internal representations remain 99.7-99.9% similar across all layers
+This study employs three complementary mechanistic interpretability techniques to triangulate how RLHF suppresses cultural knowledge:
 
-3. **Linear Probing Evidence**: Cross-model transfer rates of 96-100% prove representational isomorphism—probes trained on base model work almost perfectly on instruct model despite behavioral suppression
+**1. Linear Probing (What Information Persists)**
+- **Semantic preservation**: 80-96% accuracy on attribute/state classification despite 42% behavioral suppression
+- **Cross-model transfer**: 96-100% transfer rates prove representational isomorphism between Base and Instruct models
+- **Weak correctness encoding**: 62% accuracy (barely above chance) shows decision information is not strongly represented
+- **Interpretation**: Knowledge exists internally but behavioral decisions are weakly encoded in hidden states
 
-4. **Decision-Boundary Suppression**: Weak correctness encoding (62%) combined with strong semantic encoding (80-96%) and near-perfect transfer rates demonstrate RLHF operates via policy-layer blocking mechanisms, not representational erasure
+**2. MDL Probing (How Efficiently Information Is Encoded)** 🔄
+- **Triple-task entanglement**: Tests State + Attribute + Correctness simultaneously with balanced loss weights (2.25:1.0:0.125)
+- **Expected pattern**: Low compression ratio with high semantic accuracy but low correctness accuracy
+- **Sparsity analysis**: L0 regularization reveals which features are critical vs. redundant
+- **Fisher information**: Quantifies decision boundary sharpness differences between models
+- **Interpretation**: Compression efficiency validates unified semantic representations despite behavioral gating
+
+**3. Causal Intervention (Where Suppression Occurs)** 🔄
+- **Activation patching**: Replace Instruct activations with Base activations layer-by-layer
+- **Expected recovery pattern**: Low at layers 8-16 (shared semantics), high at layer 28 (decision divergence)
+- **Multi-level localization**: Group/attribute/state-specific recovery rates identify granular suppression patterns
+- **Interpretation**: Causal evidence for when/where representations diverge in forward pass
+
+### Convergent Mechanistic Conclusion
+
+**RLHF operates via late-stage policy-layer masking, not representational erasure:**
+- Behavioral divergence: 42.30% suppression, 35.25% enhancement
+- Representational similarity: 99.7-99.9% across all layers (cosine similarity)
+- Information preservation: 96-100% cross-model transfer rates
+- Decision-layer blocking: Weak correctness encoding (62%) despite strong semantic encoding (80-96%)
+
+This pattern is inconsistent with information erasure (which would show low transfer rates and representational drift) but consistent with output gating mechanisms that preserve internal knowledge while blocking downstream decisions.
+
+## Current Status
+
+- ✅ **Complete**: Dataset construction, activation extraction, EDA, linear probing
+- 🔄 **In Progress**: MDL probing (running with balanced triple-task loss weights)
+- 🔄 **Planned**: Causal intervention experiments
 
 ## Disclaimer
 
-This is a work in progress. Linear probing experiments are complete. MDL probing experiments are currently running. For detailed results, methodology questions, or collaboration inquiries, please contact Anshul Kumar at anshulk@andrew.cmu.edu.
+This is ongoing research. Linear probing experiments are complete and confirm representational isomorphism (98.6% average transfer rate). MDL probing experiments are currently running with task-proportional loss weighting for multi-task analysis. Causal intervention experiments are planned to complete the tripartite evidence architecture.
 
-Citations and full technical report will be added upon completion of all analyses.
+For detailed results, methodology questions, or collaboration inquiries, please contact Anshul Kumar at anshulk@andrew.cmu.edu.
+
+Full technical report and citations will be added upon completion of all analyses.

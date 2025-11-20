@@ -1,0 +1,28 @@
+[19:57:23] Device: cuda
+[19:57:23] GPU: NVIDIA RTX A6000
+[19:57:23] GPU Memory: 50.90 GB
+[19:57:23] ================================================================================
+[19:57:23] STARTING MDL PROBING 
+[19:57:23] ================================================================================
+[19:57:23] 
+============================================================
+[19:57:23] PROCESSING LAYER 8
+[19:57:23] ============================================================
+[19:57:23] Loading Layer 8 data...
+[19:57:23]   base: (33522, 1536)
+[19:57:23]   instruct: (33522, 1536)
+[19:57:23] 
+  Processing Group: all
+[19:57:23]     base - attribute
+[19:59:14]     base - state
+[20:01:01]     base - correctness_base
+[20:01:55]     base - multitask_dual
+[20:03:14]     base - multitask_triple_base
+[20:04:54]     instruct - attribute
+[20:06:42]     instruct - state
+[20:08:29]     instruct - correctness_instruct
+[20:09:22]     instruct - multitask_dual
+[20:10:41]     instruct - multitask_triple_instruct
+[20:12:20] 
+  Processing Group: suppression
+[20:12:20]     base - attribute
