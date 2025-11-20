@@ -53,10 +53,22 @@ class Config:
     INSTRUCT_MODEL = "/data/user_data/anshulk/cultural-alignment-study/qwen_models/Qwen2-1.5B-Instruct"
 
     # Experimental setup
-    LAYERS = [8, 16, 24, 28]
+    LAYERS = [8, 16, 24, 28]  # Layer labels (matches activation file names)
     BATCH_SIZE = 512
     MAX_SEQ_LENGTH = 256
-    TOP_K = 10  # Check if answer appears in top-10 predictions
+    TOP_K = 20  # Check if answer appears in top-20 predictions
+
+    @staticmethod
+    def get_layer_module_index(layer_label):
+        """
+        Convert layer label to actual model layer module index.
+        Layer 28 (final layer output) maps to module index 27 (0-indexed).
+        """
+        # The model has 28 layers indexed 0-27
+        # Layer label 28 refers to output from the last layer (index 27)
+        if layer_label == 28:
+            return 27
+        return layer_label
 
     # GPU configuration
     GPU_0 = 0
@@ -165,14 +177,29 @@ class ActivationPatchingHook:
 
     def __call__(self, module, input, output):
         """Replace activations during forward pass"""
-        hidden_states = output[0]
-        batch_size = hidden_states.size(0)
+        # Handle both tuple and tensor outputs
+        if isinstance(output, tuple):
+            hidden_states = output[0]
+        else:
+            hidden_states = output
 
+        batch_size = hidden_states.size(0)
+        seq_len = hidden_states.size(1)
+
+        # Get mean-pooled replacements: shape (batch_size, hidden_size)
         batch_replacements = self.replacement_activations[
             self.current_batch_idx:self.current_batch_idx + batch_size
         ]
 
-        return (batch_replacements.to(hidden_states.dtype), ) + output[1:]
+        # Broadcast to match sequence length: (batch_size, hidden_size) -> (batch_size, seq_len, hidden_size)
+        # Expand dimension 1 and repeat across sequence length
+        batch_replacements = batch_replacements.unsqueeze(1).expand(-1, seq_len, -1)
+
+        # Return in the same format as input
+        if isinstance(output, tuple):
+            return (batch_replacements.to(hidden_states.dtype),) + output[1:]
+        else:
+            return batch_replacements.to(hidden_states.dtype)
 
     def update_batch_idx(self, idx):
         self.current_batch_idx = idx
@@ -211,7 +238,9 @@ class InterventionModel:
         """Attach intervention hook to specified layer"""
         self.hook = ActivationPatchingHook(layer_idx, replacement_acts, self.device)
 
-        target_layer = self.model.model.layers[layer_idx]
+        # Convert layer label to actual module index (layer 28 -> index 27)
+        module_idx = Config.get_layer_module_index(layer_idx)
+        target_layer = self.model.model.layers[module_idx]
         self.hook.hook_handle = target_layer.register_forward_hook(self.hook)
 
     def remove_intervention(self):
@@ -377,6 +406,26 @@ def run_intervention_for_layer(layer_idx, df, gpu_id, split_range=None):
     return results
 
 
+# ==============================================================================
+# PARALLEL GPU WORKER
+# ==============================================================================
+
+def _gpu_worker(gpu_id, layer_idx, df, split_range, queue):
+    """
+    Worker function for parallel GPU processing
+    Must be at module level for multiprocessing pickle compatibility
+
+    Args:
+        gpu_id: GPU device ID
+        layer_idx: Layer to intervene at
+        df: Full dataframe
+        split_range: (start_idx, end_idx) tuple
+        queue: Multiprocessing queue for results
+    """
+    results = run_intervention_for_layer(layer_idx, df, gpu_id, split_range)
+    queue.put(results)
+
+
 def run_parallel_intervention(layer_idx, df):
     """
     Run intervention on 2 GPUs in parallel
@@ -399,12 +448,8 @@ def run_parallel_intervention(layer_idx, df):
     queue_0 = ctx.Queue()
     queue_1 = ctx.Queue()
 
-    def gpu_worker(gpu_id, split_range, queue):
-        results = run_intervention_for_layer(layer_idx, df, gpu_id, split_range)
-        queue.put(results)
-
-    process_0 = ctx.Process(target=gpu_worker, args=(Config.GPU_0, (0, split_point), queue_0))
-    process_1 = ctx.Process(target=gpu_worker, args=(Config.GPU_1, (split_point, total_size), queue_1))
+    process_0 = ctx.Process(target=_gpu_worker, args=(Config.GPU_0, layer_idx, df, (0, split_point), queue_0))
+    process_1 = ctx.Process(target=_gpu_worker, args=(Config.GPU_1, layer_idx, df, (split_point, total_size), queue_1))
 
     process_0.start()
     process_1.start()
