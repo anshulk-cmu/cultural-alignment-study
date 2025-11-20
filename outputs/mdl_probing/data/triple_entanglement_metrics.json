@@ -1,51 +1,51 @@
 {
   "base": {
-    "compression_ratio": 6.045872630501179,
-    "triple_mdl": 4312955.4560546875,
-    "single_sum_mdl": 713371.8686523438,
+    "compression_ratio": 5.512761792972264,
+    "triple_mdl": 4515115.763671875,
+    "single_sum_mdl": 819029.7228927612,
     "acc_attribute": 0.10032217648111688,
     "acc_state": 0.04322534454984786,
     "acc_correctness": 0.6635045641668158,
     "suppression_analysis": {
-      "triple_mdl": 5397694.062011719,
+      "triple_mdl": 5444106.721191406,
       "acc_attribute": 0.09904474610356963,
       "acc_state": 0.049773755656108594,
       "acc_correctness": 0.799396681749623,
-      "data_cost": 91476.68701171875,
-      "model_cost": 5306217.375
+      "data_cost": 139974.72119140625,
+      "model_cost": 5304132.0
     },
     "enhancement_analysis": {
-      "triple_mdl": 5403271.484863281,
+      "triple_mdl": 5447492.484375,
       "acc_attribute": 0.1037593984962406,
       "acc_state": 0.06791979949874687,
       "acc_correctness": 0.5847117794486215
     }
   },
   "instruct": {
-    "compression_ratio": 6.023075686659207,
-    "triple_mdl": 4313337.303222656,
-    "single_sum_mdl": 716135.331451416,
+    "compression_ratio": 5.494682408981631,
+    "triple_mdl": 4513317.802734375,
+    "single_sum_mdl": 821397.3923873901,
     "acc_attribute": 0.10032217648111688,
     "acc_state": 0.04322534454984786,
     "acc_correctness": 0.638356899946304,
     "suppression_analysis": {
-      "triple_mdl": 5400160.384277344,
+      "triple_mdl": 5444082.345214844,
       "acc_attribute": 0.09904474610356963,
       "acc_state": 0.049773755656108594,
       "acc_correctness": 0.6251885369532428,
-      "data_cost": 94437.63427734375,
-      "model_cost": 5305722.75
+      "data_cost": 140021.22021484375,
+      "model_cost": 5304061.125
     },
     "enhancement_analysis": {
-      "triple_mdl": 5400424.232910156,
+      "triple_mdl": 5447157.8984375,
       "acc_attribute": 0.1037593984962406,
       "acc_state": 0.06791979949874687,
       "acc_correctness": 0.7679197994987469
     }
   },
   "comparison": {
-    "compression_ratio_diff": -0.022796943841972173,
-    "suppression_mdl_diff": 2466.322265625,
+    "compression_ratio_diff": -0.018079383990633247,
+    "suppression_mdl_diff": -24.3759765625,
     "suppression_correctness_diff": -0.17420814479638014,
     "policy_mask_indicator": false
   }
