@@ -289,6 +289,263 @@ def compute_kl_for_subset(base_acts, instruct_acts, name=""):
         return None
 
 # ==============================================================================
+# HIERARCHICAL AGGREGATION FOR LOW-COUNT SLICES
+# ==============================================================================
+
+# Geographic regions for state aggregation
+REGION_MAPPING = {
+    # South
+    'Tamil_Nadu': 'South', 'Karnataka': 'South', 'Kerala': 'South',
+    'Andhra_Pradesh': 'South', 'Telangana': 'South', 'Puducherry': 'South',
+    # North
+    'Delhi': 'North', 'Uttar_Pradesh': 'North', 'Uttarakhand': 'North',
+    'Haryana': 'North', 'Punjab': 'North', 'Himachal_Pradesh': 'North',
+    'Jammu_and_Kashmir': 'North', 'Ladakh': 'North', 'Chandigarh': 'North',
+    # East
+    'West_Bengal': 'East', 'Odisha': 'East', 'Bihar': 'East',
+    'Jharkhand': 'East',
+    # West
+    'Maharashtra': 'West', 'Gujarat': 'West', 'Goa': 'West',
+    'Rajasthan': 'West', 'Madhya_Pradesh': 'West', 'Chhattisgarh': 'West',
+    'Dadra_and_Nagar_Haveli': 'West', 'Daman_and_Diu': 'West',
+    # Northeast
+    'Assam': 'Northeast', 'Meghalaya': 'Northeast', 'Manipur': 'Northeast',
+    'Mizoram': 'Northeast', 'Tripura': 'Northeast', 'Nagaland': 'Northeast',
+    'Arunachal_Pradesh': 'Northeast', 'Sikkim': 'Northeast',
+    # Island
+    'Andaman_and_Nicobar': 'Island', 'Lakshadweep': 'Island'
+}
+
+# Attribute categories for semantic aggregation
+ATTRIBUTE_CATEGORY_MAPPING = {
+    # Cultural Practice
+    'Dance_and_Music': 'Cultural_Practice', 'Art_and_Craft': 'Cultural_Practice',
+    'Festivals': 'Cultural_Practice', 'Rituals_and_Ceremonies': 'Cultural_Practice',
+    # Identity
+    'Religion': 'Identity', 'Language': 'Identity', 'Costume': 'Identity',
+    'Folklore': 'Identity',
+    # Lifestyle
+    'Cuisine': 'Lifestyle', 'Sports': 'Lifestyle', 'Nightlife': 'Lifestyle',
+    'Entertainment': 'Lifestyle',
+    # Infrastructure
+    'Architecture': 'Infrastructure', 'Transport': 'Infrastructure',
+    'Medicine': 'Infrastructure', 'Economy': 'Infrastructure'
+}
+
+# Minimum samples for different analysis tiers
+MIN_SAMPLES_TIER1 = 10   # Individual slice analysis
+MIN_SAMPLES_TIER2 = 30   # Aggregated region/category analysis
+MIN_SAMPLES_TIER3 = 50   # Interaction analysis (region × category)
+
+
+def get_region(state):
+    """Map state to geographic region"""
+    return REGION_MAPPING.get(state, 'Other')
+
+
+def get_attribute_category(attribute):
+    """Map attribute to semantic category"""
+    return ATTRIBUTE_CATEGORY_MAPPING.get(attribute, 'Other')
+
+
+def analyze_with_hierarchical_fallback(df, activations, slice_col, slice_values, layer,
+                                       fallback_mapping=None, fallback_col_name=None,
+                                       min_samples=MIN_SAMPLES_TIER1):
+    """
+    Analyze KL divergence with hierarchical fallback for low-count slices.
+
+    If individual slices have < min_samples, aggregate them using fallback_mapping
+    and report at the aggregated level instead.
+
+    Returns:
+        results: list of dicts with KL results
+        skipped_individual: list of slices that were aggregated
+        aggregated_results: list of dicts with aggregated KL results
+    """
+    results = []
+    skipped_individual = []
+    aggregated_results = []
+
+    # Track which slices need aggregation
+    low_count_slices = {}
+
+    for slice_val in slice_values:
+        slice_mask = df[slice_col] == slice_val
+        slice_indices = np.where(slice_mask)[0]
+        n_samples = len(slice_indices)
+
+        if n_samples >= min_samples:
+            # Sufficient samples - analyze directly
+            base_acts = activations['base'][layer][slice_indices]
+            instruct_acts = activations['instruct'][layer][slice_indices]
+
+            kl_result = compute_kl_for_subset(base_acts, instruct_acts,
+                                              f"{slice_col}={slice_val} - Layer {layer}")
+            if kl_result:
+                results.append({
+                    slice_col: slice_val,
+                    'layer': layer,
+                    'analysis_level': 'individual',
+                    'n_samples': n_samples,
+                    **kl_result
+                })
+        else:
+            # Track for aggregation
+            skipped_individual.append({
+                slice_col: slice_val,
+                'n_samples': n_samples,
+                'layer': layer
+            })
+
+            if fallback_mapping is not None:
+                agg_key = fallback_mapping.get(slice_val, 'Other')
+                if agg_key not in low_count_slices:
+                    low_count_slices[agg_key] = []
+                low_count_slices[agg_key].extend(slice_indices.tolist())
+
+    # Perform aggregated analysis for low-count slices
+    if fallback_mapping is not None and low_count_slices:
+        for agg_key, indices in low_count_slices.items():
+            indices = np.array(indices)
+            n_samples = len(indices)
+
+            if n_samples >= MIN_SAMPLES_TIER2:
+                base_acts = activations['base'][layer][indices]
+                instruct_acts = activations['instruct'][layer][indices]
+
+                kl_result = compute_kl_for_subset(base_acts, instruct_acts,
+                                                  f"{fallback_col_name}={agg_key} - Layer {layer}")
+                if kl_result:
+                    aggregated_results.append({
+                        fallback_col_name: agg_key,
+                        'layer': layer,
+                        'analysis_level': 'aggregated',
+                        'n_samples': n_samples,
+                        'aggregated_from': [s[slice_col] for s in skipped_individual
+                                           if fallback_mapping.get(s[slice_col]) == agg_key],
+                        **kl_result
+                    })
+
+    return results, skipped_individual, aggregated_results
+
+
+def analyze_interaction_slices(df, activations, layer,
+                               min_samples=MIN_SAMPLES_TIER3):
+    """
+    Analyze State × Attribute interactions with hierarchical fallback.
+
+    Tier 1: Individual state × attribute (if n >= 50)
+    Tier 2: Region × attribute (if tier 1 fails)
+    Tier 3: Region × attribute_category (if tier 2 fails)
+    """
+    results = []
+
+    states = df['state'].unique()
+    attributes = df['attribute'].unique()
+
+    # Add region and category columns if not present
+    if 'region' not in df.columns:
+        df = df.copy()
+        df['region'] = df['state'].apply(get_region)
+    if 'attribute_category' not in df.columns:
+        df = df.copy()
+        df['attribute_category'] = df['attribute'].apply(get_attribute_category)
+
+    # Tier 1: Individual interactions (state × attribute)
+    tier1_analyzed = set()
+    for state in states:
+        for attr in attributes:
+            mask = (df['state'] == state) & (df['attribute'] == attr)
+            indices = np.where(mask)[0]
+
+            if len(indices) >= min_samples:
+                base_acts = activations['base'][layer][indices]
+                instruct_acts = activations['instruct'][layer][indices]
+
+                kl_result = compute_kl_for_subset(
+                    base_acts, instruct_acts,
+                    f"{state}×{attr} - Layer {layer}"
+                )
+                if kl_result:
+                    results.append({
+                        'state': state,
+                        'attribute': attr,
+                        'region': get_region(state),
+                        'attribute_category': get_attribute_category(attr),
+                        'layer': layer,
+                        'analysis_tier': 'tier1_individual',
+                        'n_samples': len(indices),
+                        **kl_result
+                    })
+                    tier1_analyzed.add((state, attr))
+
+    # Tier 2: Region × attribute (for remaining)
+    regions = df['region'].unique()
+    tier2_analyzed = set()
+    for region in regions:
+        for attr in attributes:
+            # Skip if all individual state×attr in this region were analyzed
+            states_in_region = [s for s in states if get_region(s) == region]
+            if all((s, attr) in tier1_analyzed for s in states_in_region):
+                continue
+
+            mask = (df['region'] == region) & (df['attribute'] == attr)
+            indices = np.where(mask)[0]
+
+            if len(indices) >= MIN_SAMPLES_TIER2:
+                base_acts = activations['base'][layer][indices]
+                instruct_acts = activations['instruct'][layer][indices]
+
+                kl_result = compute_kl_for_subset(
+                    base_acts, instruct_acts,
+                    f"{region}×{attr} - Layer {layer}"
+                )
+                if kl_result:
+                    results.append({
+                        'region': region,
+                        'attribute': attr,
+                        'attribute_category': get_attribute_category(attr),
+                        'layer': layer,
+                        'analysis_tier': 'tier2_region_attr',
+                        'n_samples': len(indices),
+                        **kl_result
+                    })
+                    tier2_analyzed.add((region, attr))
+
+    # Tier 3: Region × attribute_category (coarsest level)
+    attr_categories = df['attribute_category'].unique()
+    for region in regions:
+        for attr_cat in attr_categories:
+            # Skip if tier2 covered this
+            attrs_in_cat = [a for a in attributes if get_attribute_category(a) == attr_cat]
+            if all((region, a) in tier2_analyzed for a in attrs_in_cat):
+                continue
+
+            mask = (df['region'] == region) & (df['attribute_category'] == attr_cat)
+            indices = np.where(mask)[0]
+
+            if len(indices) >= MIN_SAMPLES_TIER2:
+                base_acts = activations['base'][layer][indices]
+                instruct_acts = activations['instruct'][layer][indices]
+
+                kl_result = compute_kl_for_subset(
+                    base_acts, instruct_acts,
+                    f"{region}×{attr_cat} - Layer {layer}"
+                )
+                if kl_result:
+                    results.append({
+                        'region': region,
+                        'attribute_category': attr_cat,
+                        'layer': layer,
+                        'analysis_tier': 'tier3_region_category',
+                        'n_samples': len(indices),
+                        **kl_result
+                    })
+
+    return pd.DataFrame(results) if results else pd.DataFrame()
+
+
+# ==============================================================================
 # ANALYSIS FUNCTIONS
 # ==============================================================================
 
@@ -409,6 +666,114 @@ def analyze_by_state(df, activations):
 
     log(f"Completed {len(states)} states")
     return pd.DataFrame(results)
+
+
+def analyze_by_region(df, activations):
+    """Compute KL divergence by geographic region (aggregated states)"""
+    log("\n" + "="*80)
+    log("REGION-LEVEL KL DIVERGENCE ANALYSIS")
+    log("="*80)
+
+    # Add region column
+    df = df.copy()
+    df['region'] = df['state'].apply(get_region)
+
+    results = []
+    regions = sorted(df['region'].unique())
+
+    for region in regions:
+        log(f"\n{region.upper()} REGION:")
+        region_mask = df['region'] == region
+        region_indices = np.where(region_mask)[0]
+
+        log(f"  Samples: {len(region_indices)}")
+
+        for layer in Config.LAYERS:
+            base_acts = activations['base'][layer][region_indices]
+            instruct_acts = activations['instruct'][layer][region_indices]
+
+            kl_result = compute_kl_for_subset(base_acts, instruct_acts, f"{region} - Layer {layer}")
+
+            if kl_result:
+                results.append({
+                    'region': region,
+                    'layer': layer,
+                    'n_states': len(df[region_mask]['state'].unique()),
+                    **kl_result
+                })
+                log(f"  Layer {layer} - KL: {kl_result['kl_divergence']:.6f}")
+
+    log(f"Completed {len(regions)} regions")
+    return pd.DataFrame(results)
+
+
+def analyze_by_attribute_category(df, activations):
+    """Compute KL divergence by attribute category (aggregated attributes)"""
+    log("\n" + "="*80)
+    log("ATTRIBUTE-CATEGORY-LEVEL KL DIVERGENCE ANALYSIS")
+    log("="*80)
+
+    # Add attribute_category column
+    df = df.copy()
+    df['attribute_category'] = df['attribute'].apply(get_attribute_category)
+
+    results = []
+    categories = sorted(df['attribute_category'].unique())
+
+    for category in categories:
+        log(f"\n{category.upper()}:")
+        cat_mask = df['attribute_category'] == category
+        cat_indices = np.where(cat_mask)[0]
+
+        log(f"  Samples: {len(cat_indices)}")
+
+        for layer in Config.LAYERS:
+            base_acts = activations['base'][layer][cat_indices]
+            instruct_acts = activations['instruct'][layer][cat_indices]
+
+            kl_result = compute_kl_for_subset(base_acts, instruct_acts, f"{category} - Layer {layer}")
+
+            if kl_result:
+                results.append({
+                    'attribute_category': category,
+                    'layer': layer,
+                    'n_attributes': len(df[cat_mask]['attribute'].unique()),
+                    **kl_result
+                })
+                log(f"  Layer {layer} - KL: {kl_result['kl_divergence']:.6f}")
+
+    log(f"Completed {len(categories)} attribute categories")
+    return pd.DataFrame(results)
+
+
+def analyze_interactions(df, activations):
+    """Analyze State × Attribute interactions with hierarchical fallback"""
+    log("\n" + "="*80)
+    log("INTERACTION ANALYSIS (State × Attribute) WITH HIERARCHICAL FALLBACK")
+    log("="*80)
+
+    all_results = []
+
+    for layer in Config.LAYERS:
+        log(f"\nLayer {layer}...")
+        df_interactions = analyze_interaction_slices(df, activations, layer,
+                                                      min_samples=MIN_SAMPLES_TIER3)
+        if len(df_interactions) > 0:
+            all_results.append(df_interactions)
+
+            # Summary stats
+            tier_counts = df_interactions['analysis_tier'].value_counts()
+            log(f"  Tier 1 (individual): {tier_counts.get('tier1_individual', 0)}")
+            log(f"  Tier 2 (region×attr): {tier_counts.get('tier2_region_attr', 0)}")
+            log(f"  Tier 3 (region×cat): {tier_counts.get('tier3_region_category', 0)}")
+
+    if all_results:
+        df_final = pd.concat(all_results, ignore_index=True)
+        log(f"\nTotal interaction analyses: {len(df_final)}")
+        return df_final
+    else:
+        log("No interaction analyses completed")
+        return pd.DataFrame()
 
 
 def analyze_by_question_type(df, activations):
@@ -711,6 +1076,182 @@ def plot_question_type_kl(df_qtype, file_suffix=""):
 
     log("  Saved: question_type_kl_divergence.png")
 
+
+def plot_region_level_kl(df_region, file_suffix=""):
+    """Plot KL divergence by geographic region"""
+    if df_region.empty:
+        return
+
+    log("\nGenerating region-level KL divergence plot...")
+
+    fig, axes = plt.subplots(1, 2, figsize=(16, 6))
+
+    # Line plot across layers
+    ax = axes[0]
+    regions = df_region['region'].unique()
+    colors = plt.cm.Set1(range(len(regions)))
+
+    for idx, region in enumerate(regions):
+        region_data = df_region[df_region['region'] == region]
+        ax.plot(region_data['layer'], region_data['kl_divergence'],
+                marker='o', linewidth=2.5, markersize=10,
+                color=colors[idx], label=region, alpha=0.8)
+        if {'kl_ci_lower', 'kl_ci_upper'}.issubset(region_data.columns):
+            ax.fill_between(region_data['layer'], region_data['kl_ci_lower'],
+                           region_data['kl_ci_upper'], color=colors[idx], alpha=0.15)
+
+    ax.set_xlabel('Layer', fontsize=12, fontweight='bold')
+    ax.set_ylabel('KL Divergence', fontsize=12, fontweight='bold')
+    ax.set_title('Region-Level KL Divergence Across Layers', fontsize=14, fontweight='bold')
+    ax.legend(fontsize=9, loc='best')
+    ax.grid(True, alpha=0.3)
+    ax.set_xticks(Config.LAYERS)
+
+    # Bar chart at layer 28
+    ax = axes[1]
+    layer_28 = df_region[df_region['layer'] == 28].sort_values('kl_divergence', ascending=True)
+    if len(layer_28) > 0:
+        ax.barh(range(len(layer_28)), layer_28['kl_divergence'],
+                color=[colors[list(regions).index(r)] for r in layer_28['region']], alpha=0.8)
+        ax.set_yticks(range(len(layer_28)))
+        ax.set_yticklabels(layer_28['region'], fontsize=10)
+        ax.set_xlabel('KL Divergence', fontsize=12, fontweight='bold')
+        ax.set_title('Region KL Divergence (Layer 28)', fontsize=14, fontweight='bold')
+        ax.grid(axis='x', alpha=0.3)
+
+    plt.tight_layout()
+    plt.savefig(Config.LIGHT_OUTPUT_DIR / f'plots/state_level/region_kl_divergence{file_suffix}.png',
+                dpi=300, bbox_inches='tight')
+    plt.close()
+
+    log("  Saved: region_kl_divergence.png")
+
+
+def plot_attribute_category_kl(df_attr_cat, file_suffix=""):
+    """Plot KL divergence by attribute category"""
+    if df_attr_cat.empty:
+        return
+
+    log("\nGenerating attribute-category-level KL divergence plot...")
+
+    fig, axes = plt.subplots(1, 2, figsize=(16, 6))
+
+    # Line plot across layers
+    ax = axes[0]
+    categories = df_attr_cat['attribute_category'].unique()
+    colors = plt.cm.Set2(range(len(categories)))
+
+    for idx, cat in enumerate(categories):
+        cat_data = df_attr_cat[df_attr_cat['attribute_category'] == cat]
+        ax.plot(cat_data['layer'], cat_data['kl_divergence'],
+                marker='o', linewidth=2.5, markersize=10,
+                color=colors[idx], label=cat.replace('_', ' '), alpha=0.8)
+        if {'kl_ci_lower', 'kl_ci_upper'}.issubset(cat_data.columns):
+            ax.fill_between(cat_data['layer'], cat_data['kl_ci_lower'],
+                           cat_data['kl_ci_upper'], color=colors[idx], alpha=0.15)
+
+    ax.set_xlabel('Layer', fontsize=12, fontweight='bold')
+    ax.set_ylabel('KL Divergence', fontsize=12, fontweight='bold')
+    ax.set_title('Attribute Category KL Divergence Across Layers', fontsize=14, fontweight='bold')
+    ax.legend(fontsize=9, loc='best')
+    ax.grid(True, alpha=0.3)
+    ax.set_xticks(Config.LAYERS)
+
+    # Bar chart at layer 28
+    ax = axes[1]
+    layer_28 = df_attr_cat[df_attr_cat['layer'] == 28].sort_values('kl_divergence', ascending=True)
+    if len(layer_28) > 0:
+        ax.barh(range(len(layer_28)), layer_28['kl_divergence'],
+                color=[colors[list(categories).index(c)] for c in layer_28['attribute_category']], alpha=0.8)
+        ax.set_yticks(range(len(layer_28)))
+        ax.set_yticklabels([c.replace('_', ' ') for c in layer_28['attribute_category']], fontsize=10)
+        ax.set_xlabel('KL Divergence', fontsize=12, fontweight='bold')
+        ax.set_title('Attribute Category KL (Layer 28)', fontsize=14, fontweight='bold')
+        ax.grid(axis='x', alpha=0.3)
+
+    plt.tight_layout()
+    plt.savefig(Config.LIGHT_OUTPUT_DIR / f'plots/attribute_level/attribute_category_kl{file_suffix}.png',
+                dpi=300, bbox_inches='tight')
+    plt.close()
+
+    log("  Saved: attribute_category_kl.png")
+
+
+def plot_interaction_analysis(df_interactions, file_suffix=""):
+    """Plot hierarchical interaction analysis results"""
+    if df_interactions.empty:
+        return
+
+    log("\nGenerating interaction analysis plots...")
+
+    fig, axes = plt.subplots(2, 2, figsize=(16, 14))
+
+    # Panel 1: Tier distribution per layer
+    ax = axes[0, 0]
+    tier_counts = df_interactions.groupby(['layer', 'analysis_tier']).size().unstack(fill_value=0)
+    tier_counts.plot(kind='bar', ax=ax, alpha=0.8)
+    ax.set_xlabel('Layer', fontsize=12, fontweight='bold')
+    ax.set_ylabel('Count', fontsize=12, fontweight='bold')
+    ax.set_title('Hierarchical Analysis Tier Distribution', fontsize=14, fontweight='bold')
+    ax.legend(title='Tier', fontsize=9)
+    ax.grid(axis='y', alpha=0.3)
+
+    # Panel 2: KL by tier at layer 28
+    ax = axes[0, 1]
+    layer_28 = df_interactions[df_interactions['layer'] == 28]
+    if len(layer_28) > 0:
+        tiers = layer_28['analysis_tier'].unique()
+        tier_kl_means = [layer_28[layer_28['analysis_tier'] == t]['kl_divergence'].mean() for t in tiers]
+        tier_kl_stds = [layer_28[layer_28['analysis_tier'] == t]['kl_divergence'].std() for t in tiers]
+
+        x = range(len(tiers))
+        bars = ax.bar(x, tier_kl_means, yerr=tier_kl_stds, alpha=0.8, capsize=5)
+        ax.set_xticks(x)
+        ax.set_xticklabels([t.replace('_', '\n') for t in tiers], fontsize=9)
+        ax.set_ylabel('Mean KL Divergence', fontsize=12, fontweight='bold')
+        ax.set_title('KL by Analysis Tier (Layer 28)', fontsize=14, fontweight='bold')
+        ax.grid(axis='y', alpha=0.3)
+
+    # Panel 3: Top interactions (Tier 1 individual)
+    ax = axes[1, 0]
+    tier1 = df_interactions[(df_interactions['analysis_tier'] == 'tier1_individual') &
+                            (df_interactions['layer'] == 28)]
+    if len(tier1) > 0:
+        top_interactions = tier1.nlargest(15, 'kl_divergence')
+        labels = [f"{r.get('state', r.get('region', 'N/A'))}×{r.get('attribute', r.get('attribute_category', 'N/A'))}"
+                 for _, r in top_interactions.iterrows()]
+        ax.barh(range(len(top_interactions)), top_interactions['kl_divergence'],
+                color='coral', alpha=0.8)
+        ax.set_yticks(range(len(top_interactions)))
+        ax.set_yticklabels(labels, fontsize=8)
+        ax.set_xlabel('KL Divergence', fontsize=12, fontweight='bold')
+        ax.set_title('Top 15 State×Attribute Interactions (Layer 28)', fontsize=12, fontweight='bold')
+        ax.grid(axis='x', alpha=0.3)
+    else:
+        ax.text(0.5, 0.5, 'No Tier 1 interactions available', ha='center', va='center',
+               transform=ax.transAxes, fontsize=12)
+
+    # Panel 4: Region × Category heatmap (Tier 3)
+    ax = axes[1, 1]
+    tier3 = df_interactions[(df_interactions['analysis_tier'] == 'tier3_region_category') &
+                            (df_interactions['layer'] == 28)]
+    if len(tier3) > 0 and 'region' in tier3.columns and 'attribute_category' in tier3.columns:
+        pivot = tier3.pivot(index='region', columns='attribute_category', values='kl_divergence')
+        sns.heatmap(pivot, annot=True, fmt='.2f', cmap='YlOrRd', ax=ax,
+                   cbar_kws={'label': 'KL Divergence'})
+        ax.set_title('Region × Attribute Category (Layer 28)', fontsize=12, fontweight='bold')
+    else:
+        ax.text(0.5, 0.5, 'No Tier 3 interactions available', ha='center', va='center',
+               transform=ax.transAxes, fontsize=12)
+
+    plt.tight_layout()
+    plt.savefig(Config.LIGHT_OUTPUT_DIR / f'plots/overall/interaction_analysis{file_suffix}.png',
+                dpi=300, bbox_inches='tight')
+    plt.close()
+
+    log("  Saved: interaction_analysis.png")
+
+
 # ==============================================================================
 # MAIN PIPELINE
 # ==============================================================================
@@ -762,6 +1303,35 @@ def run_pipeline(df, activations, run_suffix="", pca_enabled=None, probe_csv=Non
         df_qtype.to_csv(Config.LIGHT_OUTPUT_DIR / f'results/question_type_kl_divergence{suffix}.csv', index=False)
         plot_question_type_kl(df_qtype, file_suffix=suffix)
 
+    # Region-level analysis (aggregated states)
+    df_region = analyze_by_region(df, activations)
+    if not df_region.empty:
+        df_region = add_kl_labels(df_region)
+        df_region.to_csv(Config.LIGHT_OUTPUT_DIR / f'results/region_kl_divergence{suffix}.csv', index=False)
+        plot_region_level_kl(df_region, file_suffix=suffix)
+
+    # Attribute-category analysis (aggregated attributes)
+    df_attr_cat = analyze_by_attribute_category(df, activations)
+    if not df_attr_cat.empty:
+        df_attr_cat = add_kl_labels(df_attr_cat)
+        df_attr_cat.to_csv(Config.LIGHT_OUTPUT_DIR / f'results/attribute_category_kl_divergence{suffix}.csv', index=False)
+        plot_attribute_category_kl(df_attr_cat, file_suffix=suffix)
+
+    # Interaction analysis (State × Attribute with hierarchical fallback)
+    df_interactions = analyze_interactions(df, activations)
+    if not df_interactions.empty:
+        df_interactions.to_csv(Config.HEAVY_OUTPUT_DIR / f'interaction_kl_divergence{suffix}.csv', index=False)
+        plot_interaction_analysis(df_interactions, file_suffix=suffix)
+
+        # Summary of interaction tiers
+        log("\n" + "="*80)
+        log("INTERACTION ANALYSIS SUMMARY")
+        log("="*80)
+        tier_summary = df_interactions.groupby('analysis_tier').agg({
+            'kl_divergence': ['mean', 'std', 'count']
+        }).round(4)
+        log(f"\n{tier_summary.to_string()}")
+
     # Summary statistics
     log("\n" + "="*80)
     log("SUMMARY STATISTICS")
@@ -810,6 +1380,21 @@ def run_pipeline(df, activations, run_suffix="", pca_enabled=None, probe_csv=Non
     delta_qtype = compute_layer_deltas(df_qtype, level_cols=['question_type']) if not df_qtype.empty else pd.DataFrame()
     if len(delta_qtype) > 0:
         delta_qtype.to_csv(Config.LIGHT_OUTPUT_DIR / f'results/layer_delta_question_type{suffix}.csv', index=False)
+
+    # Layer deltas for aggregated analyses
+    delta_region = compute_layer_deltas(df_region, level_cols=['region']) if not df_region.empty else pd.DataFrame()
+    if len(delta_region) > 0:
+        delta_region.to_csv(Config.LIGHT_OUTPUT_DIR / f'results/layer_delta_region{suffix}.csv', index=False)
+        log("\nL24->L28 Region Deltas:")
+        for _, r in delta_region.iterrows():
+            log(f"  {r['region']}: dKL={r['kl_delta']:+.6f}")
+
+    delta_attr_cat = compute_layer_deltas(df_attr_cat, level_cols=['attribute_category']) if not df_attr_cat.empty else pd.DataFrame()
+    if len(delta_attr_cat) > 0:
+        delta_attr_cat.to_csv(Config.LIGHT_OUTPUT_DIR / f'results/layer_delta_attribute_category{suffix}.csv', index=False)
+        log("\nL24->L28 Attribute Category Deltas:")
+        for _, r in delta_attr_cat.iterrows():
+            log(f"  {r['attribute_category']}: dKL={r['kl_delta']:+.6f}")
 
     # Skipped slices audit
     if SKIPPED_SLICES:
