@@ -57,7 +57,28 @@ class Config:
     TEST_SIZE = 0.25
     
     SEED = 42
-    DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    FORCE_CPU = os.environ.get("FORCE_CPU", "0") == "1"
+
+    @staticmethod
+    def get_device():
+        """Get available device with robust GPU check and fallback."""
+        if Config.FORCE_CPU:
+            return torch.device("cpu")
+
+        if not torch.cuda.is_available():
+            return torch.device("cpu")
+
+        try:
+            # Test if GPU is actually usable
+            test_tensor = torch.zeros(1).cuda()
+            del test_tensor
+            torch.cuda.empty_cache()
+            return torch.device("cuda")
+        except RuntimeError as e:
+            print(f"[WARNING] GPU unavailable ({e}), falling back to CPU")
+            return torch.device("cpu")
+
+    DEVICE = None  # Will be set during setup()
     
     ONLINE_CHUNKS = np.unique(np.concatenate([
         np.arange(0.02, 0.20, 0.02),
@@ -84,10 +105,13 @@ class Config:
         (Config.OUTPUT_DIR / "data").mkdir(exist_ok=True)
         (Config.OUTPUT_DIR / "plots").mkdir(exist_ok=True)
         (Config.OUTPUT_DIR / "logs").mkdir(exist_ok=True)
-        
+
+        # Set device with robust GPU check
+        Config.DEVICE = Config.get_device()
+
         torch.manual_seed(Config.SEED)
         np.random.seed(Config.SEED)
-        if torch.cuda.is_available():
+        if Config.DEVICE.type == "cuda":
             torch.cuda.manual_seed_all(Config.SEED)
             torch.backends.cudnn.deterministic = True
             torch.backends.cudnn.benchmark = False
@@ -104,9 +128,11 @@ def log(msg):
         f.write(formatted + "\n")
 
 log(f"Device: {Config.DEVICE}")
-if torch.cuda.is_available():
+if Config.DEVICE.type == "cuda":
     log(f"GPU: {torch.cuda.get_device_name(0)}")
     log(f"GPU Memory: {torch.cuda.get_device_properties(0).total_memory / 1e9:.2f} GB")
+else:
+    log("Running on CPU (GPU unavailable or FORCE_CPU=1)")
 
 # ==============================================================================
 # PROBE ARCHITECTURES

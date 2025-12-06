@@ -1,0 +1,36 @@
+[17:27:09] Device: cuda
+[17:27:09] GPU: NVIDIA L40S
+[17:27:09] GPU Memory: 47.67 GB
+[17:27:09] ================================================================================
+[17:27:09] STARTING MDL PROBING 
+[17:27:09] ================================================================================
+[17:27:09] 
+============================================================
+[17:27:09] PROCESSING LAYER 8
+[17:27:09] ============================================================
+[17:27:09] Loading Layer 8 data...
+[17:27:09]   base: (33522, 1536)
+[17:27:09]   instruct: (33522, 1536)
+[17:27:09] 
+  Processing Group: all
+[17:27:09]   Split sizes for all: train=25141, test=8381
+[17:27:09]     base - attribute
+[17:27:10] 
+FATAL ERROR: CUDA error: CUDA-capable device(s) is/are busy or unavailable
+CUDA kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.
+For debugging consider passing CUDA_LAUNCH_BLOCKING=1
+Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.
+
+[17:27:10] Traceback (most recent call last):
+  File "/home/anshulk/cultural-alignment-study/scripts/mdl_probing_v2.py", line 2228, in <module>
+    main()
+  File "/home/anshulk/cultural-alignment-study/scripts/mdl_probing_v2.py", line 2010, in main
+    online_results = experiment_online_coding(X_train, y_train_dict, task_dims, metadata, X_test, y_test_dict)
+  File "/home/anshulk/cultural-alignment-study/scripts/mdl_probing_v2.py", line 470, in experiment_online_coding
+    X_tensor = torch.FloatTensor(X_shuf).to(Config.DEVICE)
+RuntimeError: CUDA error: CUDA-capable device(s) is/are busy or unavailable
+CUDA kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.
+For debugging consider passing CUDA_LAUNCH_BLOCKING=1
+Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.
+
+
