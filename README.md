@@ -6,7 +6,53 @@
 
 ## Abstract
 
-This study investigates information suppression mechanisms in RLHF-aligned language models using mechanistic interpretability techniques. We compare Qwen2-1.5B base and instruct models on Indian cultural knowledge to determine whether instruction-tuning suppresses information through representational changes or decision-boundary modifications.
+This study investigates information suppression mechanisms in RLHF-aligned language models using mechanistic interpretability techniques. We compare Qwen2-1.5B base and instruct models on Indian cultural knowledge to determine whether instruction-tuning suppresses information through representational changes or decision-boundary modifications. Through a combination of linear probing, MDL (Minimum Description Length) analysis, KL divergence measurements, and activation geometry analysis, we provide convergent evidence that RLHF operates via late-stage policy-layer masking rather than representational erasure—knowledge exists internally but is gated at output layers.
+
+**Key Finding**: Despite 42% behavioral suppression, semantic representations remain 99.7% similar with 96-100% cross-model transferability, while KL divergence spikes 3× at the final layer (28), indicating late-stage decision boundary modification rather than knowledge erasure.
+
+## Quick Reference: Key Metrics
+
+| Metric | Value | Significance |
+|--------|-------|--------------|
+| **Behavioral Suppression** | 42.30% | Base model correct → Instruct model incorrect |
+| **Representational Similarity** | 99.7-99.9% | Cosine similarity between base/instruct activations |
+| **Cross-Model Transfer Rate** | 96-100% | Probes trained on base work on instruct |
+| **Semantic Probe Accuracy** | 80-96% | Attribute/state classification from activations |
+| **Correctness Probe Accuracy** | 62% | Weak encoding of decision information |
+| **KL Divergence (Layers 8-24)** | 106-115 nats | Modest distributional difference |
+| **KL Divergence (Layer 28)** | 335 nats | 3× spike at output layer |
+| **MDL Drift** | <3% | Near-identical encoding efficiency |
+| **Triple-Task Compression Ratio** | 5.5× | Orthogonal knowledge pathways |
+| **Dataset Size** | 11,206 questions | Balanced across suppression/enhancement/control |
+| **Sentence Count** | 33,522 | 3 sentences per question |
+
+## Visual Summary
+
+```
+EXPERIMENTAL PIPELINE OVERVIEW
+
+Data Collection (21,853 questions)
+         ↓
+Strategic Sampling (11,206 questions balanced across suppression/enhancement/control)
+         ↓
+Sentence Generation (33,522 culturally-grounded sentences via Claude Sonnet 4.5)
+         ↓
+Activation Extraction (Layers 8, 16, 24, 28 from Base & Instruct models)
+         ↓
+    ┌─────────────────┬─────────────────┬──────────────────┬────────────────┐
+    ↓                 ↓                 ↓                  ↓                ↓
+  EDA           Linear Probing    KL Divergence    MDL Probing    Activation Geometry
+    ↓                 ↓                 ↓                  ↓                ↓
+Text Quality    Attribute: 84%    Layer 8-24:      Single: 90-99%   Cosine: 99.7-99.9%
+Clustering      State: 96%        ~110 nats        Triple: 4-10%    (all layers)
+Duplicates      Correctness: 62%  Layer 28:        Compression:
+                Transfer: 96-100% 335 nats (3×)    5.5× ratio
+    ↓                 ↓                 ↓                  ↓                ↓
+    └─────────────────┴─────────────────┴──────────────────┴────────────────┘
+                                    ↓
+                    CONVERGENT EVIDENCE: Policy-Layer Suppression
+                    (Knowledge preserved, decisions gated at layer 28)
+```
 
 ## Dataset Construction
 
@@ -150,7 +196,30 @@ Cosine similarity between base and instruct model activations (per-sentence, lay
 
 **Mechanistic Interpretation**: The 96-100% cross-model transfer rates with weak correctness encoding (62%) prove RLHF operates via **policy-layer blocking mechanisms**, not representational erasure. Knowledge exists internally but is gated at output layers—textbook decision-boundary suppression.
 
-### 7. MDL Probing Analysis (`mdl_probing_v2.py`)
+### 7. KL Divergence Analysis (`kl_divergence.py`)
+
+**Status**: ✅ Complete
+
+**Method**: Layer-wise distributional shift analysis using KL divergence to quantify representational differences between base and instruct models at the population level.
+
+**Analysis Levels**:
+- Overall: Across all 33,522 sentences
+- Group-level: Suppression, Enhancement, Control groups
+- Attribute-level: 16 cultural attributes
+- State-level: 36 Indian states
+
+**Results** (KL Divergence: Base || Instruct):
+
+| Layer | KL Divergence | JS Divergence (Symmetric) | Interpretation |
+|-------|---------------|---------------------------|----------------|
+| 8     | 112.61        | 112.26                    | Moderate shift in early representations |
+| 16    | 106.84        | 109.85                    | Similar to layer 8 |
+| 24    | 115.48        | 115.13                    | Slight increase approaching output |
+| 28    | **335.04**    | **365.14**                | **Major shift at final layer** |
+
+**Key Finding**: KL divergence increases dramatically at layer 28 (3× higher than earlier layers), indicating that while internal representations remain relatively similar throughout most of the network (layers 8-24), significant distributional divergence occurs at the final output layer. This supports the hypothesis that RLHF modifies decision boundaries at late stages while preserving semantic representations in earlier layers.
+
+### 8. MDL Probing Analysis (`mdl_probing_v2.py`)
 
 **Status**: ✅ Complete
 
@@ -279,89 +348,57 @@ The MDL results explain **why multi-aspect cultural queries trigger more suppres
 
 This validates the hypothesis that **distributed knowledge encoding + decision-layer gating = higher suppression for complex cultural queries**.
 
-### 8. Causal Intervention Analysis (`causal_intervention_v1.py`)
-
-**Status**: 🔄 Planned
-
-**Method**: Layer-wise activation patching to causally identify where suppression occurs in the forward pass.
-
-**Intervention Protocol**:
-- Replace Instruct model activations with Base model activations at specific layers
-- Measure answer entity probability in top-k predictions (k=10)
-- Recovery rate = (Intervention accuracy - Instruct baseline) / (Base baseline - Instruct baseline)
-- Dual-GPU parallel processing for efficiency
-
-**Multi-Level Analysis**:
-
-**Group-Level Recovery**:
-- Suppression group: Test if Base activations restore suppressed answers
-- Enhancement group: Test if Base activations reduce enhanced performance
-- Control group: Verify minimal intervention effects
-
-**Attribute-Level Localization**:
-- 16 cultural attributes analyzed separately
-- Identify which attributes are most sensitive to intervention
-- Heatmap visualization across layers
-
-**State-Level Granularity**:
-- 36 states analyzed for geographic patterns
-- Rank states by suppression strength and recovery rates
-
-**Combined Analysis**:
-- Fine-grained State × Attribute × Group interactions
-- Identify top-20 combinations with strongest suppression
-- Test if recovery varies by specific cultural domain
-
-**Expected Results**:
-- **Early layers (8, 16)**: Low recovery → semantic encoding still shared
-- **Middle layers (24)**: Moderate recovery → divergence begins
-- **Late layers (28)**: High recovery → causal locus of suppression
-- Confirms temporal dynamics of when/where suppression emerges
-
-**Complementarity with Probing**:
-- Linear probing shows *what* information exists (high transfer rates)
-- MDL probing shows *how efficiently* it's encoded (compression ratios)
-- Causal intervention shows *where* it's blocked (recovery by layer)
 
 ## Repository Structure
 
 ```
 cultural-alignment-study/
 ├── scripts/
+│   ├── sanskriti_data.py                  # Data preparation utilities
+│   ├── prepare_sanskriti_master.py        # Master dataset construction
 │   ├── sanskriti_knowledge_test.py        # Initial 21K question evaluation
 │   ├── analyze_combinations_12k.py        # Dataset filtering and selection
 │   ├── generate_sentences_sanskriti.py    # Claude-based sentence generation
-│   ├── extract_activations.py             # Hidden state extraction
+│   ├── extract_activations.py             # Hidden state extraction (dual-GPU)
 │   ├── eda_12k.py                         # Exploratory data analysis
 │   ├── linear_probing_v2.py               # Linear probing experiments
-│   ├── mdl_probing_v2.py                  # MDL information-theoretic analysis
-│   └── causal_intervention_v1.py          # Layer-wise activation patching
+│   ├── kl_divergence.py                   # KL divergence distributional analysis
+│   └── mdl_probing_v2.py                  # MDL information-theoretic analysis
 ├── outputs/
 │   ├── sanskriti_test_knowledge/          # Initial evaluation results
+│   │   ├── comprehensive_results.csv      # All 21,853 question predictions
+│   │   ├── comprehensive_analysis.txt     # Full analysis report
+│   │   └── breakdown_*.csv               # Dimensional breakdowns
 │   ├── eda_results/                       # EDA plots and reports
-│   │   ├── plots/                         # Visualization outputs
+│   │   ├── plots/                         # Activation geometry visualizations
 │   │   ├── reports/                       # JSON analysis reports
+│   │   ├── tables/                        # Enhanced dataset tables
 │   │   └── SUMMARY_REPORT.txt            # Executive summary
 │   ├── linear_probing/                    # Linear probing results
 │   │   ├── plots/                         # Accuracy curves, transfer rates
 │   │   ├── results/                       # JSON metrics files
+│   │   ├── probing_log.txt               # Execution log
 │   │   └── SUMMARY_REPORT.txt            # Probing analysis summary
-│   ├── mdl_probing/                       # MDL analysis outputs
-│   │   ├── data/                          # Online coding, variational MDL data
-│   │   ├── plots/                         # Compression curves, Fisher info
+│   ├── kl_divergence/                     # KL divergence analysis
+│   │   ├── plots/                         # Layer-wise KL visualizations
+│   │   │   ├── overall/                  # Overall KL trends
+│   │   │   ├── group_level/              # Suppression/Enhancement/Control
+│   │   │   ├── attribute_level/          # 16 cultural attributes
+│   │   │   └── state_level/              # 36 Indian states
+│   │   ├── results/                       # KL divergence CSV results
 │   │   └── logs/                          # Execution logs
-│   └── causal_intervention/               # Intervention experiment results
-│       ├── data/                          # Recovery rates by group/attr/state
-│       ├── plots/                         # Layer-wise recovery visualizations
-│       └── logs/                          # Intervention logs
+│   └── mdl_probing/                       # MDL analysis outputs
+│       ├── data/                          # Triple entanglement metrics
+│       ├── plots/                         # Compression curves, Fisher info
+│       └── logs/                          # Execution logs
 └── README.md
 ```
 
 ## Key Findings
 
-### Tripartite Evidence for Policy-Layer Suppression
+### Quadripartite Evidence for Policy-Layer Suppression
 
-This study employs three complementary mechanistic interpretability techniques to triangulate how RLHF suppresses cultural knowledge:
+This study employs four complementary mechanistic interpretability techniques to triangulate how RLHF suppresses cultural knowledge:
 
 **1. Linear Probing (What Information Persists)**
 - **Semantic preservation**: 80-96% accuracy on attribute/state classification despite 42% behavioral suppression
@@ -369,7 +406,13 @@ This study employs three complementary mechanistic interpretability techniques t
 - **Weak correctness encoding**: 62% accuracy (barely above chance) shows decision information is not strongly represented
 - **Interpretation**: Knowledge exists internally but behavioral decisions are weakly encoded in hidden states
 
-**2. MDL Probing (How Efficiently Information Is Encoded)** ✅
+**2. KL Divergence (Where Distributions Diverge)** ✅
+- **Early/middle layers (8-24)**: KL divergence 106-115 nats indicates modest distributional differences
+- **Final layer (28)**: KL divergence **335 nats** (3× higher) reveals major distributional shift at output
+- **Group-level consistency**: Suppression, enhancement, and control groups show similar KL patterns
+- **Interpretation**: Representations remain relatively similar through most layers, but undergo significant transformation at the final decision layer, consistent with late-stage policy modification
+
+**3. MDL Probing (How Efficiently Information Is Encoded)** ✅
 - **Single-task performance**: 89.6% attribute, 99.6% state, 69.2% correctness confirms semantic knowledge fully encoded
 - **Cross-model isomorphism**: <3% MDL drift across all layers independently validates 98.6% linear transfer rates from information-theoretic perspective
 - **Triple-task compression failure**: 5.5× compression ratio (vs. ideal 1.0×) with 4-10% semantic accuracy reveals **distributed, non-overlapping pathways** for attribute, state, and correctness
@@ -378,31 +421,75 @@ This study employs three complementary mechanistic interpretability techniques t
 - **Group-specific patterns**: 17.4% correctness drop (Base→Instruct) in suppression group while semantic encoding unchanged
 - **Interpretation**: High compression ratio proves multi-aspect queries require coordinating separate neural pathways, explaining why complex cultural questions show higher suppression rates
 
-**3. Causal Intervention (Where Suppression Occurs)** 🔄
-- **Activation patching**: Replace Instruct activations with Base activations layer-by-layer
-- **Expected recovery pattern**: Low at layers 8-16 (shared semantics), high at layer 28 (decision divergence)
-- **Multi-level localization**: Group/attribute/state-specific recovery rates identify granular suppression patterns
-- **Interpretation**: Causal evidence for when/where representations diverge in forward pass
+**4. Activation Geometry (Representational Similarity)** ✅
+- **Cosine similarity**: 99.7-99.9% across all layers and groups despite 42% behavioral divergence
+- **Consistent across groups**: Suppression, enhancement, and control groups show identical similarity patterns
+- **No representational drift**: Semantic encoding space preserved between base and instruct models
+- **Interpretation**: RLHF does not erase or significantly distort internal knowledge representations
 
 ### Convergent Mechanistic Conclusion
 
 **RLHF operates via late-stage policy-layer masking, not representational erasure:**
-- Behavioral divergence: 42.30% suppression, 35.25% enhancement
-- Representational similarity: 99.7-99.9% across all layers (cosine similarity)
-- Information preservation: 96-100% cross-model transfer rates
-- Decision-layer blocking: Weak correctness encoding (62%) despite strong semantic encoding (80-96%)
 
-This pattern is inconsistent with information erasure (which would show low transfer rates and representational drift) but consistent with output gating mechanisms that preserve internal knowledge while blocking downstream decisions.
+| Evidence Type | Measurement | Finding | Interpretation |
+|---------------|-------------|---------|----------------|
+| Behavioral | Accuracy gap | 42.30% suppression, 35.25% enhancement | Strong behavioral divergence |
+| Geometric | Cosine similarity | 99.7-99.9% across all layers | Near-identical representations |
+| Linear | Cross-model transfer | 96-100% transfer rates | Representational isomorphism |
+| Distributional | KL divergence | 3× spike at layer 28 (335 vs 106-115) | Late-stage transformation |
+| Information-theoretic | MDL drift | <3% across all layers | Equivalent encoding efficiency |
+| Compression | Triple-task ratio | 5.5× (vs ideal 1.0×) | Distributed, non-overlapping pathways |
+| Encoding strength | Probe accuracy | Semantic: 80-96%, Correctness: 62% | Strong semantics, weak decisions |
+
+**Synthesis**: The evidence converges on a consistent mechanistic story:
+1. **Layers 8-24**: Semantic knowledge fully preserved with 99%+ similarity and 96-100% transferability
+2. **Layer 28**: Major distributional shift (3× higher KL) where decision boundaries diverge
+3. **Knowledge structure**: Distributed across orthogonal subspaces (5.5× compression ratio)
+4. **Suppression mechanism**: Selective gating of decision pathways while preserving semantic encoding
+
+This pattern is **inconsistent** with information erasure (which would show low transfer rates, high MDL drift, and representational dissimilarity) but **consistent** with output gating mechanisms that preserve internal knowledge while blocking downstream decisions at late stages of the network.
 
 ## Current Status
 
-- ✅ **Complete**: Dataset construction, activation extraction, EDA, linear probing, MDL probing
-- 🔄 **Planned**: Causal intervention experiments
+✅ **All Core Analyses Complete**:
+- Dataset construction (21,853 → 11,206 questions, 33,522 sentences)
+- Activation extraction (Base & Instruct models, layers 8/16/24/28)
+- Exploratory data analysis (text quality, semantic structure, activation geometry)
+- Linear probing (attribute/state/correctness, cross-model transfer, multi-task)
+- KL divergence analysis (overall, group, attribute, state levels)
+- MDL probing (online coding, variational MDL, Fisher information, triple-task entanglement)
 
-## Disclaimer
+## Key Contributions
 
-This is ongoing research. Linear probing and MDL probing experiments are complete, providing convergent evidence for representational isomorphism (98.6% linear transfer rate, <3% MDL drift) and distributed knowledge encoding (5.5× compression ratio). Causal intervention experiments are planned to complete the tripartite evidence architecture by identifying the precise layers where suppression occurs.
+1. **Methodological**: First application of MDL probing with triple-task entanglement testing to mechanistic interpretability of RLHF alignment effects
 
-For detailed results, methodology questions, or collaboration inquiries, please contact Anshul Kumar at anshulk@andrew.cmu.edu.
+2. **Empirical**: Comprehensive evidence from four complementary techniques (linear probing, KL divergence, MDL analysis, activation geometry) converging on policy-layer suppression mechanism
 
-Full technical report and citations will be added upon completion of all analyses.
+3. **Theoretical**: Demonstrates that RLHF preserves semantic knowledge in distributed, orthogonal subspaces while selectively gating decision pathways at final layers
+
+4. **Dataset**: High-quality cultural knowledge benchmark (Sanskriti) with 11,206 questions across 36 states × 16 attributes × 4 question types, enabling fine-grained analysis of suppression patterns
+
+## Technical Implementation
+
+**Computational Resources**:
+- Dual-GPU setup for parallel activation extraction and analysis
+- Efficient batching strategies for large-scale probing experiments
+- Regularized covariance estimation (Ledoit-Wolf) for stable KL divergence computation
+- Concrete dropout (L0 regularization) for automated feature selection in MDL probing
+
+**Reproducibility**:
+- Fixed random seeds across all experiments (seed=42)
+- Stratified train/test splits maintaining group balance
+- 5-fold cross-validation for probe training
+- Comprehensive logging of all hyperparameters and results
+
+## Contact & Collaboration
+
+For detailed results, methodology questions, or collaboration inquiries:
+- **Author**: Anshul Kumar
+- **Email**: anshulk@andrew.cmu.edu
+- **Institution**: Carnegie Mellon University
+
+## Citation
+
+This work is part of ongoing research at Carnegie Mellon University on mechanistic interpretability of alignment techniques in language models. Full technical report with detailed methodology and additional analyses is in preparation.
