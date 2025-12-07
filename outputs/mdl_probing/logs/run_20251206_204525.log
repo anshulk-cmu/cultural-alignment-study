@@ -1,0 +1,234 @@
+[20:45:25] Device: cuda
+[20:45:25] GPU: NVIDIA RTX A6000
+[20:45:25] GPU Memory: 50.90 GB
+[20:45:25] ================================================================================
+[20:45:25] STARTING MDL PROBING 
+[20:45:25] ================================================================================
+[20:45:25] 
+============================================================
+[20:45:25] PROCESSING LAYER 8
+[20:45:25] ============================================================
+[20:45:25] Loading Layer 8 data...
+[20:45:25]   base: (33522, 1536)
+[20:45:26]   instruct: (33522, 1536)
+[20:45:26] 
+  Processing Group: all
+[20:45:26]   Split sizes for all: train=25141, test=8381
+[20:45:26]     base - attribute
+[20:47:22]     base - state
+[20:49:11]     base - correctness_base
+[20:51:03]     base - multitask_dual
+[20:54:30]     base - multitask_triple_base
+[20:58:55]     instruct - attribute
+[21:00:45]     instruct - state
+[21:02:56]     instruct - correctness_instruct
+[21:05:22]     instruct - multitask_dual
+[21:08:52]     instruct - multitask_triple_instruct
+[21:13:27] 
+  Processing Group: suppression
+[21:13:27]   Split sizes for suppression: train=8950, test=2984
+[21:13:27]     base - attribute
+[21:13:54]     base - state
+[21:14:21]     base - correctness_base
+[21:14:47]     base - multitask_dual
+[21:15:26]     base - multitask_triple_base
+[21:16:16]     instruct - attribute
+[21:16:38]     instruct - state
+[21:16:58]     instruct - correctness_instruct
+[21:17:18]     instruct - multitask_dual
+[21:17:48]     instruct - multitask_triple_instruct
+[21:18:26] 
+  Processing Group: enhancement
+[21:18:26]   Split sizes for enhancement: train=8977, test=2993
+[21:18:26]     base - attribute
+[21:18:47]     base - state
+[21:19:07]     base - correctness_base
+[21:19:27]     base - multitask_dual
+[21:19:58]     base - multitask_triple_base
+[21:20:36]     instruct - attribute
+[21:20:56]     instruct - state
+[21:21:17]     instruct - correctness_instruct
+[21:21:37]     instruct - multitask_dual
+[21:22:07]     instruct - multitask_triple_instruct
+[21:22:46] 
+  Running Isomorphism Test (Layer 8)
+[21:23:26] 
+============================================================
+[21:23:26] PROCESSING LAYER 16
+[21:23:26] ============================================================
+[21:23:26] Loading Layer 16 data...
+[21:23:27]   base: (33522, 1536)
+[21:23:27]   instruct: (33522, 1536)
+[21:23:27] 
+  Processing Group: all
+[21:23:27]   Split sizes for all: train=25141, test=8381
+[21:23:27]     base - attribute
+[21:25:25]     base - state
+[21:27:20]     base - correctness_base
+[21:29:34]     base - multitask_dual
+[21:33:02]     base - multitask_triple_base
+[21:36:48]     instruct - attribute
+[21:38:46]     instruct - state
+[21:40:59]     instruct - correctness_instruct
+[21:43:25]     instruct - multitask_dual
+[21:46:17]     instruct - multitask_triple_instruct
+[21:49:48] 
+  Processing Group: suppression
+[21:49:48]   Split sizes for suppression: train=8950, test=2984
+[21:49:48]     base - attribute
+[21:50:08]     base - state
+[21:50:28]     base - correctness_base
+[21:50:55]     base - multitask_dual
+[21:51:30]     base - multitask_triple_base
+[21:52:34]     instruct - attribute
+[21:53:05]     instruct - state
+[21:53:57]     instruct - correctness_instruct
+[21:54:49]     instruct - multitask_dual
+[21:55:29]     instruct - multitask_triple_instruct
+[21:56:28] 
+  Processing Group: enhancement
+[21:56:28]   Split sizes for enhancement: train=8977, test=2993
+[21:56:28]     base - attribute
+[21:57:03]     base - state
+[21:57:55]     base - correctness_base
+[21:58:15]     base - multitask_dual
+[21:59:04]     base - multitask_triple_base
+[21:59:59]     instruct - attribute
+[22:00:22]     instruct - state
+[22:01:06]     instruct - correctness_instruct
+[22:01:58]     instruct - multitask_dual
+[22:02:54]     instruct - multitask_triple_instruct
+[22:03:44] 
+  Running Isomorphism Test (Layer 16)
+[22:04:32] 
+============================================================
+[22:04:32] PROCESSING LAYER 24
+[22:04:32] ============================================================
+[22:04:32] Loading Layer 24 data...
+[22:04:33]   base: (33522, 1536)
+[22:04:33]   instruct: (33522, 1536)
+[22:04:33] 
+  Processing Group: all
+[22:04:33]   Split sizes for all: train=25141, test=8381
+[22:04:33]     base - attribute
+[22:07:02]     base - state
+[22:09:21]     base - correctness_base
+[22:11:32]     base - multitask_dual
+[22:14:12]     base - multitask_triple_base
+[22:17:38]     instruct - attribute
+[22:19:27]     instruct - state
+[22:21:20]     instruct - correctness_instruct
+[22:23:10]     instruct - multitask_dual
+[22:25:51]     instruct - multitask_triple_instruct
+[22:29:15] 
+  Processing Group: suppression
+[22:29:15]   Split sizes for suppression: train=8950, test=2984
+[22:29:15]     base - attribute
+[22:29:35]     base - state
+[22:29:55]     base - correctness_base
+[22:30:16]     base - multitask_dual
+[22:30:57]     base - multitask_triple_base
+[22:31:50]     instruct - attribute
+[22:32:10]     instruct - state
+[22:32:30]     instruct - correctness_instruct
+[22:33:01]     instruct - multitask_dual
+[22:33:50]     instruct - multitask_triple_instruct
+[22:34:27] 
+  Processing Group: enhancement
+[22:34:27]   Split sizes for enhancement: train=8977, test=2993
+[22:34:27]     base - attribute
+[22:35:00]     base - state
+[22:35:21]     base - correctness_base
+[22:35:52]     base - multitask_dual
+[22:36:22]     base - multitask_triple_base
+[22:37:24]     instruct - attribute
+[22:38:04]     instruct - state
+[22:38:53]     instruct - correctness_instruct
+[22:39:13]     instruct - multitask_dual
+[22:40:00]     instruct - multitask_triple_instruct
+[22:40:37] 
+  Running Isomorphism Test (Layer 24)
+[22:41:17] 
+============================================================
+[22:41:17] PROCESSING LAYER 28
+[22:41:17] ============================================================
+[22:41:17] Loading Layer 28 data...
+[22:41:18]   base: (33522, 1536)
+[22:41:18]   instruct: (33522, 1536)
+[22:41:18] 
+  Processing Group: all
+[22:41:18]   Split sizes for all: train=25141, test=8381
+[22:41:18]     base - attribute
+[22:43:06]     base - state
+[22:44:55]     base - correctness_base
+[22:46:46]     base - multitask_dual
+[22:49:35]     base - multitask_triple_base
+[22:53:20]     instruct - attribute
+[22:55:10]     instruct - state
+[22:57:10]     instruct - correctness_instruct
+[22:59:28]     instruct - multitask_dual
+[23:02:57]     instruct - multitask_triple_instruct
+[23:06:56] 
+  Processing Group: suppression
+[23:06:56]   Split sizes for suppression: train=8950, test=2984
+[23:06:56]     base - attribute
+[23:07:19]     base - state
+[23:07:39]     base - correctness_base
+[23:07:59]     base - multitask_dual
+[23:08:28]     base - multitask_triple_base
+[23:09:19]     instruct - attribute
+[23:09:49]     instruct - state
+[23:10:09]     instruct - correctness_instruct
+[23:10:28]     instruct - multitask_dual
+[23:10:57]     instruct - multitask_triple_instruct
+[23:11:35] 
+  Processing Group: enhancement
+[23:11:35]   Split sizes for enhancement: train=8977, test=2993
+[23:11:35]     base - attribute
+[23:11:54]     base - state
+[23:12:14]     base - correctness_base
+[23:12:34]     base - multitask_dual
+[23:13:04]     base - multitask_triple_base
+[23:13:42]     instruct - attribute
+[23:14:04]     instruct - state
+[23:14:24]     instruct - correctness_instruct
+[23:14:44]     instruct - multitask_dual
+[23:15:13]     instruct - multitask_triple_instruct
+[23:15:51] 
+  Running Isomorphism Test (Layer 28)
+[23:16:31] 
+================================================================================
+[23:16:31] SAVING RESULTS
+[23:16:31] ================================================================================
+[23:16:31]   online_mdl.csv
+[23:16:31]   variational_mdl.csv
+[23:16:31]   isomorphism.csv
+[23:16:31]   Saved: layer_24_28_deltas.csv
+[23:16:31]   Saved: effect_sizes.csv
+[23:16:31]   Saved: accuracy_effect_sizes.csv
+[23:16:31]   Saved: triple_compression_ci.csv
+[23:16:31]   Saved: suppression_selectivity.csv
+[23:16:31]   Saved: suppression_buckets.csv
+[23:16:31]   Saved: summary_table.csv
+[23:16:31] 
+================================================================================
+[23:16:31] GENERATING VISUALIZATIONS
+[23:16:31] ================================================================================
+[23:16:33]   Saved: online_coding_curves.png
+[23:16:34] 
+FATAL ERROR: 'yerr' must not contain negative values
+[23:16:34] Traceback (most recent call last):
+  File "/home/anshulk/cultural-alignment-study/scripts/mdl_probing_v2.py", line 2263, in <module>
+    main()
+  File "/home/anshulk/cultural-alignment-study/scripts/mdl_probing_v2.py", line 2179, in main
+    plot_variational_comparison(df_variational)
+  File "/home/anshulk/cultural-alignment-study/scripts/mdl_probing_v2.py", line 1019, in plot_variational_comparison
+    ax.errorbar(x, data, yerr=err, fmt='none', ecolor='black', elinewidth=1, capsize=3, alpha=0.7)
+  File "/home/anshulk/miniconda3/envs/rq1/lib/python3.10/site-packages/matplotlib/_api/deprecation.py", line 453, in wrapper
+    return func(*args, **kwargs)
+  File "/home/anshulk/miniconda3/envs/rq1/lib/python3.10/site-packages/matplotlib/__init__.py", line 1524, in inner
+    return func(
+  File "/home/anshulk/miniconda3/envs/rq1/lib/python3.10/site-packages/matplotlib/axes/_axes.py", line 3825, in errorbar
+    raise ValueError(
+ValueError: 'yerr' must not contain negative values
+

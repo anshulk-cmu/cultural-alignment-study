@@ -1,0 +1,10 @@
+[00:40:54] Device: cuda
+[00:40:54] GPU: NVIDIA RTX A6000
+[00:40:54] GPU Memory: 50.90 GB
+[00:40:56]   Saved: variational_mdl_comparison.png
+[00:40:56]   Saved: fisher_information.png
+[00:40:57]   Saved: isomorphism_drift.png
+[00:40:57]   Saved: sparsity_analysis.png
+[00:40:58]   Saved: group_comparison.png
+[00:41:01]   Saved: triple_entanglement_analysis.png
+[00:41:02]   Saved: isomorphism_transfer.png

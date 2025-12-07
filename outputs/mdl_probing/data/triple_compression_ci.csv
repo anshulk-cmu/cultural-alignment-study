@@ -1,0 +1,3 @@
+model,layer,compression_ratio_point,compression_ratio_ci_lower,compression_ratio_ci_upper
+base,24,2.212424600912407,2.2077499293924294,2.2167131629749486
+instruct,24,2.2013095106945904,2.196025368497907,2.206600508092541

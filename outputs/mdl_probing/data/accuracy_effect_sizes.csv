@@ -1,0 +1,13 @@
+layer,task,split,cohens_d_acc,n_base,n_instruct
+8,attribute,test,-1.1327398001868951,9,9
+8,state,test,0.09649171812503056,9,9
+8,multitask_dual,test,0.0,9,9
+16,attribute,test,-0.901004785823523,9,9
+16,state,test,0.03379925124827933,9,9
+16,multitask_dual,test,0.0,9,9
+24,attribute,test,-0.4127941365008651,9,9
+24,state,test,-0.07307253821647149,9,9
+24,multitask_dual,test,0.0,9,9
+28,attribute,test,-0.45619666337715914,9,9
+28,state,test,-0.07601609407588705,9,9
+28,multitask_dual,test,0.0,9,9

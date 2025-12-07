@@ -1013,8 +1013,8 @@ def plot_variational_comparison(df_var):
         ax.set_xticklabels(labels_list, rotation=45, ha='right', fontsize=8)
 
         if any(lo is not None and up is not None for lo, up in zip(lowers, uppers)):
-            err_low = [val - lo if lo is not None else 0 for val, lo in zip(data, lowers)]
-            err_up = [up - val if up is not None else 0 for val, up in zip(data, uppers)]
+            err_low = [max(0, val - lo) if lo is not None else 0 for val, lo in zip(data, lowers)]
+            err_up = [max(0, up - val) if up is not None else 0 for val, up in zip(data, uppers)]
             err = np.vstack([err_low, err_up])
             ax.errorbar(x, data, yerr=err, fmt='none', ecolor='black', elinewidth=1, capsize=3, alpha=0.7)
 
