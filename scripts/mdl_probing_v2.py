@@ -925,8 +925,15 @@ def plot_online_curves(df_online):
                                    (layer_data['group'] == 'all')]
                 
                 if len(subset) > 0:
-                    ax.plot(subset['data_pct'], subset['bits_per_sample'], 
-                           label=f"{model}-{task}", alpha=0.7)
+                    # Drop non-numeric rows (e.g., held-out test summary) before plotting curves
+                    subset = subset.copy()
+                    subset['data_pct'] = pd.to_numeric(subset['data_pct'], errors='coerce')
+                    subset['bits_per_sample'] = pd.to_numeric(subset['bits_per_sample'], errors='coerce')
+                    subset = subset.dropna(subset=['data_pct', 'bits_per_sample'])
+                    if len(subset) > 0:
+                        subset = subset.sort_values('data_pct')
+                        ax.plot(subset['data_pct'], subset['bits_per_sample'], 
+                               label=f"{model}-{task}", alpha=0.7)
         
         ax.set_xlabel('Data Fraction', fontsize=10)
         ax.set_ylabel('Bits per Sample', fontsize=10)
@@ -934,7 +941,9 @@ def plot_online_curves(df_online):
         ax.legend(fontsize=7, loc='best')
         ax.grid(True, alpha=0.3)
     
-    axes[1, 1].axis('off')
+    # Only blank unused subplot slots if we have fewer than 4 layers
+    if len(Config.LAYERS) < 4:
+        axes[1, 1].axis('off')
     
     plt.tight_layout()
     plt.savefig(Config.OUTPUT_DIR / "plots" / "online_coding_curves.png", dpi=300, bbox_inches='tight')
