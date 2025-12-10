@@ -1,0 +1,772 @@
+
+================================================================================
+LINEAR PROBING ANALYSIS PIPELINE
+================================================================================
+[11:39:38] Start time: 2025-12-07 11:39:38
+
+================================================================================
+LOADING DATA
+================================================================================
+[11:39:38] Loading metadata...
+  • Total sentences: 33522
+[11:39:38] Loading base layer 8...
+  •   Shape: (33522, 1536)
+[11:39:38] Loading base layer 16...
+  •   Shape: (33522, 1536)
+[11:39:38] Loading base layer 24...
+  •   Shape: (33522, 1536)
+[11:39:38] Loading base layer 28...
+  •   Shape: (33522, 1536)
+[11:39:38] Loading instruct layer 8...
+  •   Shape: (33522, 1536)
+[11:39:38] Loading instruct layer 16...
+  •   Shape: (33522, 1536)
+[11:39:38] Loading instruct layer 24...
+  •   Shape: (33522, 1536)
+[11:39:38] Loading instruct layer 28...
+  •   Shape: (33522, 1536)
+[11:39:39] 
+Preparing labels...
+  • Attributes: 16
+  • States: 36
+[11:39:39] 
+Label distributions:
+  • Attribute balance: {'Tourism': 5613, 'History': 3528, 'Cultural_Common_Sense': 3363, 'Festivals': 3267, 'Cuisine': 3177, 'Dance_and_Music': 2874, 'Art': 2781, 'Costume': 2103, 'Rituals_and_Ceremonies': 2019, 'Language': 1710, 'Personalities': 1482, 'Religion': 888, 'Sports': 342, 'Transport': 183, 'Medicine': 135, 'Nightlife': 57}
+  • State balance: {'Telangana': 2889, 'Uttarakhand': 1806, 'Tamil_Nadu': 1590, 'Sikkim': 1485, 'Tripura': 1449, 'Manipur': 1449, 'Arunachal_Pradesh': 1431, 'Himachal_Pradesh': 1422, 'Jharkhand': 1389, 'Karnataka': 1308}
+  • Base correctness: 22242/33522
+  • Instruct correctness: 21399/33522
+
+================================================================================
+CREATING TRAIN/TEST SPLITS
+================================================================================
+  • Train size: 25141
+  • Test size: 8381
+[11:39:39] 
+Group distribution in splits:
+  •   suppression: Train: 35.60%, Test: 35.60%
+  •   enhancement: Train: 35.71%, Test: 35.71%
+  •   control: Train: 28.69%, Test: 28.68%
+
+================================================================================
+PROBE 1: ATTRIBUTE CLASSIFICATION (16-CLASS)
+================================================================================
+[11:39:39] 
+BASE Layer 8
+[11:39:54] 
+--- Baselines (16-class attribute) ---
+  • Chance level: 0.0625 (1/16)
+  • Majority class: 0.1632
+  • Random features: 0.1007 ± 0.0039
+  • Accuracy: 0.7988
+  • Gain over chance: +0.7363
+  • Gain over random: +0.6982
+  • Precision: 0.8015
+  • Recall: 0.7988
+  • F1: 0.8000
+  • CV Accuracy: 0.8002 ± 0.0034
+  • 95% CI: [0.7900, 0.8073]
+[11:40:01] 
+BASE Layer 16
+  • Accuracy: 0.7830
+  • Gain over chance: +0.7205
+  • Gain over random: +0.6823
+  • Precision: 0.7852
+  • Recall: 0.7830
+  • F1: 0.7839
+  • CV Accuracy: 0.7890 ± 0.0039
+  • 95% CI: [0.7745, 0.7919]
+[11:40:09] 
+BASE Layer 24
+  • Accuracy: 0.8320
+  • Gain over chance: +0.7695
+  • Gain over random: +0.7313
+  • Precision: 0.8323
+  • Recall: 0.8320
+  • F1: 0.8320
+  • CV Accuracy: 0.8302 ± 0.0026
+  • 95% CI: [0.8245, 0.8408]
+[11:40:16] 
+BASE Layer 28
+  • Accuracy: 0.8299
+  • Gain over chance: +0.7674
+  • Gain over random: +0.7292
+  • Precision: 0.8295
+  • Recall: 0.8299
+  • F1: 0.8295
+  • CV Accuracy: 0.8324 ± 0.0044
+  • 95% CI: [0.8220, 0.8379]
+[11:40:24] 
+INSTRUCT Layer 8
+  • Accuracy: 0.7980
+  • Gain over chance: +0.7355
+  • Gain over random: +0.6973
+  • Precision: 0.8009
+  • Recall: 0.7980
+  • F1: 0.7992
+  • CV Accuracy: 0.8011 ± 0.0040
+  • 95% CI: [0.7888, 0.8071]
+[11:40:32] 
+INSTRUCT Layer 16
+  • Accuracy: 0.7831
+  • Gain over chance: +0.7206
+  • Gain over random: +0.6824
+  • Precision: 0.7849
+  • Recall: 0.7831
+  • F1: 0.7839
+  • CV Accuracy: 0.7902 ± 0.0038
+  • 95% CI: [0.7739, 0.7914]
+[11:40:39] 
+INSTRUCT Layer 24
+  • Accuracy: 0.8263
+  • Gain over chance: +0.7638
+  • Gain over random: +0.7256
+  • Precision: 0.8268
+  • Recall: 0.8263
+  • F1: 0.8264
+  • CV Accuracy: 0.8313 ± 0.0020
+  • 95% CI: [0.8184, 0.8341]
+[11:40:46] 
+INSTRUCT Layer 28
+  • Accuracy: 0.8318
+  • Gain over chance: +0.7693
+  • Gain over random: +0.7311
+  • Precision: 0.8312
+  • Recall: 0.8318
+  • F1: 0.8313
+  • CV Accuracy: 0.8340 ± 0.0051
+  • 95% CI: [0.8239, 0.8395]
+[11:40:54] 
+--- Statistical Comparisons (Base vs Instruct) ---
+  • Layer 8: Δ=-0.0009, t=-0.94, p=0.4006, d=-0.42 (small)
+  • Layer 16: Δ=-0.0013, t=-2.14, p=0.0995, d=-0.96 (large)
+  • Layer 24: Δ=-0.0011, t=-1.39, p=0.2380, d=-0.62 (medium)
+  • Layer 28: Δ=-0.0016, t=-1.21, p=0.2921, d=-0.54 (medium)
+
+================================================================================
+PROBE 2: CROSS-MODEL CORRECTNESS PREDICTION (BINARY)
+================================================================================
+[11:40:54] 
+BASE activations → INSTRUCT correctness | Layer 8
+  • Accuracy: 0.6528
+  • Precision: 0.6347
+  • Recall: 0.6528
+  • F1: 0.6377
+  • ROC-AUC: 0.6653
+  • CV Accuracy: 0.6490 ± 0.0055
+[11:40:58] 
+BASE activations → INSTRUCT correctness | Layer 16
+  • Accuracy: 0.6536
+  • Precision: 0.6362
+  • Recall: 0.6536
+  • F1: 0.6394
+  • ROC-AUC: 0.6685
+  • CV Accuracy: 0.6472 ± 0.0035
+[11:41:02] 
+BASE activations → INSTRUCT correctness | Layer 24
+  • Accuracy: 0.6603
+  • Precision: 0.6421
+  • Recall: 0.6603
+  • F1: 0.6440
+  • ROC-AUC: 0.6702
+  • CV Accuracy: 0.6518 ± 0.0049
+[11:41:06] 
+BASE activations → INSTRUCT correctness | Layer 28
+  • Accuracy: 0.6566
+  • Precision: 0.6398
+  • Recall: 0.6566
+  • F1: 0.6428
+  • ROC-AUC: 0.6612
+  • CV Accuracy: 0.6492 ± 0.0032
+[11:41:11] 
+INSTRUCT activations → BASE correctness | Layer 8
+  • Accuracy: 0.6706
+  • Precision: 0.6463
+  • Recall: 0.6706
+  • F1: 0.6484
+  • ROC-AUC: 0.6748
+  • CV Accuracy: 0.6680 ± 0.0052
+[11:41:15] 
+INSTRUCT activations → BASE correctness | Layer 16
+  • Accuracy: 0.6653
+  • Precision: 0.6408
+  • Recall: 0.6653
+  • F1: 0.6440
+  • ROC-AUC: 0.6723
+  • CV Accuracy: 0.6679 ± 0.0054
+[11:41:19] 
+INSTRUCT activations → BASE correctness | Layer 24
+  • Accuracy: 0.6720
+  • Precision: 0.6498
+  • Recall: 0.6720
+  • F1: 0.6527
+  • ROC-AUC: 0.6776
+  • CV Accuracy: 0.6716 ± 0.0069
+[11:41:23] 
+INSTRUCT activations → BASE correctness | Layer 28
+  • Accuracy: 0.6759
+  • Precision: 0.6535
+  • Recall: 0.6759
+  • F1: 0.6554
+  • ROC-AUC: 0.6779
+  • CV Accuracy: 0.6714 ± 0.0080
+[11:41:28] 
+--- Self-Correctness Baseline (for comparison only) ---
+[11:41:28] BASE self L8: 0.6696 (baseline)
+[11:41:32] BASE self L16: 0.6708 (baseline)
+[11:41:36] BASE self L24: 0.6745 (baseline)
+[11:41:40] BASE self L28: 0.6777 (baseline)
+[11:41:45] INSTRUCT self L8: 0.6516 (baseline)
+[11:41:49] INSTRUCT self L16: 0.6534 (baseline)
+[11:41:53] INSTRUCT self L24: 0.6644 (baseline)
+[11:41:57] INSTRUCT self L28: 0.6577 (baseline)
+
+================================================================================
+PROBE 3: STATE CLASSIFICATION (36-CLASS)
+================================================================================
+[11:42:01] 
+BASE Layer 8
+[11:42:11] 
+--- Baselines (36-class state) ---
+  • Chance level: 0.0278 (1/36)
+  • Majority class: 0.0888
+  • Random features: 0.0329 ± 0.0021
+  • Accuracy: 0.9522
+  • Gain over chance: +0.9244
+  • Gain over random: +0.9193
+  • Precision: 0.9523
+  • Recall: 0.9522
+  • F1: 0.9520
+  • CV Accuracy: 0.9539 ± 0.0014
+  • 95% CI: [0.9479, 0.9570]
+[11:42:15] 
+BASE Layer 16
+  • Accuracy: 0.9171
+  • Gain over chance: +0.8893
+  • Gain over random: +0.8842
+  • Precision: 0.9173
+  • Recall: 0.9171
+  • F1: 0.9167
+  • CV Accuracy: 0.9195 ± 0.0034
+  • 95% CI: [0.9110, 0.9229]
+[11:42:19] 
+BASE Layer 24
+  • Accuracy: 0.9693
+  • Gain over chance: +0.9416
+  • Gain over random: +0.9365
+  • Precision: 0.9695
+  • Recall: 0.9693
+  • F1: 0.9693
+  • CV Accuracy: 0.9694 ± 0.0029
+  • 95% CI: [0.9655, 0.9730]
+[11:42:24] 
+BASE Layer 28
+  • Accuracy: 0.9717
+  • Gain over chance: +0.9439
+  • Gain over random: +0.9389
+  • Precision: 0.9719
+  • Recall: 0.9717
+  • F1: 0.9717
+  • CV Accuracy: 0.9714 ± 0.0006
+  • 95% CI: [0.9683, 0.9754]
+[11:42:29] 
+INSTRUCT Layer 8
+  • Accuracy: 0.9518
+  • Gain over chance: +0.9240
+  • Gain over random: +0.9189
+  • Precision: 0.9519
+  • Recall: 0.9518
+  • F1: 0.9517
+  • CV Accuracy: 0.9542 ± 0.0025
+  • 95% CI: [0.9474, 0.9564]
+[11:42:33] 
+INSTRUCT Layer 16
+  • Accuracy: 0.9170
+  • Gain over chance: +0.8892
+  • Gain over random: +0.8841
+  • Precision: 0.9171
+  • Recall: 0.9170
+  • F1: 0.9166
+  • CV Accuracy: 0.9204 ± 0.0033
+  • 95% CI: [0.9111, 0.9230]
+[11:42:37] 
+INSTRUCT Layer 24
+  • Accuracy: 0.9696
+  • Gain over chance: +0.9418
+  • Gain over random: +0.9367
+  • Precision: 0.9698
+  • Recall: 0.9696
+  • F1: 0.9696
+  • CV Accuracy: 0.9700 ± 0.0023
+  • 95% CI: [0.9659, 0.9733]
+[11:42:42] 
+INSTRUCT Layer 28
+  • Accuracy: 0.9712
+  • Gain over chance: +0.9435
+  • Gain over random: +0.9384
+  • Precision: 0.9714
+  • Recall: 0.9712
+  • F1: 0.9712
+  • CV Accuracy: 0.9720 ± 0.0015
+  • 95% CI: [0.9679, 0.9749]
+[11:42:47] 
+--- Statistical Comparisons (Base vs Instruct) ---
+  • Layer 8: Δ=-0.0003, t=-0.42, p=0.6945, d=-0.19 (negligible)
+  • Layer 16: Δ=-0.0010, t=-1.89, p=0.1313, d=-0.85 (large)
+  • Layer 24: Δ=-0.0006, t=-1.28, p=0.2684, d=-0.57 (medium)
+  • Layer 28: Δ=-0.0005, t=-0.95, p=0.3959, d=-0.42 (small)
+
+================================================================================
+PROBE 4: CROSS-MODEL TRANSFER (CRITICAL TEST)
+================================================================================
+[11:42:47] 
+Layer 8: Train on Base → Test on Instruct
+[11:42:47] 
+  Attribute Transfer:
+  •   Base → Base: 0.7988
+  •   Base → Instruct: 0.7888
+  •   Transfer Rate: 0.9875 (-1.25%)
+[11:42:48] 
+  Correctness Transfer (Base):
+  •   Base → Base: 0.6695
+  •   Base → Instruct: 0.6546
+  •   Transfer Rate: 0.9777
+[11:42:48] 
+  State Transfer:
+  •   Base → Base: 0.9522
+  •   Base → Instruct: 0.9483
+  •   Transfer Rate: 0.9960
+[11:42:48] 
+Layer 16: Train on Base → Test on Instruct
+[11:42:48] 
+  Attribute Transfer:
+  •   Base → Base: 0.7831
+  •   Base → Instruct: 0.7543
+  •   Transfer Rate: 0.9633 (-3.67%)
+[11:42:49] 
+  Correctness Transfer (Base):
+  •   Base → Base: 0.6703
+  •   Base → Instruct: 0.6763
+  •   Transfer Rate: 1.0089
+[11:42:50] 
+  State Transfer:
+  •   Base → Base: 0.9172
+  •   Base → Instruct: 0.9082
+  •   Transfer Rate: 0.9902
+[11:42:50] 
+Layer 24: Train on Base → Test on Instruct
+[11:42:50] 
+  Attribute Transfer:
+  •   Base → Base: 0.8321
+  •   Base → Instruct: 0.7984
+  •   Transfer Rate: 0.9594 (-4.06%)
+[11:42:51] 
+  Correctness Transfer (Base):
+  •   Base → Base: 0.6745
+  •   Base → Instruct: 0.6660
+  •   Transfer Rate: 0.9874
+[11:42:51] 
+  State Transfer:
+  •   Base → Base: 0.9691
+  •   Base → Instruct: 0.9693
+  •   Transfer Rate: 1.0002
+[11:42:52] 
+Layer 28: Train on Base → Test on Instruct
+[11:42:52] 
+  Attribute Transfer:
+  •   Base → Base: 0.8300
+  •   Base → Instruct: 0.8005
+  •   Transfer Rate: 0.9645 (-3.55%)
+[11:42:53] 
+  Correctness Transfer (Base):
+  •   Base → Base: 0.6787
+  •   Base → Instruct: 0.6802
+  •   Transfer Rate: 1.0023
+[11:42:53] 
+  State Transfer:
+  •   Base → Base: 0.9718
+  •   Base → Instruct: 0.9683
+  •   Transfer Rate: 0.9963
+
+================================================================================
+PROBE 5: MULTI-TASK JOINT PROBING
+================================================================================
+[11:42:53] 
+BASE Layer 8
+[11:42:54]   Strategy 1: Independent Probes
+  •     Attribute: 0.7987
+  •     Correctness: 0.6697
+  •     State: 0.9519
+  •     Average: 0.8068
+[11:42:55]   Strategy 2: Joint Multi-Task
+  •     Attribute: 0.8077
+  •     Correctness: 0.6296
+  •     State: 0.9394
+  •     Average: 0.7922
+[11:43:20]   Comparison:
+  •     Attribute Δ: +0.0089
+  •     Correctness Δ: -0.0401
+  •     State Δ: -0.0125
+[11:43:20] 
+BASE Layer 16
+[11:43:20]   Strategy 1: Independent Probes
+  •     Attribute: 0.7830
+  •     Correctness: 0.6704
+  •     State: 0.9173
+  •     Average: 0.7902
+[11:43:22]   Strategy 2: Joint Multi-Task
+  •     Attribute: 0.7932
+  •     Correctness: 0.6241
+  •     State: 0.9043
+  •     Average: 0.7739
+[11:43:56]   Comparison:
+  •     Attribute Δ: +0.0103
+  •     Correctness Δ: -0.0463
+  •     State Δ: -0.0130
+[11:43:56] 
+BASE Layer 24
+[11:43:56]   Strategy 1: Independent Probes
+  •     Attribute: 0.8321
+  •     Correctness: 0.6743
+  •     State: 0.9691
+  •     Average: 0.8252
+[11:43:58]   Strategy 2: Joint Multi-Task
+  •     Attribute: 0.8395
+  •     Correctness: 0.6240
+  •     State: 0.9603
+  •     Average: 0.8079
+[11:44:22]   Comparison:
+  •     Attribute Δ: +0.0074
+  •     Correctness Δ: -0.0502
+  •     State Δ: -0.0088
+[11:44:22] 
+BASE Layer 28
+[11:44:23]   Strategy 1: Independent Probes
+  •     Attribute: 0.8302
+  •     Correctness: 0.6786
+  •     State: 0.9720
+  •     Average: 0.8269
+[11:44:24]   Strategy 2: Joint Multi-Task
+  •     Attribute: 0.8356
+  •     Correctness: 0.6230
+  •     State: 0.9637
+  •     Average: 0.8074
+[11:44:51]   Comparison:
+  •     Attribute Δ: +0.0054
+  •     Correctness Δ: -0.0556
+  •     State Δ: -0.0082
+[11:44:52] 
+INSTRUCT Layer 8
+[11:44:52]   Strategy 1: Independent Probes
+  •     Attribute: 0.7978
+  •     Correctness: 0.6516
+  •     State: 0.9519
+  •     Average: 0.8004
+[11:44:53]   Strategy 2: Joint Multi-Task
+  •     Attribute: 0.8053
+  •     Correctness: 0.6193
+  •     State: 0.9428
+  •     Average: 0.7891
+[11:45:18]   Comparison:
+  •     Attribute Δ: +0.0075
+  •     Correctness Δ: -0.0323
+  •     State Δ: -0.0091
+[11:45:18] 
+INSTRUCT Layer 16
+[11:45:18]   Strategy 1: Independent Probes
+  •     Attribute: 0.7833
+  •     Correctness: 0.6536
+  •     State: 0.9167
+  •     Average: 0.7846
+[11:45:20]   Strategy 2: Joint Multi-Task
+  •     Attribute: 0.7890
+  •     Correctness: 0.6226
+  •     State: 0.9060
+  •     Average: 0.7725
+[11:45:44]   Comparison:
+  •     Attribute Δ: +0.0057
+  •     Correctness Δ: -0.0310
+  •     State Δ: -0.0107
+[11:45:45] 
+INSTRUCT Layer 24
+[11:45:45]   Strategy 1: Independent Probes
+  •     Attribute: 0.8265
+  •     Correctness: 0.6640
+  •     State: 0.9696
+  •     Average: 0.8200
+[11:45:46]   Strategy 2: Joint Multi-Task
+  •     Attribute: 0.8343
+  •     Correctness: 0.6236
+  •     State: 0.9613
+  •     Average: 0.8064
+[11:46:11]   Comparison:
+  •     Attribute Δ: +0.0078
+  •     Correctness Δ: -0.0404
+  •     State Δ: -0.0082
+[11:46:11] 
+INSTRUCT Layer 28
+[11:46:11]   Strategy 1: Independent Probes
+  •     Attribute: 0.8319
+  •     Correctness: 0.6584
+  •     State: 0.9712
+  •     Average: 0.8205
+[11:46:13]   Strategy 2: Joint Multi-Task
+  •     Attribute: 0.8376
+  •     Correctness: 0.6142
+  •     State: 0.9664
+  •     Average: 0.8061
+[11:46:39]   Comparison:
+  •     Attribute Δ: +0.0057
+  •     Correctness Δ: -0.0441
+  •     State Δ: -0.0049
+
+================================================================================
+PROBE 6: SUPPRESSION-PREDICTIVE PROBING
+================================================================================
+[11:46:40] 
+Class distribution:
+  • Suppression cases: 6033 (18.0%)
+  • Enhancement cases: 5190 (15.5%)
+  • Other cases: 22299 (66.5%)
+[11:46:40] 
+--- Predicting SUPPRESSION from BASE activations ---
+[11:46:40] 
+Layer 8
+  • Accuracy: 0.8134
+  • Chance level: 0.5000
+  • Gain over chance: +0.3134
+  • Gain over random: +-0.0042
+  • ROC-AUC: 0.6348
+  • CV Accuracy: 0.8088 ± 0.0025
+[11:46:48] 
+Layer 16
+  • Accuracy: 0.8105
+  • Chance level: 0.5000
+  • Gain over chance: +0.3105
+  • Gain over random: +-0.0064
+  • ROC-AUC: 0.6233
+  • CV Accuracy: 0.8082 ± 0.0019
+[11:46:57] 
+Layer 24
+  • Accuracy: 0.8116
+  • Chance level: 0.5000
+  • Gain over chance: +0.3116
+  • Gain over random: +-0.0053
+  • ROC-AUC: 0.6415
+  • CV Accuracy: 0.8082 ± 0.0012
+[11:47:05] 
+Layer 28
+  • Accuracy: 0.8103
+  • Chance level: 0.5000
+  • Gain over chance: +0.3103
+  • Gain over random: +-0.0063
+  • ROC-AUC: 0.6412
+  • CV Accuracy: 0.8086 ± 0.0026
+[11:47:14] 
+--- Predicting ENHANCEMENT from BASE activations (control) ---
+[11:47:14] 
+Layer 8
+  • Accuracy: 0.8321
+  • Gain over chance: +0.3321
+  • ROC-AUC: 0.6308
+[11:47:23] 
+Layer 16
+  • Accuracy: 0.8307
+  • Gain over chance: +0.3307
+  • ROC-AUC: 0.6200
+[11:47:31] 
+Layer 24
+  • Accuracy: 0.8309
+  • Gain over chance: +0.3309
+  • ROC-AUC: 0.6226
+[11:47:39] 
+Layer 28
+  • Accuracy: 0.8341
+  • Gain over chance: +0.3341
+  • ROC-AUC: 0.6292
+[11:47:47] 
+--- Predicting SUPPRESSION from INSTRUCT activations ---
+[11:47:47] 
+Layer 8
+  • Accuracy: 0.8142
+  • ROC-AUC: 0.6344
+[11:47:51] 
+Layer 16
+  • Accuracy: 0.8116
+  • ROC-AUC: 0.6220
+[11:47:56] 
+Layer 24
+  • Accuracy: 0.8135
+  • ROC-AUC: 0.6415
+[11:48:00] 
+Layer 28
+  • Accuracy: 0.8102
+  • ROC-AUC: 0.6428
+[11:48:04] 
+--- Summary: Suppression Predictability ---
+  • Layer 8: Base→Supp: 0.8134 (AUC:0.635) | Inst→Supp: 0.8142 (AUC:0.634) | Δ=+0.0008
+  • Layer 16: Base→Supp: 0.8105 (AUC:0.623) | Inst→Supp: 0.8116 (AUC:0.622) | Δ=+0.0011
+  • Layer 24: Base→Supp: 0.8116 (AUC:0.641) | Inst→Supp: 0.8135 (AUC:0.641) | Δ=+0.0019
+  • Layer 28: Base→Supp: 0.8103 (AUC:0.641) | Inst→Supp: 0.8102 (AUC:0.643) | Δ=-0.0001
+
+================================================================================
+GROUP-WISE ANALYSIS
+================================================================================
+[11:48:04] 
+BASE Layer 8
+  •   suppression: Attr: 0.7912, Corr: 0.7007
+  •   enhancement: Attr: 0.8025, Corr: 0.5483
+  •   control: Attr: 0.8028, Corr: 0.7804
+[11:48:06] 
+BASE Layer 16
+  •   suppression: Attr: 0.7838, Corr: 0.7034
+  •   enhancement: Attr: 0.7848, Corr: 0.5439
+  •   control: Attr: 0.7812, Corr: 0.7866
+[11:48:07] 
+BASE Layer 24
+  •   suppression: Attr: 0.8254, Corr: 0.7048
+  •   enhancement: Attr: 0.8363, Corr: 0.5563
+  •   control: Attr: 0.8344, Corr: 0.7849
+[11:48:08] 
+BASE Layer 28
+  •   suppression: Attr: 0.8264, Corr: 0.7155
+  •   enhancement: Attr: 0.8283, Corr: 0.5533
+  •   control: Attr: 0.8369, Corr: 0.7866
+[11:48:10] 
+INSTRUCT Layer 8
+  •   suppression: Attr: 0.7922, Corr: 0.5235
+  •   enhancement: Attr: 0.7982, Corr: 0.6706
+  •   control: Attr: 0.8049, Corr: 0.7887
+[11:48:11] 
+INSTRUCT Layer 16
+  •   suppression: Attr: 0.7835, Corr: 0.5395
+  •   enhancement: Attr: 0.7808, Corr: 0.6756
+  •   control: Attr: 0.7841, Corr: 0.7662
+[11:48:12] 
+INSTRUCT Layer 24
+  •   suppression: Attr: 0.8197, Corr: 0.5295
+  •   enhancement: Attr: 0.8319, Corr: 0.6876
+  •   control: Attr: 0.8274, Corr: 0.8007
+[11:48:13] 
+INSTRUCT Layer 28
+  •   suppression: Attr: 0.8274, Corr: 0.5332
+  •   enhancement: Attr: 0.8313, Corr: 0.6806
+  •   control: Attr: 0.8386, Corr: 0.7833
+
+================================================================================
+PER-ATTRIBUTE/STATE BREAKDOWN ANALYSIS
+================================================================================
+[11:48:15] 
+Analyzing Layer 28 (primary suppression layer)
+[11:48:15] 
+--- BASE Model ---
+[11:48:16] 
+  Per-Attribute Accuracy:
+  •     Costume [high]: 0.8919 (n=555)
+  •     Dance_and_Music [high]: 0.9050 (n=747)
+  •     Sports [low]: 0.9010 (n=101)
+  •     Religion [high]: 0.8767 (n=219)
+  •     Rituals_and_Ceremonies [high]: 0.6192 (n=520)
+  •     Medicine [low]: 0.9444 (n=36)
+  •     Transport [low]: 0.9038 (n=52)
+  •     Nightlife [low]: 0.9286 (n=14)
+[11:48:16] 
+  Per-State Accuracy (selected):
+  •     Arunachal_Pradesh [high]: 0.9822 (n=337)
+  •     Chandigarh [low]: 0.9701 (n=67)
+  •     Delhi [low]: 1.0000 (n=203)
+  •     Haryana [low]: 0.9469 (n=207)
+  •     Karnataka [high]: 0.9851 (n=336)
+  •     Kerala [high]: 0.9341 (n=91)
+  •     Mizoram [high]: 0.9867 (n=150)
+  •     Punjab [low]: 0.9911 (n=224)
+  •     Tamil_Nadu [high]: 0.9875 (n=399)
+[11:48:16] 
+  High vs Low Suppression Summary:
+  •     Attribute: High: 0.8232, Low: 0.9195, Δ=-0.0963
+  •     : t=-1.39, p=0.2125, Cohen's d=-0.99
+  •     State: High: 0.9751, Low: 0.9770, Δ=-0.0019
+[11:48:16] 
+--- INSTRUCT Model ---
+[11:48:18] 
+  Per-Attribute Accuracy:
+  •     Costume [high]: 0.8991 (n=555)
+  •     Dance_and_Music [high]: 0.9023 (n=747)
+  •     Sports [low]: 0.8911 (n=101)
+  •     Religion [high]: 0.8721 (n=219)
+  •     Rituals_and_Ceremonies [high]: 0.6212 (n=520)
+  •     Medicine [low]: 0.9444 (n=36)
+  •     Transport [low]: 0.8846 (n=52)
+  •     Nightlife [low]: 0.8571 (n=14)
+[11:48:18] 
+  Per-State Accuracy (selected):
+  •     Arunachal_Pradesh [high]: 0.9792 (n=337)
+  •     Chandigarh [low]: 0.9701 (n=67)
+  •     Delhi [low]: 1.0000 (n=203)
+  •     Haryana [low]: 0.9517 (n=207)
+  •     Karnataka [high]: 0.9851 (n=336)
+  •     Kerala [high]: 0.9341 (n=91)
+  •     Mizoram [high]: 0.9867 (n=150)
+  •     Punjab [low]: 0.9911 (n=224)
+  •     Tamil_Nadu [high]: 0.9900 (n=399)
+[11:48:18] 
+  High vs Low Suppression Summary:
+  •     Attribute: High: 0.8237, Low: 0.8943, Δ=-0.0707
+  •     : t=-1.01, p=0.3534, Cohen's d=-0.71
+  •     State: High: 0.9750, Low: 0.9782, Δ=-0.0032
+
+================================================================================
+LAYER-WISE INFORMATION FLOW ANALYSIS
+================================================================================
+[11:48:18] 
+--- ATTRIBUTE Information Flow ---
+[11:48:25] 
+  Base-Instruct Divergence by Layer:
+  •     Layer 8: Base: 0.7987, Inst: 0.7978, |Δ|=0.0010
+  •     Layer 16: Base: 0.7827, Inst: 0.7831, |Δ|=0.0004
+  •     Layer 24: Base: 0.8325, Inst: 0.8264, |Δ|=0.0061
+  •     Layer 28: Base: 0.8300, Inst: 0.8316, |Δ|=0.0017
+  •   Peak layer (base): Layer 24 (0.8325)
+  •   Peak layer (instruct): Layer 28 (0.8316)
+[11:48:25] 
+--- STATE Information Flow ---
+[11:48:29] 
+  Base-Instruct Divergence by Layer:
+  •     Layer 8: Base: 0.9520, Inst: 0.9518, |Δ|=0.0002
+  •     Layer 16: Base: 0.9173, Inst: 0.9171, |Δ|=0.0002
+  •     Layer 24: Base: 0.9692, Inst: 0.9697, |Δ|=0.0005
+  •     Layer 28: Base: 0.9716, Inst: 0.9714, |Δ|=0.0002
+  •   Peak layer (base): Layer 28 (0.9716)
+  •   Peak layer (instruct): Layer 28 (0.9714)
+[11:48:29] 
+--- Layer 28 Bottleneck Analysis ---
+  •   attribute: L24 div: 0.0061, L28 div: 0.0017, Amplification: 0.27x
+  •   state: L24 div: 0.0005, L28 div: 0.0002, Amplification: 0.50x
+
+================================================================================
+CREATING VISUALIZATIONS
+================================================================================
+[11:48:30] ✓ Saved probe accuracies plot
+[11:48:31] ✓ Saved cross-model transfer plot
+[11:48:32] ✓ Saved group-wise performance plot
+[11:48:33] ✓ Saved transfer rate heatmap
+[11:48:34] ✓ Saved suppression-predictive plot
+[11:48:35] ✓ Saved cultural category breakdown plot
+[11:48:36] ✓ Saved layer information flow plot
+[11:48:36] ✓ Saved baseline comparison plot
+[11:48:37] ✓ Saved cross-model correctness plot
+[11:48:38] ✓ Saved statistical summary plot
+
+================================================================================
+GENERATING SUMMARY REPORT
+================================================================================
+[11:48:38] ✓ Summary report saved
+[11:48:38] ✓ Label encoders saved
+
+================================================================================
+PIPELINE COMPLETE
+================================================================================
+[11:48:38] End time: 2025-12-07 11:48:38
+[11:48:38] Total duration: 9.0 minutes
+[11:48:38] 
+All outputs saved to:
+[11:48:38]   /home/anshulk/cultural-alignment-study/outputs/linear_probing

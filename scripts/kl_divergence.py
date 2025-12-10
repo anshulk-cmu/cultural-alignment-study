@@ -38,11 +38,12 @@ from scipy import stats
 from scipy.spatial import distance
 from sklearn.covariance import EmpiricalCovariance, LedoitWolf
 from sklearn.decomposition import PCA
+from joblib import Parallel, delayed
 import matplotlib.patches as mpatches
 
 # Set style
 sns.set_style("whitegrid")
-plt.rcParams['figure.figsize'] = (12, 8)
+plt.rcParams['figure.figsize'] = (18, 12)
 plt.rcParams['font.size'] = 10
 
 # ==============================================================================
@@ -61,7 +62,8 @@ class Config:
     # Analysis parameters
     LAYERS = [8, 16, 24, 28]
     HIDDEN_SIZE = 1536
-    N_BOOT = 500  # bootstrap samples for CI
+    N_BOOT = 400  # bootstrap samples for CI
+    N_JOBS = 10   # parallel workers for bootstrap
     PCA_ENABLED = False  # toggled per run
     PCA_DIM = 100
 
@@ -165,19 +167,27 @@ def compute_kl_divergence_gaussian(mean1, cov1, mean2, cov2):
     """
     k = len(mean1)
 
-    # Compute inverse and log determinant of cov2
-    cov2_inv = np.linalg.inv(cov2)
+    # Use solve instead of inv for numerical stability: solve(A, B) = A^{-1} @ B
+    # cov2_inv @ cov1 = solve(cov2, cov1)
+    cov2_inv_cov1 = np.linalg.solve(cov2, cov1)
 
     # Compute log determinants using sign and logdet
     sign1, logdet1 = np.linalg.slogdet(cov1)
     sign2, logdet2 = np.linalg.slogdet(cov2)
 
+    # Validate signs - covariance matrices must be positive definite
+    if sign1 <= 0 or sign2 <= 0:
+        # Return a large value to indicate numerical issues
+        return np.inf
+
     # Mean difference
     mean_diff = mean2 - mean1
 
     # Compute KL divergence
-    trace_term = np.trace(cov2_inv @ cov1)
-    mahalanobis_term = mean_diff.T @ cov2_inv @ mean_diff
+    # trace_term = trace(cov2_inv @ cov1)
+    trace_term = np.trace(cov2_inv_cov1)
+    # mahalanobis_term = mean_diff.T @ cov2_inv @ mean_diff = mean_diff.T @ solve(cov2, mean_diff)
+    mahalanobis_term = mean_diff.T @ np.linalg.solve(cov2, mean_diff)
     log_det_term = logdet2 - logdet1
 
     kl = 0.5 * (trace_term + mahalanobis_term - k + log_det_term)
@@ -248,27 +258,39 @@ def compute_kl_for_subset(base_acts, instruct_acts, name=""):
         # Point estimates
         kl_div = compute_kl_divergence_gaussian(mean_base, cov_base, mean_instruct, cov_instruct)
         kl_div_reverse = compute_kl_divergence_gaussian(mean_instruct, cov_instruct, mean_base, cov_base)
-        js_div = 0.5 * (kl_div + kl_div_reverse)
 
-        # Bootstrap CIs (resample rows from both sets independently)
-        rng = np.random.RandomState(Config.SEED)
-        kl_samples = []
-        js_samples = []
+        # Proper Jensen-Shannon divergence: JS(P||Q) = 0.5*KL(P||M) + 0.5*KL(Q||M) where M = 0.5*(P+Q)
+        # For Gaussians, M has mean = 0.5*(mean_base + mean_instruct) and cov = 0.5*(cov_base + cov_instruct)
+        mean_m = 0.5 * (mean_base + mean_instruct)
+        cov_m = 0.5 * (cov_base + cov_instruct) + Config.REGULARIZATION * np.eye(cov_base.shape[0])
+        js_div = 0.5 * (compute_kl_divergence_gaussian(mean_base, cov_base, mean_m, cov_m) +
+                        compute_kl_divergence_gaussian(mean_instruct, cov_instruct, mean_m, cov_m))
+
+        # Bootstrap CIs (resample rows from both sets independently) - parallelized
         n_boot = Config.N_BOOT
         n_b = len(Xb)
         n_i = len(Xi)
-        for _ in range(n_boot):
+
+        def _single_bootstrap(seed):
+            rng = np.random.RandomState(seed)
             idx_b = rng.choice(n_b, size=n_b, replace=True)
             idx_i = rng.choice(n_i, size=n_i, replace=True)
             mb, cb = fit_gaussian_with_regularization(Xb[idx_b])
             mi, ci = fit_gaussian_with_regularization(Xi[idx_i])
             kl_s = compute_kl_divergence_gaussian(mb, cb, mi, ci)
-            kl_r = compute_kl_divergence_gaussian(mi, ci, mb, cb)
-            kl_samples.append(kl_s)
-            js_samples.append(0.5 * (kl_s + kl_r))
+            # Proper JS: use mixture distribution M = 0.5*(P + Q)
+            mm = 0.5 * (mb + mi)
+            cm = 0.5 * (cb + ci) + Config.REGULARIZATION * np.eye(cb.shape[0])
+            js_s = 0.5 * (compute_kl_divergence_gaussian(mb, cb, mm, cm) +
+                          compute_kl_divergence_gaussian(mi, ci, mm, cm))
+            return kl_s, js_s
 
-        kl_ci = bootstrap_ci_scalar(kl_samples, n_boot=n_boot, ci=0.95, random_state=Config.SEED)
-        js_ci = bootstrap_ci_scalar(js_samples, n_boot=n_boot, ci=0.95, random_state=Config.SEED)
+        seeds = [Config.SEED + i for i in range(n_boot)]
+        results = Parallel(n_jobs=Config.N_JOBS)(delayed(_single_bootstrap)(s) for s in seeds)
+        kl_samples, js_samples = zip(*results)
+
+        kl_ci = bootstrap_ci_scalar(list(kl_samples), n_boot=n_boot, ci=0.95, random_state=Config.SEED)
+        js_ci = bootstrap_ci_scalar(list(js_samples), n_boot=n_boot, ci=0.95, random_state=Config.SEED)
 
         return {
             'kl_divergence': float(kl_div),
@@ -321,6 +343,7 @@ ATTRIBUTE_CATEGORY_MAPPING = {
     # Cultural Practice
     'Dance_and_Music': 'Cultural_Practice', 'Art_and_Craft': 'Cultural_Practice',
     'Festivals': 'Cultural_Practice', 'Rituals_and_Ceremonies': 'Cultural_Practice',
+    'Art': 'Cultural_Practice',
     # Identity
     'Religion': 'Identity', 'Language': 'Identity', 'Costume': 'Identity',
     'Folklore': 'Identity',
@@ -329,7 +352,14 @@ ATTRIBUTE_CATEGORY_MAPPING = {
     'Entertainment': 'Lifestyle',
     # Infrastructure
     'Architecture': 'Infrastructure', 'Transport': 'Infrastructure',
-    'Medicine': 'Infrastructure', 'Economy': 'Infrastructure'
+    'Medicine': 'Infrastructure', 'Economy': 'Infrastructure',
+    # Heritage & Tourism
+    'Tourism': 'Heritage', 'History': 'Heritage', 'Historical_Monuments': 'Heritage',
+    'Natural_Landmarks': 'Heritage', 'Wildlife': 'Heritage',
+    # Education & Knowledge
+    'Education': 'Education', 'Literature': 'Education',
+    # Social
+    'Social_Customs': 'Social', 'Family_Structure': 'Social',
 }
 
 # Minimum samples for different analysis tiers
@@ -443,12 +473,13 @@ def analyze_interaction_slices(df, activations, layer,
     states = df['state'].unique()
     attributes = df['attribute'].unique()
 
-    # Add region and category columns if not present
-    if 'region' not in df.columns:
+    # Add region and category columns if not present (single copy)
+    needs_copy = 'region' not in df.columns or 'attribute_category' not in df.columns
+    if needs_copy:
         df = df.copy()
+    if 'region' not in df.columns:
         df['region'] = df['state'].apply(get_region)
     if 'attribute_category' not in df.columns:
-        df = df.copy()
         df['attribute_category'] = df['attribute'].apply(get_attribute_category)
 
     # Tier 1: Individual interactions (state × attribute)
@@ -1111,8 +1142,11 @@ def plot_region_level_kl(df_region, file_suffix=""):
     ax = axes[1]
     layer_28 = df_region[df_region['layer'] == 28].sort_values('kl_divergence', ascending=True)
     if len(layer_28) > 0:
+        # Build color map from the regions list to ensure consistent indexing
+        region_to_color = {r: colors[i] for i, r in enumerate(regions)}
+        bar_colors = [region_to_color.get(r, 'gray') for r in layer_28['region']]
         ax.barh(range(len(layer_28)), layer_28['kl_divergence'],
-                color=[colors[list(regions).index(r)] for r in layer_28['region']], alpha=0.8)
+                color=bar_colors, alpha=0.8)
         ax.set_yticks(range(len(layer_28)))
         ax.set_yticklabels(layer_28['region'], fontsize=10)
         ax.set_xlabel('KL Divergence', fontsize=12, fontweight='bold')
@@ -1161,8 +1195,11 @@ def plot_attribute_category_kl(df_attr_cat, file_suffix=""):
     ax = axes[1]
     layer_28 = df_attr_cat[df_attr_cat['layer'] == 28].sort_values('kl_divergence', ascending=True)
     if len(layer_28) > 0:
+        # Build color map from the categories list to ensure consistent indexing
+        cat_to_color = {c: colors[i] for i, c in enumerate(categories)}
+        bar_colors = [cat_to_color.get(c, 'gray') for c in layer_28['attribute_category']]
         ax.barh(range(len(layer_28)), layer_28['kl_divergence'],
-                color=[colors[list(categories).index(c)] for c in layer_28['attribute_category']], alpha=0.8)
+                color=bar_colors, alpha=0.8)
         ax.set_yticks(range(len(layer_28)))
         ax.set_yticklabels([c.replace('_', ' ') for c in layer_28['attribute_category']], fontsize=10)
         ax.set_xlabel('KL Divergence', fontsize=12, fontweight='bold')
@@ -1275,12 +1312,14 @@ def run_pipeline(df, activations, run_suffix="", pca_enabled=None, probe_csv=Non
     df_overall = add_kl_labels(df_overall)
     df_overall.to_csv(Config.LIGHT_OUTPUT_DIR / f'results/overall_kl_divergence{suffix}.csv', index=False)
     plot_overall_kl(df_overall, file_suffix=suffix)
+    gc.collect()
 
     # Group-level analysis
     df_group = analyze_by_group(df, activations)
     df_group = add_kl_labels(df_group)
     df_group.to_csv(Config.LIGHT_OUTPUT_DIR / f'results/group_kl_divergence{suffix}.csv', index=False)
     plot_group_level_kl(df_group, file_suffix=suffix)
+    gc.collect()
 
     # Attribute-level analysis
     df_attr = analyze_by_attribute(df, activations)
@@ -1288,6 +1327,7 @@ def run_pipeline(df, activations, run_suffix="", pca_enabled=None, probe_csv=Non
     df_attr.to_csv(Config.LIGHT_OUTPUT_DIR / f'results/attribute_kl_divergence{suffix}.csv', index=False)
     df_attr.to_csv(Config.HEAVY_OUTPUT_DIR / f'attribute_kl_divergence_full{suffix}.csv', index=False)
     plot_attribute_level_kl(df_attr, file_suffix=suffix)
+    gc.collect()
 
     # State-level analysis
     df_state = analyze_by_state(df, activations)
@@ -1295,6 +1335,7 @@ def run_pipeline(df, activations, run_suffix="", pca_enabled=None, probe_csv=Non
     df_state.to_csv(Config.LIGHT_OUTPUT_DIR / f'results/state_kl_divergence{suffix}.csv', index=False)
     df_state.to_csv(Config.HEAVY_OUTPUT_DIR / f'state_kl_divergence_full{suffix}.csv', index=False)
     plot_state_level_kl(df_state, file_suffix=suffix)
+    gc.collect()
 
     # Question-type analysis
     df_qtype = analyze_by_question_type(df, activations)
@@ -1302,6 +1343,7 @@ def run_pipeline(df, activations, run_suffix="", pca_enabled=None, probe_csv=Non
         df_qtype = add_kl_labels(df_qtype)
         df_qtype.to_csv(Config.LIGHT_OUTPUT_DIR / f'results/question_type_kl_divergence{suffix}.csv', index=False)
         plot_question_type_kl(df_qtype, file_suffix=suffix)
+    gc.collect()
 
     # Region-level analysis (aggregated states)
     df_region = analyze_by_region(df, activations)
@@ -1309,6 +1351,7 @@ def run_pipeline(df, activations, run_suffix="", pca_enabled=None, probe_csv=Non
         df_region = add_kl_labels(df_region)
         df_region.to_csv(Config.LIGHT_OUTPUT_DIR / f'results/region_kl_divergence{suffix}.csv', index=False)
         plot_region_level_kl(df_region, file_suffix=suffix)
+    gc.collect()
 
     # Attribute-category analysis (aggregated attributes)
     df_attr_cat = analyze_by_attribute_category(df, activations)
@@ -1316,6 +1359,7 @@ def run_pipeline(df, activations, run_suffix="", pca_enabled=None, probe_csv=Non
         df_attr_cat = add_kl_labels(df_attr_cat)
         df_attr_cat.to_csv(Config.LIGHT_OUTPUT_DIR / f'results/attribute_category_kl_divergence{suffix}.csv', index=False)
         plot_attribute_category_kl(df_attr_cat, file_suffix=suffix)
+    gc.collect()
 
     # Interaction analysis (State × Attribute with hierarchical fallback)
     df_interactions = analyze_interactions(df, activations)
@@ -1478,11 +1522,6 @@ def main():
 
     # Full-dim run
     run_pipeline(df, activations, run_suffix=args.run_suffix, pca_enabled=False,
-                 probe_csv=args.probe_csv, mdl_csv=args.mdl_csv)
-
-    # PCA run
-    pca_suffix = f"{args.run_suffix}_pca" if args.run_suffix else "pca"
-    run_pipeline(df, activations, run_suffix=pca_suffix, pca_enabled=True,
                  probe_csv=args.probe_csv, mdl_csv=args.mdl_csv)
 
     log("\n" + "="*80)

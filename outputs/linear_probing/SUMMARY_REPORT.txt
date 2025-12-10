@@ -1,0 +1,195 @@
+================================================================================
+LINEAR PROBING ANALYSIS - SUMMARY REPORT
+================================================================================
+
+Generated: 2025-12-07 11:48:38
+
+--------------------------------------------------------------------------------
+1. ATTRIBUTE PROBING (16-CLASS)
+--------------------------------------------------------------------------------
+
+BASE:
+  Layer 8: 0.7988 (CV: 0.8002 ± 0.0034)
+  Layer 16: 0.7830 (CV: 0.7890 ± 0.0039)
+  Layer 24: 0.8320 (CV: 0.8302 ± 0.0026)
+  Layer 28: 0.8299 (CV: 0.8324 ± 0.0044)
+
+INSTRUCT:
+  Layer 8: 0.7980 (CV: 0.8011 ± 0.0040)
+  Layer 16: 0.7831 (CV: 0.7902 ± 0.0038)
+  Layer 24: 0.8263 (CV: 0.8313 ± 0.0020)
+  Layer 28: 0.8318 (CV: 0.8340 ± 0.0051)
+
+--------------------------------------------------------------------------------
+2. CORRECTNESS PROBING (BINARY)
+--------------------------------------------------------------------------------
+
+BASE (self correctness):
+  Layer 8: 0.6696 (CV: 0.6682 ± 0.0046)
+  Layer 16: 0.6708 (CV: 0.6676 ± 0.0057)
+  Layer 24: 0.6745 (CV: 0.6712 ± 0.0080)
+  Layer 28: 0.6777 (CV: 0.6704 ± 0.0080)
+
+INSTRUCT (self correctness):
+  Layer 8: 0.6516 (CV: 0.6500 ± 0.0042)
+  Layer 16: 0.6534 (CV: 0.6477 ± 0.0028)
+  Layer 24: 0.6644 (CV: 0.6535 ± 0.0040)
+  Layer 28: 0.6577 (CV: 0.6514 ± 0.0033)
+
+Cross-Model Correctness:
+
+Base → Instruct:
+  Layer 8: 0.6528 (CV: 0.6490 ± 0.0055)
+  Layer 16: 0.6536 (CV: 0.6472 ± 0.0035)
+  Layer 24: 0.6603 (CV: 0.6518 ± 0.0049)
+  Layer 28: 0.6566 (CV: 0.6492 ± 0.0032)
+
+Instruct → Base:
+  Layer 8: 0.6706 (CV: 0.6680 ± 0.0052)
+  Layer 16: 0.6653 (CV: 0.6679 ± 0.0054)
+  Layer 24: 0.6720 (CV: 0.6716 ± 0.0069)
+  Layer 28: 0.6759 (CV: 0.6714 ± 0.0080)
+
+--------------------------------------------------------------------------------
+3. STATE PROBING (36-CLASS)
+--------------------------------------------------------------------------------
+
+BASE:
+  Layer 8: 0.9522 (CV: 0.9539 ± 0.0014)
+  Layer 16: 0.9171 (CV: 0.9195 ± 0.0034)
+  Layer 24: 0.9693 (CV: 0.9694 ± 0.0029)
+  Layer 28: 0.9717 (CV: 0.9714 ± 0.0006)
+
+INSTRUCT:
+  Layer 8: 0.9518 (CV: 0.9542 ± 0.0025)
+  Layer 16: 0.9170 (CV: 0.9204 ± 0.0033)
+  Layer 24: 0.9696 (CV: 0.9700 ± 0.0023)
+  Layer 28: 0.9712 (CV: 0.9720 ± 0.0015)
+
+--------------------------------------------------------------------------------
+4. CROSS-MODEL TRANSFER (CRITICAL)
+--------------------------------------------------------------------------------
+
+Layer 8:
+  Attribute:
+    Base → Base:     0.7988
+    Base → Instruct: 0.7888
+    Transfer Rate:   0.9875 (-1.25%)
+    Absolute Drop:   +0.0100
+  Base Correctness:
+    Base → Base:     0.6695
+    Base → Instruct: 0.6546
+    Transfer Rate:   0.9777 (-2.23%)
+    Absolute Drop:   +0.0149
+  State:
+    Base → Base:     0.9522
+    Base → Instruct: 0.9483
+    Transfer Rate:   0.9960 (-0.40%)
+    Absolute Drop:   +0.0038
+
+Layer 16:
+  Attribute:
+    Base → Base:     0.7831
+    Base → Instruct: 0.7543
+    Transfer Rate:   0.9633 (-3.67%)
+    Absolute Drop:   +0.0288
+  Base Correctness:
+    Base → Base:     0.6703
+    Base → Instruct: 0.6763
+    Transfer Rate:   1.0089 (+0.89%)
+    Absolute Drop:   -0.0060
+  State:
+    Base → Base:     0.9172
+    Base → Instruct: 0.9082
+    Transfer Rate:   0.9902 (-0.98%)
+    Absolute Drop:   +0.0089
+
+Layer 24:
+  Attribute:
+    Base → Base:     0.8321
+    Base → Instruct: 0.7984
+    Transfer Rate:   0.9594 (-4.06%)
+    Absolute Drop:   +0.0338
+  Base Correctness:
+    Base → Base:     0.6745
+    Base → Instruct: 0.6660
+    Transfer Rate:   0.9874 (-1.26%)
+    Absolute Drop:   +0.0085
+  State:
+    Base → Base:     0.9691
+    Base → Instruct: 0.9693
+    Transfer Rate:   1.0002 (+0.02%)
+    Absolute Drop:   -0.0002
+
+Layer 28:
+  Attribute:
+    Base → Base:     0.8300
+    Base → Instruct: 0.8005
+    Transfer Rate:   0.9645 (-3.55%)
+    Absolute Drop:   +0.0295
+  Base Correctness:
+    Base → Base:     0.6787
+    Base → Instruct: 0.6802
+    Transfer Rate:   1.0023 (+0.23%)
+    Absolute Drop:   -0.0016
+  State:
+    Base → Base:     0.9718
+    Base → Instruct: 0.9683
+    Transfer Rate:   0.9963 (-0.37%)
+    Absolute Drop:   +0.0036
+
+--------------------------------------------------------------------------------
+5. MULTI-TASK PROBING
+--------------------------------------------------------------------------------
+
+BASE:
+  Layer 8:
+    Independent: 0.8068
+    Joint:       0.7922
+    Difference:  -0.0146
+  Layer 16:
+    Independent: 0.7902
+    Joint:       0.7739
+    Difference:  -0.0163
+  Layer 24:
+    Independent: 0.8252
+    Joint:       0.8079
+    Difference:  -0.0172
+  Layer 28:
+    Independent: 0.8269
+    Joint:       0.8074
+    Difference:  -0.0195
+
+INSTRUCT:
+  Layer 8:
+    Independent: 0.8004
+    Joint:       0.7891
+    Difference:  -0.0113
+  Layer 16:
+    Independent: 0.7846
+    Joint:       0.7725
+    Difference:  -0.0120
+  Layer 24:
+    Independent: 0.8200
+    Joint:       0.8064
+    Difference:  -0.0136
+  Layer 28:
+    Independent: 0.8205
+    Joint:       0.8061
+    Difference:  -0.0144
+
+--------------------------------------------------------------------------------
+6. KEY FINDINGS
+--------------------------------------------------------------------------------
+
+• Best Attribute Layer: 24
+• Average Transfer Rate: 0.9861 (-1.39%)
+
+⚠️  HIGH TRANSFER RATE (>95%)
+Representations remain highly aligned despite behavioral divergence.
+Suppression likely operates via downstream decision boundaries,
+NOT through representational rewriting.
+
+================================================================================
+END OF REPORT
+================================================================================

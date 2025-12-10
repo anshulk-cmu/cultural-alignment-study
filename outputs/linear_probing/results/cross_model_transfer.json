@@ -1,0 +1,82 @@
+{
+  "8": {
+    "attribute": {
+      "base_to_base": 0.7988306884619973,
+      "base_to_instruct": 0.7888080181362606,
+      "transfer_rate": 0.9874533233756535,
+      "absolute_drop": 0.010022670325736782
+    },
+    "base_correctness": {
+      "base_to_base": 0.6694905142584417,
+      "base_to_instruct": 0.6545758262737144,
+      "transfer_rate": 0.97772233113527,
+      "absolute_drop": 0.014914687984727393
+    },
+    "state": {
+      "base_to_base": 0.9521536809449946,
+      "base_to_instruct": 0.9483355208209044,
+      "transfer_rate": 0.9959899749373433,
+      "absolute_drop": 0.0038181601240901974
+    }
+  },
+  "16": {
+    "attribute": {
+      "base_to_base": 0.7830807779501253,
+      "base_to_instruct": 0.754325259515571,
+      "transfer_rate": 0.9632789882675605,
+      "absolute_drop": 0.028755518434554372
+    },
+    "base_correctness": {
+      "base_to_base": 0.6703257367855865,
+      "base_to_instruct": 0.6762916119794774,
+      "transfer_rate": 1.0088999644001424,
+      "absolute_drop": -0.005965875193890913
+    },
+    "state": {
+      "base_to_base": 0.9171936523087937,
+      "base_to_instruct": 0.9082448395179573,
+      "transfer_rate": 0.9902432678548199,
+      "absolute_drop": 0.008948812790836369
+    }
+  },
+  "24": {
+    "attribute": {
+      "base_to_base": 0.8321202720439088,
+      "base_to_instruct": 0.7983534184464861,
+      "transfer_rate": 0.9594207054774878,
+      "absolute_drop": 0.03376685359742271
+    },
+    "base_correctness": {
+      "base_to_base": 0.6745018494213101,
+      "base_to_instruct": 0.666030306645985,
+      "transfer_rate": 0.9874402971873342,
+      "absolute_drop": 0.008471542775325136
+    },
+    "state": {
+      "base_to_base": 0.9690967664956449,
+      "base_to_instruct": 0.9693354015034006,
+      "transfer_rate": 1.0002462447672986,
+      "absolute_drop": -0.00023863500775567204
+    }
+  },
+  "28": {
+    "attribute": {
+      "base_to_base": 0.8299725569741081,
+      "base_to_instruct": 0.8005011335162868,
+      "transfer_rate": 0.9644910868315123,
+      "absolute_drop": 0.029471423457821277
+    },
+    "base_correctness": {
+      "base_to_base": 0.6786779620570338,
+      "base_to_instruct": 0.6802290896074454,
+      "transfer_rate": 1.0022855133614628,
+      "absolute_drop": -0.0015511275504116462
+    },
+    "state": {
+      "base_to_base": 0.9718410690848347,
+      "base_to_instruct": 0.9682615439685002,
+      "transfer_rate": 0.996316758747698,
+      "absolute_drop": 0.0035795251163345254
+    }
+  }
+}

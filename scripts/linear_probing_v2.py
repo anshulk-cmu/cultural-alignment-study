@@ -25,9 +25,9 @@ from datetime import datetime
 import warnings
 warnings.filterwarnings('ignore')
 
-# Scikit-learn imports
-from sklearn.linear_model import LogisticRegression
-from sklearn.preprocessing import StandardScaler, LabelEncoder
+# Scikit-learn imports (fallback)
+from sklearn.linear_model import LogisticRegression as SklearnLogisticRegression
+from sklearn.preprocessing import StandardScaler as SklearnStandardScaler, LabelEncoder
 from sklearn.model_selection import StratifiedKFold, cross_val_score, train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.metrics import (
@@ -37,6 +37,123 @@ from sklearn.metrics import (
 from sklearn.multioutput import MultiOutputClassifier
 from scipy import stats
 import pickle
+from joblib import Parallel, delayed
+import gc
+
+# GPU acceleration with cuML (if available)
+try:
+    from cuml.linear_model import LogisticRegression as CuMLLogisticRegression
+    from cuml.preprocessing import StandardScaler as CuMLStandardScaler
+    import cupy as cp
+    GPU_AVAILABLE = True
+    print("GPU acceleration enabled (cuML)")
+
+    def clear_gpu_memory():
+        """Clear GPU memory pools."""
+        gc.collect()
+        try:
+            cp.get_default_memory_pool().free_all_blocks()
+            cp.get_default_pinned_memory_pool().free_all_blocks()
+        except Exception:
+            pass
+
+except ImportError as e:
+    GPU_AVAILABLE = False
+    print(f"cuML not available ({e}), using sklearn (CPU)")
+
+    def clear_gpu_memory():
+        """No-op when GPU not available."""
+        pass
+
+# Use GPU or CPU implementations
+if GPU_AVAILABLE:
+    StandardScaler = CuMLStandardScaler
+
+    # Wrapper to handle sklearn-style parameters that cuML doesn't support
+    class LogisticRegression:
+        """Wrapper for cuML LogisticRegression with sklearn-compatible interface."""
+        def __init__(self, max_iter=2000, random_state=42, class_weight=None,
+                     multi_class=None, solver=None, **kwargs):
+            # Store params for sklearn compatibility (get_params/set_params)
+            self._max_iter = max_iter
+            self._random_state = random_state
+            self._class_weight = class_weight
+            self._multi_class = multi_class
+            self._solver = solver
+            self._kwargs = kwargs
+
+            # cuML doesn't support multi_class param - handles multiclass automatically
+            # cuML uses different param names: max_iter -> max_iter, but no class_weight
+            self._model = CuMLLogisticRegression(
+                max_iter=max_iter,
+                **kwargs
+            )
+
+        def get_params(self, deep=True):
+            """Get parameters for this estimator (sklearn compatibility)."""
+            params = {
+                'max_iter': self._max_iter,
+                'random_state': self._random_state,
+                'class_weight': self._class_weight,
+                'multi_class': self._multi_class,
+                'solver': self._solver,
+            }
+            params.update(self._kwargs)
+            return params
+
+        def set_params(self, **params):
+            """Set parameters for this estimator (sklearn compatibility)."""
+            for key, value in params.items():
+                if key == 'max_iter':
+                    self._max_iter = value
+                elif key == 'random_state':
+                    self._random_state = value
+                elif key == 'class_weight':
+                    self._class_weight = value
+                elif key == 'multi_class':
+                    self._multi_class = value
+                elif key == 'solver':
+                    self._solver = value
+                else:
+                    self._kwargs[key] = value
+            # Recreate model with new params
+            self._model = CuMLLogisticRegression(
+                max_iter=self._max_iter,
+                **self._kwargs
+            )
+            return self
+
+        def fit(self, X, y):
+            self._model.fit(X, y)
+            return self
+
+        def predict(self, X):
+            return self._model.predict(X)
+
+        def predict_proba(self, X):
+            return self._model.predict_proba(X)
+
+        @property
+        def coef_(self):
+            return self._model.coef_
+
+        @property
+        def intercept_(self):
+            return self._model.intercept_
+else:
+    LogisticRegression = SklearnLogisticRegression
+    StandardScaler = SklearnStandardScaler
+
+
+def to_numpy(arr):
+    """Convert cuML/cupy array to numpy if needed."""
+    if arr is None:
+        return arr
+    if hasattr(arr, 'to_numpy'):
+        return arr.to_numpy()
+    if hasattr(arr, 'get'):
+        return arr.get()
+    return np.asarray(arr)
 
 # ============================================================================
 # CONFIGURATION
@@ -62,6 +179,7 @@ class Config:
     TEST_SIZE = 0.25
     CV_FOLDS = 5
     MAX_ITER = 2000
+    N_JOBS = 10  # parallel workers for bootstrap/CV
     
     # Probe types
     PROBE_TYPES = [
@@ -81,6 +199,25 @@ class Config:
         (self.OUTPUT_DIR / "results").mkdir(exist_ok=True)
 
 config = Config()
+
+# Global cache for scalers and scaled data (fitted once, reused everywhere)
+SCALER_CACHE = {}  # {(model, layer): {'scaler': fitted_scaler, 'X_train_scaled': array, 'X_test_scaled': array}}
+
+def get_or_create_scaled_data(model, layer, X_train, X_test, train_idx, test_idx):
+    """Get scaled data from cache or create and cache it."""
+    cache_key = (model, layer)
+    if cache_key not in SCALER_CACHE:
+        scaler = StandardScaler()
+        X_train_scaled = scaler.fit_transform(X_train)
+        X_test_scaled = scaler.transform(X_test)
+        SCALER_CACHE[cache_key] = {
+            'scaler': scaler,
+            'X_train_scaled': X_train_scaled,
+            'X_test_scaled': X_test_scaled,
+            'train_idx': train_idx,
+            'test_idx': test_idx
+        }
+    return SCALER_CACHE[cache_key]
 
 # ============================================================================
 # LOGGING
@@ -208,12 +345,21 @@ def train_probe(
     X_test: np.ndarray,
     y_test: np.ndarray,
     probe_type: str,
-    scale: bool = True
+    scale: bool = True,
+    X_train_scaled: np.ndarray = None,
+    X_test_scaled: np.ndarray = None,
+    scaler: object = None
 ) -> Tuple[object, float, Dict]:
-    """Train a single linear probe."""
-    
-    # Scale features
-    if scale:
+    """Train a single linear probe.
+
+    If X_train_scaled/X_test_scaled/scaler are provided, uses them directly
+    (for cache efficiency). Otherwise scales internally.
+    """
+
+    # Scale features (use provided scaled data if available)
+    if X_train_scaled is not None and X_test_scaled is not None:
+        pass  # Use provided scaled data
+    elif scale:
         scaler = StandardScaler()
         X_train_scaled = scaler.fit_transform(X_train)
         X_test_scaled = scaler.transform(X_test)
@@ -243,9 +389,9 @@ def train_probe(
     
     # Train
     probe.fit(X_train_scaled, y_train)
-    
+
     # Evaluate
-    y_pred = probe.predict(X_test_scaled)
+    y_pred = to_numpy(probe.predict(X_test_scaled))
     accuracy = accuracy_score(y_test, y_pred)
     
     # Additional metrics
@@ -290,30 +436,58 @@ def cross_validate_probe(
     y: np.ndarray,
     n_folds: int = 5
 ) -> Dict:
-    """Cross-validation for probe with scaling inside CV loop via Pipeline."""
+    """Cross-validation for probe with scaling inside CV loop."""
     n_classes = len(np.unique(y))
-
-    if n_classes == 2:
-        probe = LogisticRegression(
-            max_iter=config.MAX_ITER,
-            random_state=config.RANDOM_STATE,
-            class_weight='balanced'
-        )
-    else:
-        probe = LogisticRegression(
-            max_iter=config.MAX_ITER,
-            random_state=config.RANDOM_STATE,
-            class_weight='balanced',
-            multi_class='multinomial'
-        )
-
-    pipeline = Pipeline([
-        ('scaler', StandardScaler()),
-        ('classifier', probe)
-    ])
-
     cv = StratifiedKFold(n_splits=n_folds, shuffle=True, random_state=config.RANDOM_STATE)
-    scores = cross_val_score(pipeline, X, y, cv=cv, scoring='accuracy')
+
+    if GPU_AVAILABLE:
+        # Manual CV for cuML (doesn't work with sklearn Pipeline)
+        scores = []
+        for fold_idx, (train_idx, val_idx) in enumerate(cv.split(X, y)):
+            X_train, X_val = X[train_idx], X[val_idx]
+            y_train, y_val = y[train_idx], y[val_idx]
+
+            scaler = StandardScaler()
+            X_train_scaled = scaler.fit_transform(X_train)
+            X_val_scaled = scaler.transform(X_val)
+
+            probe = LogisticRegression(
+                max_iter=config.MAX_ITER,
+                random_state=config.RANDOM_STATE,
+                class_weight='balanced',
+                multi_class='multinomial' if n_classes > 2 else None
+            )
+            probe.fit(X_train_scaled, y_train)
+            y_pred = to_numpy(probe.predict(X_val_scaled))
+
+            scores.append(accuracy_score(y_val, y_pred))
+
+            # Cleanup GPU memory after each fold
+            del probe, scaler, X_train_scaled, X_val_scaled, y_pred
+            clear_gpu_memory()
+
+        scores = np.array(scores)
+    else:
+        # Use sklearn Pipeline for CPU
+        if n_classes == 2:
+            probe = LogisticRegression(
+                max_iter=config.MAX_ITER,
+                random_state=config.RANDOM_STATE,
+                class_weight='balanced'
+            )
+        else:
+            probe = LogisticRegression(
+                max_iter=config.MAX_ITER,
+                random_state=config.RANDOM_STATE,
+                class_weight='balanced',
+                multi_class='multinomial'
+            )
+
+        pipeline = Pipeline([
+            ('scaler', StandardScaler()),
+            ('classifier', probe)
+        ])
+        scores = cross_val_score(pipeline, X, y, cv=cv, scoring='accuracy', n_jobs=config.N_JOBS)
 
     return {
         'mean': float(scores.mean()),
@@ -348,39 +522,41 @@ def compute_baselines(
     majority_class = class_counts.most_common(1)[0][0]
     majority_accuracy = (y_test == majority_class).mean()
 
-    # 3. Random features baseline (permutation test)
+    # 3. Random features baseline (permutation test) - parallelized
     # Train probe on shuffled X to establish null distribution
-    random_accuracies = []
-    rng = np.random.RandomState(config.RANDOM_STATE)
-
-    for i in range(n_permutations):
-        # Shuffle activations independently of labels
+    def _single_permutation(seed):
+        rng = np.random.RandomState(seed)
         shuffle_idx = rng.permutation(len(X_train))
         X_train_shuffled = X_train[shuffle_idx]
 
         # Scale
         scaler = StandardScaler()
         X_train_scaled = scaler.fit_transform(X_train_shuffled)
-        X_test_scaled = scaler.transform(X_test)  # Test set not shuffled
+        X_test_scaled = scaler.transform(X_test)
 
         # Train probe
         if n_classes == 2:
             probe = LogisticRegression(
                 max_iter=config.MAX_ITER,
-                random_state=config.RANDOM_STATE + i,
+                random_state=seed,
                 class_weight='balanced'
             )
         else:
             probe = LogisticRegression(
                 max_iter=config.MAX_ITER,
-                random_state=config.RANDOM_STATE + i,
+                random_state=seed,
                 class_weight='balanced',
                 multi_class='multinomial'
             )
 
         probe.fit(X_train_scaled, y_train)
         y_pred = probe.predict(X_test_scaled)
-        random_accuracies.append(accuracy_score(y_test, y_pred))
+        return accuracy_score(y_test, y_pred)
+
+    seeds = [config.RANDOM_STATE + i for i in range(n_permutations)]
+    random_accuracies = Parallel(n_jobs=config.N_JOBS)(
+        delayed(_single_permutation)(s) for s in seeds
+    )
 
     random_feature_mean = float(np.mean(random_accuracies))
     random_feature_std = float(np.std(random_accuracies))
@@ -419,19 +595,21 @@ def bootstrap_ci(
     Returns:
         Dict with point estimate, CI lower, CI upper, and standard error
     """
-    rng = np.random.RandomState(random_state)
     n_samples = len(y_true)
 
     # Point estimate
     point_estimate = metric_fn(y_true, y_pred)
 
-    # Bootstrap resampling
-    bootstrap_scores = []
-    for _ in range(n_bootstrap):
+    # Bootstrap resampling - parallelized
+    def _single_bootstrap(seed):
+        rng = np.random.RandomState(seed)
         indices = rng.choice(n_samples, size=n_samples, replace=True)
-        score = metric_fn(y_true[indices], y_pred[indices])
-        bootstrap_scores.append(score)
+        return metric_fn(y_true[indices], y_pred[indices])
 
+    seeds = [random_state + i for i in range(n_bootstrap)]
+    bootstrap_scores = Parallel(n_jobs=config.N_JOBS)(
+        delayed(_single_bootstrap)(s) for s in seeds
+    )
     bootstrap_scores = np.array(bootstrap_scores)
 
     # Compute CI using percentile method
@@ -598,6 +776,12 @@ def probe_attribute(df, train_idx, test_idx, activations):
             X_train, y_train = X[train_idx], y[train_idx]
             X_test, y_test = X[test_idx], y[test_idx]
 
+            # Get or create cached scaled data
+            cached = get_or_create_scaled_data(model, layer, X_train, X_test, train_idx, test_idx)
+            X_train_scaled = cached['X_train_scaled']
+            X_test_scaled = cached['X_test_scaled']
+            scaler = cached['scaler']
+
             # Compute baselines once (same labels across all models/layers)
             if not baselines_computed:
                 baselines = compute_baselines(X_train, y_train, X_test, y_test)
@@ -607,9 +791,10 @@ def probe_attribute(df, train_idx, test_idx, activations):
                 log.result("Random features", f"{baselines['random_features_mean']:.4f} ± {baselines['random_features_std']:.4f}")
                 baselines_computed = True
 
-            # Train probe
+            # Train probe (using cached scaled data)
             probe, accuracy, result = train_probe(
-                X_train, y_train, X_test, y_test, 'attribute'
+                X_train, y_train, X_test, y_test, 'attribute',
+                X_train_scaled=X_train_scaled, X_test_scaled=X_test_scaled, scaler=scaler
             )
 
             # Compute accuracy gain over baselines
@@ -627,11 +812,8 @@ def probe_attribute(df, train_idx, test_idx, activations):
             cv_result = cross_validate_probe(X, y, n_folds=config.CV_FOLDS)
             log.result(f"CV Accuracy", f"{cv_result['mean']:.4f} ± {cv_result['std']:.4f}")
 
-            # Bootstrap CI for test set accuracy (fit on train, transform test)
-            scaler = StandardScaler()
-            scaler.fit(X_train)
-            X_test_scaled = scaler.transform(X_test)
-            y_pred = probe.predict(X_test_scaled)
+            # Bootstrap CI for test set accuracy (using cached scaled data)
+            y_pred = to_numpy(probe.predict(X_test_scaled))
             bootstrap_result = bootstrap_ci(y_test, y_pred)
             log.result(f"95% CI", f"[{bootstrap_result['ci_lower']:.4f}, {bootstrap_result['ci_upper']:.4f}]")
 
@@ -646,6 +828,10 @@ def probe_attribute(df, train_idx, test_idx, activations):
             probe_file = config.HEAVY_DATA_DIR / "models" / f"attribute_{model}_layer{layer}.pkl"
             with open(probe_file, 'wb') as f:
                 pickle.dump({'probe': probe, 'scaler': result['scaler']}, f)
+
+            # GPU memory cleanup after each layer
+            del probe
+            clear_gpu_memory()
 
     # Compute statistical summary (base vs instruct comparisons)
     log.log("\n--- Statistical Comparisons (Base vs Instruct) ---")
@@ -795,6 +981,12 @@ def probe_state(df, train_idx, test_idx, activations):
             X_train, y_train = X[train_idx], y[train_idx]
             X_test, y_test = X[test_idx], y[test_idx]
 
+            # Get or create cached scaled data
+            cached = get_or_create_scaled_data(model, layer, X_train, X_test, train_idx, test_idx)
+            X_train_scaled = cached['X_train_scaled']
+            X_test_scaled = cached['X_test_scaled']
+            scaler = cached['scaler']
+
             # Compute baselines once (same labels across all models/layers)
             if not baselines_computed:
                 baselines = compute_baselines(X_train, y_train, X_test, y_test)
@@ -804,9 +996,10 @@ def probe_state(df, train_idx, test_idx, activations):
                 log.result("Random features", f"{baselines['random_features_mean']:.4f} ± {baselines['random_features_std']:.4f}")
                 baselines_computed = True
 
-            # Train probe
+            # Train probe (using cached scaled data)
             probe, accuracy, result = train_probe(
-                X_train, y_train, X_test, y_test, 'state'
+                X_train, y_train, X_test, y_test, 'state',
+                X_train_scaled=X_train_scaled, X_test_scaled=X_test_scaled, scaler=scaler
             )
 
             # Compute accuracy gain over baselines
@@ -824,11 +1017,8 @@ def probe_state(df, train_idx, test_idx, activations):
             cv_result = cross_validate_probe(X, y, n_folds=config.CV_FOLDS)
             log.result(f"CV Accuracy", f"{cv_result['mean']:.4f} ± {cv_result['std']:.4f}")
 
-            # Bootstrap CI for test set accuracy (fit on train, transform test)
-            scaler = StandardScaler()
-            scaler.fit(X_train)
-            X_test_scaled = scaler.transform(X_test)
-            y_pred = probe.predict(X_test_scaled)
+            # Bootstrap CI for test set accuracy (using cached scaled data)
+            y_pred = to_numpy(probe.predict(X_test_scaled))
             bootstrap_result = bootstrap_ci(y_test, y_pred)
             log.result(f"95% CI", f"[{bootstrap_result['ci_lower']:.4f}, {bootstrap_result['ci_upper']:.4f}]")
 
@@ -843,6 +1033,10 @@ def probe_state(df, train_idx, test_idx, activations):
             probe_file = config.HEAVY_DATA_DIR / "models" / f"state_{model}_layer{layer}.pkl"
             with open(probe_file, 'wb') as f:
                 pickle.dump({'probe': probe, 'scaler': result['scaler']}, f)
+
+            # GPU memory cleanup after each layer
+            del probe
+            clear_gpu_memory()
 
     # Compute statistical summary (base vs instruct comparisons)
     log.log("\n--- Statistical Comparisons (Base vs Instruct) ---")
@@ -917,11 +1111,11 @@ def probe_cross_model_transfer(df, train_idx, test_idx, activations):
         probe.fit(X_train_scaled, y_train)
         
         # Test on Base (in-model)
-        y_pred_base = probe.predict(X_test_base_scaled)
+        y_pred_base = to_numpy(probe.predict(X_test_base_scaled))
         acc_base = accuracy_score(y_test, y_pred_base)
-        
+
         # Test on Instruct (cross-model)
-        y_pred_instruct = probe.predict(X_test_instruct_scaled)
+        y_pred_instruct = to_numpy(probe.predict(X_test_instruct_scaled))
         acc_instruct = accuracy_score(y_test, y_pred_instruct)
         
         transfer_rate = acc_instruct / acc_base if acc_base > 0 else 0
@@ -949,11 +1143,11 @@ def probe_cross_model_transfer(df, train_idx, test_idx, activations):
             class_weight='balanced'
         )
         probe_correct.fit(X_train_scaled, y_train)
-        
-        y_pred_base = probe_correct.predict(X_test_base_scaled)
+
+        y_pred_base = to_numpy(probe_correct.predict(X_test_base_scaled))
         acc_base = accuracy_score(y_test, y_pred_base)
-        
-        y_pred_instruct = probe_correct.predict(X_test_instruct_scaled)
+
+        y_pred_instruct = to_numpy(probe_correct.predict(X_test_instruct_scaled))
         acc_instruct = accuracy_score(y_test, y_pred_instruct)
         
         transfer_rate = acc_instruct / acc_base if acc_base > 0 else 0
@@ -982,11 +1176,11 @@ def probe_cross_model_transfer(df, train_idx, test_idx, activations):
             multi_class='multinomial'
         )
         probe_state.fit(X_train_scaled, y_train)
-        
-        y_pred_base = probe_state.predict(X_test_base_scaled)
+
+        y_pred_base = to_numpy(probe_state.predict(X_test_base_scaled))
         acc_base = accuracy_score(y_test, y_pred_base)
-        
-        y_pred_instruct = probe_state.predict(X_test_instruct_scaled)
+
+        y_pred_instruct = to_numpy(probe_state.predict(X_test_instruct_scaled))
         acc_instruct = accuracy_score(y_test, y_pred_instruct)
         
         transfer_rate = acc_instruct / acc_base if acc_base > 0 else 0
@@ -1064,10 +1258,15 @@ def probe_multitask(df, train_idx, test_idx, activations):
             probe_attr.fit(X_train_scaled, y_attr_train)
             probe_corr.fit(X_train_scaled, y_corr_train)
             probe_state.fit(X_train_scaled, y_state_train)
-            
-            acc_attr = accuracy_score(y_attr_test, probe_attr.predict(X_test_scaled))
-            acc_corr = accuracy_score(y_corr_test, probe_corr.predict(X_test_scaled))
-            acc_state = accuracy_score(y_state_test, probe_state.predict(X_test_scaled))
+
+            # Get predictions (convert cuML arrays to numpy if needed)
+            pred_attr = to_numpy(probe_attr.predict(X_test_scaled))
+            pred_corr = to_numpy(probe_corr.predict(X_test_scaled))
+            pred_state = to_numpy(probe_state.predict(X_test_scaled))
+
+            acc_attr = accuracy_score(y_attr_test, pred_attr)
+            acc_corr = accuracy_score(y_corr_test, pred_corr)
+            acc_state = accuracy_score(y_state_test, pred_state)
             
             log.result("    Attribute", f"{acc_attr:.4f}")
             log.result("    Correctness", f"{acc_corr:.4f}")
@@ -1076,20 +1275,25 @@ def probe_multitask(df, train_idx, test_idx, activations):
             
             # Strategy 2: Shared representation (concatenated predictions)
             log.log("  Strategy 2: Joint Multi-Task")
-            
+
             # Create multi-output target
             y_multi_train = np.column_stack([y_attr_train, y_corr_train, y_state_train])
             y_multi_test = np.column_stack([y_attr_test, y_corr_test, y_state_test])
-            
-            # Multi-output classifier
-            base_clf = LogisticRegression(
+
+            # Multi-output classifier - use sklearn for compatibility with MultiOutputClassifier
+            # (cuML wrapper doesn't fully support sklearn's clone mechanism with parallelism)
+            # Convert to numpy if cuML arrays
+            X_train_np = to_numpy(X_train_scaled)
+            X_test_np = to_numpy(X_test_scaled)
+
+            base_clf = SklearnLogisticRegression(
                 max_iter=config.MAX_ITER, random_state=config.RANDOM_STATE,
-                class_weight='balanced'
+                class_weight='balanced', n_jobs=1
             )
             multi_clf = MultiOutputClassifier(base_clf, n_jobs=-1)
-            
-            multi_clf.fit(X_train_scaled, y_multi_train)
-            y_pred_multi = multi_clf.predict(X_test_scaled)
+
+            multi_clf.fit(X_train_np, y_multi_train)
+            y_pred_multi = multi_clf.predict(X_test_np)
             
             acc_attr_joint = accuracy_score(y_attr_test, y_pred_multi[:, 0])
             acc_corr_joint = accuracy_score(y_corr_test, y_pred_multi[:, 1])
@@ -1142,7 +1346,11 @@ def probe_multitask(df, train_idx, test_idx, activations):
                         'state': probe_state
                     }
                 }, f)
-    
+
+            # GPU memory cleanup
+            del probe_attr, probe_corr, probe_state, multi_clf
+            clear_gpu_memory()
+
     # Save results
     with open(config.OUTPUT_DIR / "results" / "multitask_probing.json", 'w') as f:
         json.dump(results, f, indent=2)
@@ -1370,15 +1578,15 @@ def analyze_by_group(df, train_idx, test_idx, activations):
                     continue
                 
                 X_group = X_test_scaled[group_mask]
-                
+
                 # Attribute accuracy
                 y_attr_group = test_df.loc[group_mask, 'attribute_label'].values
-                pred_attr = probe_attr.predict(X_group)
+                pred_attr = to_numpy(probe_attr.predict(X_group))
                 acc_attr = accuracy_score(y_attr_group, pred_attr)
-                
+
                 # Correctness accuracy
                 y_corr_group = test_df.loc[group_mask, f'{model}_correct_label'].values
-                pred_corr = probe_corr.predict(X_group)
+                pred_corr = to_numpy(probe_corr.predict(X_group))
                 acc_corr = accuracy_score(y_corr_group, pred_corr)
                 
                 log.result(f"  {group}", f"Attr: {acc_attr:.4f}, Corr: {acc_corr:.4f}")
@@ -1468,7 +1676,7 @@ def analyze_by_cultural_category(df, train_idx, test_idx, activations, label_enc
             X_attr = X_test_scaled[mask.values]
             y_attr = test_df.loc[mask, 'attribute_label'].values
 
-            pred = probe_attr.predict(X_attr)
+            pred = to_numpy(probe_attr.predict(X_attr))
             acc = accuracy_score(y_attr, pred)
 
             # Determine suppression category
@@ -1497,7 +1705,7 @@ def analyze_by_cultural_category(df, train_idx, test_idx, activations, label_enc
             X_state = X_test_scaled[mask.values]
             y_state = test_df.loc[mask, 'state_label'].values
 
-            pred = probe_state.predict(X_state)
+            pred = to_numpy(probe_state.predict(X_state))
             acc = accuracy_score(y_state, pred)
 
             category = 'high' if state_name in HIGH_SUPPRESSION_STATES else (
@@ -1624,7 +1832,7 @@ def analyze_layer_information_flow(df, train_idx, test_idx, activations):
                     multi_class='multinomial' if n_classes > 2 else 'auto'
                 )
                 probe.fit(X_train_scaled, y_train)
-                y_pred = probe.predict(X_test_scaled)
+                y_pred = to_numpy(probe.predict(X_test_scaled))
                 acc = accuracy_score(y_test, y_pred)
 
                 results['layer_accuracies'][task_name][model][layer] = float(acc)

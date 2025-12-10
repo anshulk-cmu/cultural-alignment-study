@@ -1,0 +1,142 @@
+{
+  "base": {
+    "8": {
+      "suppression": {
+        "n_samples": 2984,
+        "attribute_accuracy": 0.7912198391420912,
+        "correctness_accuracy": 0.7007372654155496
+      },
+      "enhancement": {
+        "n_samples": 2993,
+        "attribute_accuracy": 0.8025392582692951,
+        "correctness_accuracy": 0.5482793184096224
+      },
+      "control": {
+        "n_samples": 2404,
+        "attribute_accuracy": 0.802828618968386,
+        "correctness_accuracy": 0.7803660565723793
+      }
+    },
+    "16": {
+      "suppression": {
+        "n_samples": 2984,
+        "attribute_accuracy": 0.7838471849865952,
+        "correctness_accuracy": 0.7034182305630027
+      },
+      "enhancement": {
+        "n_samples": 2993,
+        "attribute_accuracy": 0.784831272970264,
+        "correctness_accuracy": 0.5439358503174073
+      },
+      "control": {
+        "n_samples": 2404,
+        "attribute_accuracy": 0.781198003327787,
+        "correctness_accuracy": 0.7866056572379367
+      }
+    },
+    "24": {
+      "suppression": {
+        "n_samples": 2984,
+        "attribute_accuracy": 0.8254021447721179,
+        "correctness_accuracy": 0.7047587131367292
+      },
+      "enhancement": {
+        "n_samples": 2993,
+        "attribute_accuracy": 0.8362846642165052,
+        "correctness_accuracy": 0.556298028733712
+      },
+      "control": {
+        "n_samples": 2404,
+        "attribute_accuracy": 0.8344425956738769,
+        "correctness_accuracy": 0.7849417637271214
+      }
+    },
+    "28": {
+      "suppression": {
+        "n_samples": 2984,
+        "attribute_accuracy": 0.8264075067024129,
+        "correctness_accuracy": 0.7154825737265416
+      },
+      "enhancement": {
+        "n_samples": 2993,
+        "attribute_accuracy": 0.8282659538924156,
+        "correctness_accuracy": 0.5532910123621784
+      },
+      "control": {
+        "n_samples": 2404,
+        "attribute_accuracy": 0.8369384359400999,
+        "correctness_accuracy": 0.7866056572379367
+      }
+    }
+  },
+  "instruct": {
+    "8": {
+      "suppression": {
+        "n_samples": 2984,
+        "attribute_accuracy": 0.792225201072386,
+        "correctness_accuracy": 0.5234584450402144
+      },
+      "enhancement": {
+        "n_samples": 2993,
+        "attribute_accuracy": 0.7981957901770799,
+        "correctness_accuracy": 0.670564650851988
+      },
+      "control": {
+        "n_samples": 2404,
+        "attribute_accuracy": 0.8049084858569051,
+        "correctness_accuracy": 0.7886855241264559
+      }
+    },
+    "16": {
+      "suppression": {
+        "n_samples": 2984,
+        "attribute_accuracy": 0.7835120643431636,
+        "correctness_accuracy": 0.539544235924933
+      },
+      "enhancement": {
+        "n_samples": 2993,
+        "attribute_accuracy": 0.7808219178082192,
+        "correctness_accuracy": 0.675576344804544
+      },
+      "control": {
+        "n_samples": 2404,
+        "attribute_accuracy": 0.7841098169717138,
+        "correctness_accuracy": 0.7662229617304492
+      }
+    },
+    "24": {
+      "suppression": {
+        "n_samples": 2984,
+        "attribute_accuracy": 0.8197050938337802,
+        "correctness_accuracy": 0.5294906166219839
+      },
+      "enhancement": {
+        "n_samples": 2993,
+        "attribute_accuracy": 0.83194119612429,
+        "correctness_accuracy": 0.6876044102906782
+      },
+      "control": {
+        "n_samples": 2404,
+        "attribute_accuracy": 0.8273710482529119,
+        "correctness_accuracy": 0.8007487520798668
+      }
+    },
+    "28": {
+      "suppression": {
+        "n_samples": 2984,
+        "attribute_accuracy": 0.8274128686327078,
+        "correctness_accuracy": 0.5331769436997319
+      },
+      "enhancement": {
+        "n_samples": 2993,
+        "attribute_accuracy": 0.8312729702639492,
+        "correctness_accuracy": 0.6805880387571
+      },
+      "control": {
+        "n_samples": 2404,
+        "attribute_accuracy": 0.8386023294509152,
+        "correctness_accuracy": 0.7832778702163061
+      }
+    }
+  }
+}
