@@ -1,0 +1,30 @@
+# Conda environment spec for cultural-mi project
+# Create: /home/anshulk/miniconda3/bin/conda env create -f environment.yml
+# Activate: conda activate cultural
+name: cultural
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - pip
+  - pip:
+    - torch>=2.10.0
+    - transformers>=5.0.0
+    - datasets>=4.0.0
+    - accelerate>=1.0.0
+    - huggingface-hub>=0.30.0
+    - safetensors
+    - sentencepiece
+    - protobuf
+    - pandas
+    - numpy
+    - scipy
+    - matplotlib
+    - seaborn
+    - pyyaml
+    - tqdm
+    - jupyter
+    - ipykernel

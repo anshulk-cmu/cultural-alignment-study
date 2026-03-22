@@ -1,0 +1,104 @@
+# ============================================================
+# Cultural MI Project - Master Configuration
+# ============================================================
+# Project: Mechanistic Interpretability of Cultural Knowledge
+#          in Instruction-Tuned LLMs
+# ============================================================
+
+# --- HuggingFace ---
+huggingface:
+  token: "${HF_TOKEN}"  # set via: export HF_TOKEN=hf_...
+
+# --- Paths: Heavy files (local NVMe, 127GB free) ---
+data_root: "/data/user_data/anshulk/cultural-mi"
+
+models:
+  base:
+    name: "meta-llama/Llama-3.1-8B"
+    local_dir: "/data/user_data/anshulk/cultural-mi/models/base"
+  instruct:
+    name: "meta-llama/Meta-Llama-3.1-8B-Instruct"
+    local_dir: "/data/user_data/anshulk/cultural-mi/models/instruct"
+
+dataset:
+  name: "13ari/Sanskriti"
+  local_dir: "/data/user_data/anshulk/cultural-mi/dataset"
+  num_rows: 21853
+  split: "train"
+  columns:
+    - state
+    - attribute
+    - question
+    - option1
+    - option2
+    - option3
+    - option4
+    - answer
+    - "short explaination / source link"   # note: misspelling is in the original dataset
+    - question_type
+
+results:
+  step1: "/data/user_data/anshulk/cultural-mi/results/step1"
+  step2: "/data/user_data/anshulk/cultural-mi/results/step2"
+  step3: "/data/user_data/anshulk/cultural-mi/results/step3"
+  step4: "/data/user_data/anshulk/cultural-mi/results/step4"
+
+activations: "/data/user_data/anshulk/cultural-mi/activations"
+checkpoints: "/data/user_data/anshulk/cultural-mi/checkpoints"
+
+# --- Paths: Light files (NFS home, 45GB free) ---
+project_root: "/home/anshulk/cultural-mi"
+
+scripts: "/home/anshulk/cultural-mi/scripts"
+notebooks: "/home/anshulk/cultural-mi/notebooks"
+plots: "/home/anshulk/cultural-mi/plots"
+analysis: "/home/anshulk/cultural-mi/analysis"
+logs: "/home/anshulk/cultural-mi/logs"
+configs: "/home/anshulk/cultural-mi/configs"
+docs: "/home/anshulk/cultural-mi/docs"
+
+# --- Conda Environment ---
+conda:
+  env_name: "cultural"
+  conda_bin: "/home/anshulk/miniconda3/bin/conda"
+  env_prefix: "/home/anshulk/miniconda3/envs/cultural"
+  python_version: "3.11"
+
+# --- Cluster / SLURM ---
+cluster:
+  partitions: ["debug", "array"]
+  recommended_gpu: "L40S"       # 48GB VRAM, widely available on this cluster
+  alternative_gpu: "A100_80GB"  # 80GB VRAM, fewer nodes
+  fallback_gpu: "A6000"         # 48GB VRAM
+
+# --- Model Specs (for reference) ---
+model_specs:
+  architecture: "LlamaForCausalLM"
+  params: "8B"
+  dtype: "bfloat16"
+  num_layers: 32
+  hidden_size: 4096
+  num_attention_heads: 32
+  num_kv_heads: 8
+  intermediate_size: 14336
+  vocab_size: 128256
+  approx_vram_gb: 16  # weights only in BF16
+
+# --- Step 1: Behavioral Evaluation ---
+step1:
+  decoding:
+    temperature: 0
+    max_new_tokens: 5
+    do_sample: false
+  batch_size: 16              # reduce to 8 if OOM on A6000
+  checkpoint_every: 500       # save intermediate results every N questions
+  output_files:
+    master_csv: "/data/user_data/anshulk/cultural-mi/results/step1/sanskriti_behavioral_labels.csv"
+    aggregate_stats: "/data/user_data/anshulk/cultural-mi/results/step1/step1_aggregate_stats.json"
+    option_distribution: "/data/user_data/anshulk/cultural-mi/results/step1/step1_option_distribution.csv"
+    run_log: "/home/anshulk/cultural-mi/logs/step1_run_log.txt"
+  behavioral_labels:
+    suppression: "base_correct=1, instruct_correct=0"
+    enhancement: "base_correct=0, instruct_correct=1"
+    control_both_correct: "base_correct=1, instruct_correct=1"
+    control_both_wrong: "base_correct=0, instruct_correct=0"

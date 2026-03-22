@@ -1,112 +1,69 @@
-# Output Gating, Not Erasure: How RLHF Modulates Cultural Knowledge in LLMs
+# Mechanistic Interpretability of Cultural Knowledge in Instruction-Tuned LLMs
 
-- **Author:** Anshul Kumar (anshulk@andrew.cmu.edu)  
-- **Institution:** Carnegie Mellon University
+**Author:** Anshul Kumar (anshulk@andrew.cmu.edu), Carnegie Mellon University
 
-## Overview
+## Research Question
 
-This project investigates whether RLHF-induced suppression of cultural knowledge reflects **representational erasure** or **output-level gating**. Using mechanistic interpretability techniques on Qwen2-1.5B (base vs. instruct), we analyze 33,522 culturally-grounded sentences derived from the Sanskriti benchmark of Indian cultural knowledge across 36 states and 16 cultural attributes.
+How does instruction tuning (SFT + RLHF) mechanistically alter cultural knowledge representations inside LLMs? Does behavioral suppression of cultural knowledge reflect **representational erasure** (knowledge destroyed) or **output-level gating** (knowledge preserved but blocked)?
 
-**Core Finding:** Despite 42% behavioral suppression, semantic representations remain 99.7% similar with 96-100% cross-model transferability. A 3× KL divergence spike at Layer 28 indicates RLHF operates via late-stage decision gating rather than knowledge erasure—models "know but won't say."
+## Approach
 
-## Key Metrics
+Compare **Llama-3.1-8B** (base) vs **Llama-3.1-8B-Instruct** (RLHF-treated) on the **Sanskriti** benchmark — 21,853 multiple-choice questions spanning Indian cultural knowledge across 36 states/UTs and 16 cultural attributes.
 
-| Metric | Value | Interpretation |
-|--------|-------|----------------|
-| Behavioral Suppression | 42.30% | Base correct → Instruct incorrect |
-| Representational Similarity | 99.7% | Cosine similarity across all layers |
-| Cross-Model Transfer | 96-100% | Probes trained on base work on instruct |
-| Semantic Probe Accuracy | 84-96% | Attribute and state classification |
-| Correctness Probe Accuracy | 62% | Weak encoding of decision information |
-| KL Divergence (L8-24) | ~110 nats | Modest distributional shift |
-| KL Divergence (L28) | 335 nats | **3× spike at final layer** |
-| MDL Isomorphism | <3% drift | Near-identical encoding efficiency |
+Both models share identical architecture (32 layers, 4096 hidden dim, 8B params) and pretraining. The only difference is instruction tuning. This controlled setup isolates the effect of RLHF on internal representations.
 
-## Methodology
+## Pipeline
 
-**Dataset Construction:**
-- Initial evaluation: 21,853 MCQ questions from Sanskriti benchmark
-- Strategic sampling: 11,206 questions balanced across suppression/enhancement/control groups
-- Sentence generation: 33,522 sentences via Claude Sonnet 4.5 (3 per question)
+| Step | What | Purpose |
+|------|------|---------|
+| 1 | Behavioral Evaluation | Run both models on all 21,853 questions, label each as suppression / enhancement / control |
+| 2 | Activation Extraction | Extract hidden states at selected layers for behaviorally-labeled questions |
+| 3 | Probing & Analysis | Linear probing, KL divergence, MDL probing on extracted activations |
+| 4 | Circuit Interpretation | Identify specific circuits responsible for cultural knowledge changes |
 
-**Four-Method Analysis Pipeline:**
-1. **Linear Probing:** Attribute/state/correctness classification with cross-model transfer testing
-2. **KL Divergence:** Layer-wise distributional analysis (layers 8, 16, 24, 28)
-3. **MDL Probing:** Information-theoretic compression with Fisher information metrics
-4. **Activation Geometry:** Per-sentence cosine similarity analysis
+## Models
 
-## Results Summary
+| Role | Model | Params | Precision |
+|------|-------|--------|-----------|
+| Base | `meta-llama/Llama-3.1-8B` | 8B | BF16 |
+| Instruct | `meta-llama/Meta-Llama-3.1-8B-Instruct` | 8B | BF16 |
 
-**Convergent Evidence for Output Gating:**
+## Dataset
 
-| Method | Evidence | Conclusion |
-|--------|----------|------------|
-| Linear Probing | 96-100% transfer rates | Representational isomorphism confirmed |
-| KL Divergence | 3× spike at L28 (335 vs 110 nats) | Late-stage transformation localized |
-| MDL Analysis | <3% drift, 5.5× compression ratio | Distributed orthogonal encoding |
-| Activation Geometry | 99.7% cosine similarity | No representational erasure |
+**Sanskriti** ([HuggingFace](https://huggingface.co/datasets/13ari/Sanskriti)) — 21,853 MCQs about Indian culture. 36 states/UTs, 16 attributes (Rituals, History, Cuisine, Dance & Music, Art, etc.), 4 question types (General Awareness, State Prediction, Country Prediction, Association Based).
 
-**Mechanistic Interpretation:** Knowledge persists in distributed subspaces throughout the network. RLHF installs a gating mechanism at the final layer that selectively suppresses cultural content without erasing underlying representations.
-
-## Repository Structure
+## Project Structure
 
 ```
-cultural-alignment-study/
-├── scripts/
-│   ├── sanskriti_knowledge_test.py    # Initial 21K evaluation
-│   ├── analyze_combinations_12k.py    # Strategic sampling
-│   ├── generate_sentences_sanskriti.py # Sentence generation
-│   ├── extract_activations.py         # Hidden state extraction
-│   ├── linear_probing_v2.py           # Probing experiments
-│   ├── kl_divergence.py               # Distributional analysis
-│   └── mdl_probing_v2.py              # Information-theoretic analysis
-├── outputs/
-│   ├── sanskriti_test_knowledge/      # Evaluation results and breakdowns
-│   ├── linear_probing/                # Probing metrics and visualizations
-│   ├── kl_divergence/                 # Layer-wise KL analysis
-│   └── mdl_probing/                   # MDL results and Fisher information
-└── README.md
+/home/anshulk/cultural-mi/          # Code, plots, logs (NFS)
+├── scripts/                         # Python scripts
+├── notebooks/                       # Jupyter notebooks
+├── plots/                           # Figures
+├── analysis/                        # Analysis outputs
+├── logs/                            # Run logs
+├── configs/                         # config.yaml, environment.yml
+├── docs/                            # Documentation & plans
+└── old_version/                     # Previous study (Qwen2-1.5B)
+
+/data/user_data/anshulk/cultural-mi/ # Heavy files (local NVMe)
+├── models/{base,instruct}/          # LLaMA weights (~16GB each)
+├── dataset/                         # Sanskriti cache
+├── results/{step1..step4}/          # Result CSVs and stats
+├── activations/                     # Extracted hidden states
+└── checkpoints/                     # Inference checkpoints
 ```
 
-## Reproducing Results
+## Previous Work
+
+The `old_version/` directory contains the first iteration of this study using **Qwen2-1.5B** (base vs instruct), which found 42% behavioral suppression but 99.7% representational similarity — suggesting output gating rather than erasure. This new iteration uses a larger model (LLaMA 3.1 8B) with a more rigorous methodology.
+
+## Environment
 
 ```bash
-# 1. Evaluate models on Sanskriti benchmark
-python scripts/sanskriti_knowledge_test.py
-
-# 2. Select balanced dataset maximizing behavioral divergence
-python scripts/analyze_combinations_12k.py
-
-# 3. Generate culturally-grounded sentences
-python scripts/generate_sentences_sanskriti.py
-
-# 4. Extract activations (dual-GPU recommended)
-python scripts/extract_activations.py
-
-# 5. Run analysis pipeline
-python scripts/linear_probing_v2.py
-python scripts/kl_divergence.py
-python scripts/mdl_probing_v2.py
+conda env create -f configs/environment.yml
+conda activate cultural
 ```
 
-## Limitations
+## Cluster
 
-- **Correlational evidence:** No causal intervention (activation patching) performed to confirm Layer 28 as the mechanistic source
-- **Single model family:** Qwen2-1.5B only; generalization to Llama, Mistral, or other architectures untested
-- **Generated inputs:** Probing uses Claude-generated sentences rather than original MCQ prompts, introducing potential label leakage via explicit state/attribute mentions
-- **Layer sampling:** Only 4 layers analyzed (8, 16, 24, 28); finer granularity around L27-28 would strengthen spike claims
-
-## Citation
-
-```bibtex
-@misc{kumar2025outputgating,
-  author = {Kumar, Anshul},
-  title = {Output Gating, Not Erasure: How RLHF Modulates Cultural Knowledge in LLMs},
-  year = {2025},
-  institution = {Carnegie Mellon University}
-}
-```
-
-## Contact
-
-Questions or collaboration inquiries: anshulk@andrew.cmu.edu
+SLURM cluster with L40S (48GB), A100-80GB, and A6000 (48GB) GPUs.
