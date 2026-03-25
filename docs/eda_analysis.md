@@ -235,7 +235,7 @@ These quality issues do not exist in isolation. A single question can be:
 The overlap between these categories means the "clean" core of the dataset —
 questions that are unique, non-leaking, and non-conflicting — is substantially
 smaller than 21,726. We estimate the effective information content is closer to
-5,000 unique cultural knowledge facts (see Section 10), each tested from 3-4
+8,156 unique cultural entity keys (see Section 10), each tested from 1-3
 angles via templates.
 
 For an EMNLP workshop paper, this is not a dealbreaker. The Sanskriti benchmark
@@ -471,6 +471,14 @@ types where D is the correct answer more often.
 **Step 1 must check both models' prediction distributions before interpreting
 behavioral labels.** If either model shows significant position bias, we should
 consider a position-bias-corrected accuracy as a robustness check.
+
+Specifically, the Step 1 script must compute:
+1. Each model's prediction distribution (% of A/B/C/D predictions overall)
+2. Prediction distribution per question type (especially General Awareness)
+3. Chi-squared test of each model's predictions against uniform distribution
+4. If either model has >5pp deviation from uniform on any letter: flag it and
+   compute what the accuracy would be if predictions were redistributed to
+   match the ground truth distribution (upper bound on position-bias-free accuracy)
 
 ---
 
@@ -1093,15 +1101,56 @@ quality.
 
 ## 10. Cultural Specificity
 
-*Validated against: `cultural_entities.csv`, `cultural_entities_detail.csv`*
+*Validated against: `cultural_entities.csv`, `cultural_entities_detail.csv`,
+`cultural_entities_combined.csv`, `entity_extraction_by_qtype.csv`*
 
 ### Entity Extraction
 
 Using regex patterns on the 7 identified templates, we extracted cultural entities
-from 12,979 questions (59.7% of usable data). The remaining 40.3% use free-form
-question structures where entity extraction would require NER.
+from 12,979 questions (59.7% of usable data). The extraction rate varies
+dramatically by question type:
 
-**4,949 unique cultural entities** were identified.
+| Question Type | Extracted | Total | Rate |  Missing |
+|---------------|-----------|-------|------|----------|
+| Association | 4,821 | 5,453 | 88.4% | 632 |
+| Country Prediction | 4,859 | 5,563 | 87.3% | 704 |
+| State Prediction | 3,270 | 5,382 | 60.8% | 2,112 |
+| **General Awareness** | **29** | **5,328** | **0.5%** | **5,299** |
+
+**General Awareness is almost completely missed by regex extraction** because its
+questions use free-form phrasing ("Which dish is most often associated with the
+Tamil Nadu breakfast?", "A classical dance form that utilizes elaborate costumes...")
+rather than the templated slots the regex targets.
+
+**4,949 unique cultural entities** were identified from the regex extraction.
+
+### Entity Extraction Fallback: Answer Text as Proxy
+
+For the 8,747 questions (40.3%) where regex extraction fails, the answer text
+itself serves as a proxy entity key. Inspection of General Awareness questions
+confirms this: the answer IS the cultural entity — "Puanchei" (a Mizo costume),
+"Idli" (Tamil Nadu breakfast), "Odissi" (a classical dance), "Ghoghla Beach"
+(a Diu tourism site).
+
+Using a `(state, attribute, answer)` triple as entity key for non-regex questions
+produces 2,803 unique keys for the 5,328 General Awareness questions alone. This
+is appropriate because the same answer from different states/attributes represents
+a different cultural fact (e.g., "temple" in Tamil Nadu vs "temple" in Rajasthan).
+
+**Combined entity coverage:**
+- Regex-extracted: 4,949 unique entities covering 12,979 questions (59.7%)
+- Answer-text fallback: 3,207 unique keys covering 8,747 questions (40.3%)
+- Zero overlap between regex and fallback key spaces (different formats)
+- **Total: 8,156 unique entity keys covering 100% of questions**
+
+The fallback has one known issue: for Country Prediction questions that leak into
+the no-entity set, "India" appears 729 times as an answer-entity. Since all CP
+questions are expected to land in `control_both_correct`, this does not affect
+suppression/enhancement entity-level analysis.
+
+**This combined strategy is critical for Step 1.** Without it, entity-level
+suppression rates would cover only 60% of questions, missing the most interesting
+subset (General Awareness). With it, every question has an entity key for grouping.
 
 ### Entity State Uniqueness
 
@@ -1136,34 +1185,37 @@ city/region names as the entity.
 
 | Coverage | # Entities |
 |----------|-----------|
-| Appears in 1 question type only | 4,164 |
-| Appears in 2 question types | 9 |
-| Appears in 3 question types | 1,578 |
-| Appears in 4 question types | 13 |
+| Appears in 1 question type only | 3,350 |
+| Appears in 2 question types | 8 |
+| Appears in 3 question types | 1,591 |
+| Appears in all 4 question types | 0 |
 
-**1,578 entities appear in 3 question types** — typically Country Prediction,
+**1,591 entities appear in 3 question types** — typically Country Prediction,
 State Prediction, and Association (which share the same entity slot in their
 templates). A model that knows one fact about a cultural entity gets credit 3
-times. This further inflates the effective redundancy: the ~5,000 unique entities,
-each asked about ~3 times across templates, explain the bulk of the 21,726 questions.
+times. This further inflates the effective redundancy: the 4,949 regex-extracted
+entities, with 1,591 appearing in 3 question types, explain a large portion of
+the 21,726 questions. Mean questions per entity: 12,979 / 4,949 = 2.6.
 
 **Effective information content:** The dataset's 21,726 questions test approximately
-5,000 cultural knowledge facts, each probed from 3-4 angles. For behavioral
+5,000 cultural knowledge facts (from regex extraction), each probed from ~2-3 angles. For behavioral
 labeling, a suppression event on one template for a given entity is likely to
 co-occur with suppression on other templates for the same entity. The behavioral
 labels are not independent across questions — they cluster by entity.
 
 ### What "5,000 Cultural Knowledge Facts" Means for Our Study
 
-If the dataset tests ~5,000 facts × ~4 questions/fact, then:
-- Expected suppression events (at 8%): ~400 facts × ~4 questions = ~1,600 questions
-- Expected enhancement events (at 7%): ~350 facts × ~4 questions = ~1,400 questions
+If the dataset tests ~5,000 regex-extractable facts × ~2.6 questions/fact (plus
+~3,200 fallback entities from General Awareness), then using combined entity keys
+(8,156 total):
+- Expected suppression events (at 8%): ~650 entities × ~2.6 questions = ~1,700 questions
+- Expected enhancement events (at 7%): ~570 entities × ~2.6 questions = ~1,480 questions
 
-But these are clustered — if entity X is suppressed, all 4 questions about X are
-likely suppressed. So we effectively have ~400 independent suppression observations,
-not 1,600. This matters for statistical tests:
-- For overall suppression rate: 400 independent observations is sufficient
-- For per-state rates: a state with 100 entities might have ~8 suppressed entities —
+But these are clustered — if entity X is suppressed, all 2-3 questions about X are
+likely suppressed. So we effectively have ~650 independent suppression observations,
+not 1,700. This matters for statistical tests:
+- For overall suppression rate: 650 independent observations is sufficient
+- For per-state rates: a state with 150 entities might have ~12 suppressed entities —
   barely enough for a percentage
 - For per-attribute rates: an attribute with 200 entities might have ~16 suppressed —
   marginally sufficient
@@ -1274,8 +1326,11 @@ Based on the EDA findings, here is what the EMNLP workshop paper should include:
 
 The EDA gives us criteria for a successful Step 1 run:
 
-1. **Base accuracy 45-65%** (excluding CP). Lower means prompt is broken. Higher
-   means something is inflating scores.
+1. **Base accuracy 40-70%** (excluding CP). The Sanskriti paper reports LLaMA-3.2-3B-
+   Instruct at 52% and LLaMA-3.1-70B-Instruct at 86% on the full dataset.
+   Accounting for CP inflation (~98% on 25.6% of questions), the non-CP range for
+   our 8B models should be roughly 43-67%. Below 35% means the prompt is broken.
+   Above 75% means something is inflating scores.
 2. **Instruct accuracy > base accuracy.** The single strongest signal of correct
    prompt formatting.
 3. **CP accuracy > 95% for both models.** If not, the model cannot even identify
@@ -1335,7 +1390,7 @@ Total: 13 PNG files, ~3.6 MB
 
 ```
 /data/user_data/anshulk/cultural-mi/analysis/
-├── sanskriti_usable.csv              # 21,726 rows, master usable dataset
+├── sanskriti_usable.csv              # 21,726 rows, master dataset with entity_key column
 ├── distribution_states.csv           # 36 rows
 ├── distribution_attributes.csv       # 16 rows
 ├── distribution_qtypes.csv           # 4 rows
@@ -1384,13 +1439,15 @@ Total: 13 PNG files, ~3.6 MB
 ├── distractor_similarity_by_attribute.csv
 ├── distractor_quality_summary.csv
 ├── answer_in_question_leakage.csv    # 1,615 rows
-├── cultural_entities.csv             # 4,949 entities
+├── cultural_entities.csv             # 4,949 regex-extracted entities
 ├── cultural_entities_detail.csv
+├── cultural_entities_combined.csv   # 8,156 entities (regex + fallback, with extraction_method)
+├── entity_extraction_by_qtype.csv   # Regex extraction rate per question type
 ├── exact_duplicates.csv              # 419 groups
 ├── conflicting_duplicates.csv        # 351 groups
 └── data_quality_summary.csv          # 1-row summary
 
-Total: 52 CSV files + 2 numpy caches, ~183 MB
+Total: 54 CSV files + 2 numpy caches, ~183 MB
 ```
 
 ### Pipeline Script
@@ -1532,7 +1589,7 @@ Sanskriti is usable but deeply flawed. Here is the unvarnished assessment.
    **This is the biggest threat to the study's validity.**
 
 2. **Effective sample size is ~1/3 to 1/4 of raw count.** With 78.6% near-duplicate
-   involvement and ~5,000 unique entities asked 3-4 times each, behavioral labels
+   involvement and ~8,156 unique entity keys asked 1-3 times each, behavioral labels
    cluster by entity. If a model doesn't know about Bihu, it gets all 3-4 Bihu
    questions wrong — that's 1 independent suppression event, not 4. Per-attribute
    rates on smaller categories (Religion: 482 questions, maybe ~150 independent)
@@ -1583,7 +1640,12 @@ Rationale:
 - Hard subset only: Association + General Awareness (10,781 questions)
 - Per-attribute rates (top 12 attributes only)
 - Per-state rates (top 20 states only)
-- Entity-level suppression rate (accounting for redundancy)
+- Entity-level suppression rate (accounting for redundancy) — using combined
+  entity keys: regex-extracted for templated questions, `(state, attribute,
+  answer)` triple for General Awareness. Must be computed in the Step 1 merge
+  script, not as a post-hoc analysis. Group questions by entity key, check if
+  all questions for entity X share the same behavioral label, report % of
+  entities that are uniformly suppressed/enhanced/control
 
 **Limitations section:**
 - No-question baseline (75.87%) as benchmark design limitation

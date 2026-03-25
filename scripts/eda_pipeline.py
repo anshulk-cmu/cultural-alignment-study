@@ -99,6 +99,34 @@ def timer(msg):
     return _T()
 
 
+# ── entity extraction ────────────────────────────────────────────────
+def _extract_entity_regex(q):
+    """Extract cultural entity from templated questions via regex."""
+    q = str(q)
+    patterns = [
+        r"famous for (.+?)\?",
+        r"home to the (.+?)\?",
+        r"home to (.+?)\?",
+        r"Where is the (.+?) famous",
+    ]
+    for p in patterns:
+        m = re.search(p, q, re.IGNORECASE)
+        if m:
+            return m.group(1).strip().rstrip(".")
+    m = re.match(r"^(.+?)\s+is associated", q, re.IGNORECASE)
+    if m:
+        return m.group(1).strip()
+    return None
+
+
+def _build_entity_key(row):
+    """Combined entity key: regex-extracted if available, else (state|attr|answer) fallback."""
+    regex = _extract_entity_regex(row["question"])
+    if regex is not None:
+        return regex
+    return f"{row['state']}|{row['attribute']}|{str(row['answer']).strip()}"
+
+
 # ── load dataset ─────────────────────────────────────────────────────
 def load_data():
     from datasets import load_dataset
@@ -107,6 +135,11 @@ def load_data():
     df["ground_truth_letter"] = df.apply(get_ground_truth, axis=1)
     df["question_id"] = range(len(df))
     usable = df[df["ground_truth_letter"].notna()].copy().reset_index(drop=True)
+    # Add entity keys (regex + fallback) for entity-level analysis in Step 1
+    usable["entity_key"] = usable.apply(_build_entity_key, axis=1)
+    n_regex = usable["question"].apply(_extract_entity_regex).notna().sum()
+    n_fallback = len(usable) - n_regex
+    print(f"  Entity keys: {n_regex} regex + {n_fallback} fallback = {usable['entity_key'].nunique()} unique")
     save_csv(usable, "sanskriti_usable.csv")
     print(f"  Total: {len(df)}, Usable: {len(usable)}, Excluded: {len(df)-len(usable)}")
     return usable
@@ -909,41 +942,23 @@ def section_6(df):
 # ══════════════════════════════════════════════════════════════════════
 def section_7(df):
     with timer("Section 7: Cultural Specificity"):
-        def extract_entity(q):
-            q = str(q)
-            patterns = [
-                r"famous for (.+?)\?",
-                r"home to the (.+?)\?",
-                r"home to (.+?)\?",
-                r"Where is the (.+?) famous",
-            ]
-            for p in patterns:
-                m = re.search(p, q, re.IGNORECASE)
-                if m:
-                    return m.group(1).strip().rstrip(".")
-            # "X is associated to which ..."
-            m = re.match(r"^(.+?)\s+is associated", q, re.IGNORECASE)
-            if m:
-                return m.group(1).strip()
-            return None
-
         df = df.copy()
-        df["entity"] = df["question"].apply(extract_entity)
-        found = df["entity"].notna().sum()
-        unique = df["entity"].dropna().nunique()
-        print(f"  Entities extracted: {found}/{len(df)} ({found/len(df)*100:.1f}%)")
-        print(f"  Unique entities: {unique}")
+        # Regex-only extraction (for per-template analysis)
+        df["regex_entity"] = df["question"].apply(_extract_entity_regex)
+        found = df["regex_entity"].notna().sum()
+        unique_regex = df["regex_entity"].dropna().nunique()
+        print(f"  Regex-extracted: {found}/{len(df)} ({found/len(df)*100:.1f}%)")
 
-        entity_counts = df["entity"].dropna().value_counts().reset_index()
+        # Regex-only entity CSV (backwards-compatible)
+        entity_counts = df["regex_entity"].dropna().value_counts().reset_index()
         entity_counts.columns = ["entity", "question_count"]
-
-        ent_states = df.dropna(subset=["entity"]).groupby("entity")["state"].nunique()
-        ent_qtypes = df.dropna(subset=["entity"]).groupby("entity")["question_type"].nunique()
+        ent_states = df.dropna(subset=["regex_entity"]).groupby("regex_entity")["state"].nunique()
+        ent_qtypes = df.dropna(subset=["regex_entity"]).groupby("regex_entity")["question_type"].nunique()
         entity_counts["n_states"] = [int(ent_states.get(e, 0)) for e in entity_counts["entity"]]
         entity_counts["n_qtypes"] = [int(ent_qtypes.get(e, 0)) for e in entity_counts["entity"]]
         save_csv(entity_counts, "cultural_entities.csv")
 
-        entity_detail = df.dropna(subset=["entity"]).groupby("entity").agg(
+        entity_detail = df.dropna(subset=["regex_entity"]).groupby("regex_entity").agg(
             question_count=("question_id", "count"),
             n_states=("state", "nunique"),
             states=("state", lambda x: ",".join(sorted(x.unique()))),
@@ -952,13 +967,38 @@ def section_7(df):
         ).sort_values("question_count", ascending=False)
         save_csv_idx(entity_detail, "cultural_entities_detail.csv")
 
+        # Combined entity keys (regex + fallback) — uses entity_key from load_data()
+        combined = df.groupby("entity_key").agg(
+            question_count=("question_id", "count"),
+            n_states=("state", "nunique"),
+            states=("state", lambda x: ",".join(sorted(x.unique()))),
+            attributes=("attribute", lambda x: ",".join(sorted(x.unique()))),
+            qtypes=("question_type", lambda x: ",".join(sorted(x.unique()))),
+            extraction_method=("regex_entity", lambda x: "regex" if x.notna().all()
+                               else ("fallback" if x.isna().all() else "mixed"))
+        ).sort_values("question_count", ascending=False)
+        save_csv_idx(combined, "cultural_entities_combined.csv")
+
+        unique_combined = df["entity_key"].nunique()
+        n_fallback = df["regex_entity"].isna().sum()
+        print(f"  Combined entity keys: {unique_combined} unique "
+              f"({unique_regex} regex + {df['regex_entity'].isna().apply(lambda x: x).sum()} fallback questions)")
+
+        # Extraction rate by question type
+        by_qt = df.groupby("question_type").agg(
+            extracted=("regex_entity", lambda x: x.notna().sum()),
+            total=("question_id", "count"))
+        by_qt["pct"] = (by_qt["extracted"] / by_qt["total"] * 100).round(1)
+        by_qt["missing"] = by_qt["total"] - by_qt["extracted"]
+        save_csv_idx(by_qt, "entity_extraction_by_qtype.csv")
+
         # plot
         fig, axes = plt.subplots(1, 2, figsize=(18, 7))
         top_ents = entity_counts.head(20)
         axes[0].barh(range(len(top_ents)), top_ents["question_count"], color="mediumpurple")
         axes[0].set_yticks(range(len(top_ents)))
         axes[0].set_yticklabels([e[:40] for e in top_ents["entity"]], fontsize=8)
-        axes[0].set_title(f"Top 20 Most-Asked Entities ({unique} unique total)")
+        axes[0].set_title(f"Top 20 Regex-Extracted Entities ({unique_regex} regex, {unique_combined} combined)")
         axes[0].invert_yaxis()
 
         uniq = ent_states.value_counts().sort_index()
