@@ -27,6 +27,8 @@ in `/data/user_data/anshulk/cultural-mi/analysis/`.
 12. [What This Stage Does NOT Do](#12-what-this-stage-does-not-do)
 13. [Output Files](#13-output-files)
 14. [Runtime and Reproducibility](#14-runtime-and-reproducibility)
+15. [Alternative Datasets Considered](#15-alternative-datasets-considered)
+16. [Dataset Fitness Assessment](#16-dataset-fitness-assessment)
 
 ---
 
@@ -1450,5 +1452,169 @@ same dataset will produce identical CSV values and visually identical plots
 
 ---
 
+## 15. Alternative Datasets Considered
+
+We surveyed every publicly available Indian cultural knowledge dataset to verify
+that Sanskriti is the best fit for this MI study. None of the alternatives check
+all five boxes we require: (1) MCQ format, (2) large enough for hundreds of
+suppression cases, (3) English, (4) cultural knowledge specifically, (5) public
+with state/attribute metadata.
+
+| Dataset | Year | Size | Format | Language | Why Not |
+|---------|------|------|--------|----------|---------|
+| **Sanskriti** | 2025 | 21,853 MCQs | MCQ, 4-choice | English | **Selected** |
+| MILU (AI4Bharat) | 2024 | ~80,000 MCQs | MCQ | Multilingual (mostly Indic) | Tests exam knowledge, not culture; non-English |
+| DIWALI | 2025 | ~8K concepts | Concept inventory | English | No MCQ format; designed for text adaptation, not QA |
+| Indica | 2026 | 515 Qs → 1,630 pairs | Free-form + MCQ | English | Too small (515 base questions); ~40 suppression cases |
+| DRISHTIKON | 2025 | 2,126 MCQs | MCQ + images | English | Multimodal (requires images); too small for MI |
+| CulturalBench (ICLR) | 2025 | 1,227 MCQs | MCQ | English | Only fraction India-specific; ~100 India questions |
+| IndicParam | 2025 | Varies | MCQ | English/Indic | Tests UGC-NET academic knowledge, not cultural |
+| IndQA (OpenAI) | 2025 | Varies | QA | 12 languages | Tests cross-lingual reasoning; not public in usable form |
+
+### DRISHTIKON: The Best Alternative (But Still Insufficient)
+
+DRISHTIKON deserves special mention. It covers all 28 states and 8 UTs with 2,126
+MCQs that were semi-automatically generated and **human-curated** with intentionally
+close distractors. Its question design is objectively better than Sanskriti's —
+distractors are semantically proximate (testing fine-grained knowledge) rather than
+obviously wrong (Japan vs India). However:
+
+- At 2,126 questions, an 8% suppression rate yields ~170 cases — borderline for
+  activation extraction across multiple layers
+- It is multimodal (image + text), requiring vision-language models
+- No text-only subset has been released
+
+We cite DRISHTIKON and Indica in our related work section. Future work should
+replicate our findings on DRISHTIKON's text-only subset if one becomes available.
+
+### DIWALI: Different Purpose, Complementary
+
+DIWALI (EMNLP 2025 Oral) catalogs ~8K cultural concepts across 36 sub-regions and
+17 facets (food, dance, festivals, jewellery, etc.). It is a **concept inventory**
+for cultural text adaptation, not a QA benchmark. It cannot produce suppression/
+enhancement labels because there are no questions to answer right or wrong. However,
+its concept list could be useful in Step 3/4 for validating whether our probing
+directions align with known cultural concepts.
+
+---
+
+## 16. Dataset Fitness Assessment
+
+### The Honest Picture
+
+Sanskriti is usable but deeply flawed. Here is the unvarnished assessment.
+
+**What works in our favor:**
+
+1. **Size survives filtering.** Even restricting to Association + General Awareness
+   (the "hard" subset), we have ~10,800 questions. At 5-8% suppression, that's
+   500-800+ suppression cases — sufficient for activation extraction and probing
+   across multiple layers.
+
+2. **The base/instruct comparison is symmetric.** Both models face the same dataset
+   artifacts (same shortcuts, same position bias, same templates). Since we measure
+   the *difference* between base and instruct behavior, many artifacts cancel. If
+   both models exploit the state-name shortcut equally, those questions land in
+   "control" and do not contaminate suppression/enhancement labels.
+
+3. **The 16 attributes and 36 states give slicing dimensions.** Even with coverage
+   gaps, we can ask marginal questions: "does suppression concentrate in Religion
+   vs Tourism?" or "in northeastern states vs metropolitan ones?"
+
+**What is genuinely problematic:**
+
+1. **75% of the dataset does not really test cultural knowledge.** The no-question
+   baseline of 75.87% means most questions are answerable from surface-level pattern
+   matching. For an MI study asking "how is cultural knowledge represented?", we
+   need confidence that the model is using cultural knowledge to answer. A
+   "suppression" label on a State Prediction question might mean the instruct model
+   lost a string-matching ability, not cultural knowledge about Rajasthani cuisine.
+   **This is the biggest threat to the study's validity.**
+
+2. **Effective sample size is ~1/3 to 1/4 of raw count.** With 78.6% near-duplicate
+   involvement and ~5,000 unique entities asked 3-4 times each, behavioral labels
+   cluster by entity. If a model doesn't know about Bihu, it gets all 3-4 Bihu
+   questions wrong — that's 1 independent suppression event, not 4. Per-attribute
+   rates on smaller categories (Religion: 482 questions, maybe ~150 independent)
+   will have wide confidence intervals.
+
+3. **The templated structure conflates template recognition with cultural knowledge.**
+   55% of questions follow 7 templates. If our probing picks up "this activation
+   pattern means the model recognized the Country Prediction template" rather than
+   "this pattern encodes knowledge about Bharatanatyam," we are doing MI of template
+   recognition, not cultural knowledge. This must be controlled for in Steps 3-4.
+
+4. **Country Prediction is dead weight.** 25.6% of the dataset where the answer is
+   always "India" contributes nothing to understanding cultural knowledge suppression.
+   Both models will get these right. It inflates control_both_correct.
+
+### The Decision: Run Everything, Slice Everything, Explain Everything
+
+**We run on all 21,726 usable questions.** We do not filter before evaluation.
+
+Rationale:
+
+1. **More data = more suppression cases.** 8% suppression on 21,726 ≈ 1,700 cases.
+   On 10,800 ≈ 860 cases. We want every sample for probing across layers and models.
+
+2. **"Easy" questions make a clean control group.** 5,563 Country Prediction questions
+   landing in control_both_correct give us a massive, clean control set for probing.
+   We *want* a large control population.
+
+3. **Filtering looks like cherry-picking.** A reviewer will ask "why did you throw
+   out 50% of the benchmark?" Running on everything and showing the breakdown by
+   question type is more defensible.
+
+4. **Slicing is stronger than filtering.** Report the full-dataset numbers as primary
+   results. Then show: "on Association + General Awareness, suppression rises from
+   X% to Y%." This framing shows the effect is *more* pronounced on genuinely
+   knowledge-requiring questions — stronger than claiming you found it on a
+   hand-picked subset.
+
+### What the Paper Reports
+
+**Primary results (full dataset, 21,726 questions):**
+- Overall accuracy for both models
+- Overall suppression/enhancement/control rates
+- Per-question-type breakdown
+
+**Robustness checks (sliced, not filtered):**
+- Without Country Prediction (16,163 questions)
+- Hard subset only: Association + General Awareness (10,781 questions)
+- Per-attribute rates (top 12 attributes only)
+- Per-state rates (top 20 states only)
+- Entity-level suppression rate (accounting for redundancy)
+
+**Limitations section:**
+- No-question baseline (75.87%) as benchmark design limitation
+- Near-duplicate effective sample size reduction
+- Template structure conflating format recognition with cultural knowledge
+- Position bias in ground truth (B=29.0%, D=20.8%)
+- Note that Sanskriti is the best available benchmark and alternatives are
+  either too small (DRISHTIKON, Indica) or wrong format (DIWALI, MILU)
+
+### Scoping Claims for EMNLP
+
+What we **can** claim:
+- "RLHF instruction tuning suppresses X% of cultural knowledge questions that
+  the base model answers correctly" (primary finding)
+- "Suppression concentrates in [specific attributes/states/difficulty tiers]"
+  (if the data shows this)
+- "Activation probing reveals [specific geometric patterns] that differentiate
+  suppressed vs enhanced questions" (Steps 3-4)
+- "The suppression effect is more pronounced on genuinely knowledge-requiring
+  questions (Association + General Awareness) than on shortcut-vulnerable ones
+  (Country Prediction, State Prediction)" (the killer finding if it holds)
+
+What we **cannot** claim:
+- "RLHF suppresses knowledge about Religion more than Tourism" with high
+  confidence (Religion has ~150 effective independent samples)
+- Anything about per-state-attribute interactions (6.8% reliable cells)
+- That suppression reflects "cultural insensitivity" in RLHF training — we can
+  only show the behavioral and representational facts
+
+---
+
 *End of document. All numbers verified against the output CSV files listed above,
-produced by `scripts/eda_pipeline.py` on 2026-03-25.*
+produced by `scripts/eda_pipeline.py` on 2026-03-25. Dataset landscape survey
+conducted 2026-03-25.*
