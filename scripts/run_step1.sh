@@ -18,12 +18,12 @@ echo "Partition: $SLURM_JOB_PARTITION"
 echo "Time:      $(date)"
 echo "=========================================="
 
-eval "$(conda shell.bash hook 2>/dev/null)"
+eval "$(/home/anshulk/miniconda3/bin/conda shell.bash hook 2>/dev/null)"
 conda activate cultural
 
 nvidia-smi
 
-python /home/anshulk/cultural-mi/scripts/eval_step1.py "$@"
+python /home/anshulk/cultural-mi/scripts/eval_step1.py --batch-size 24 "$@"
 
 echo "=========================================="
 echo "Job finished at $(date)"

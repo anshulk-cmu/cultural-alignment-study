@@ -118,6 +118,20 @@ def load_and_merge(config, log):
         meta_cols.append("entity_key")
     merged = merged.merge(orig[meta_cols], on="question_id", how="left")
 
+    # Logprob margin: gap between top-1 and top-2 among A/B/C/D
+    for prefix in ["base", "instruct"]:
+        lp_cols = [f"{prefix}_logprob_{l}" for l in "ABCD"]
+        lp_vals = merged[lp_cols].values  # (n, 4)
+        sorted_lp = np.sort(lp_vals, axis=1)  # ascending
+        merged[f"{prefix}_logprob_margin"] = sorted_lp[:, -1] - sorted_lp[:, -2]
+        merged[f"{prefix}_low_confidence"] = merged[f"{prefix}_logprob_margin"] < 0.5
+
+    n_low_base = merged["base_low_confidence"].sum()
+    n_low_inst = merged["instruct_low_confidence"].sum()
+    log.info(f"Low-confidence predictions (margin < 0.5 nats): "
+             f"base={n_low_base} ({n_low_base/len(merged)*100:.1f}%), "
+             f"instruct={n_low_inst} ({n_low_inst/len(merged)*100:.1f}%)")
+
     # Validate question types
     qtypes = sorted(merged["question_type"].unique())
     log.info(f"Question types found: {qtypes}")
@@ -516,8 +530,31 @@ def plot_confidence_distribution(df, log):
         "base_max_logprob_median": [base_max_lp.median()],
         "instruct_max_logprob_mean": [inst_max_lp.mean()],
         "instruct_max_logprob_median": [inst_max_lp.median()],
+        "base_margin_mean": [df["base_logprob_margin"].mean()],
+        "base_margin_median": [df["base_logprob_margin"].median()],
+        "instruct_margin_mean": [df["instruct_logprob_margin"].mean()],
+        "instruct_margin_median": [df["instruct_logprob_margin"].median()],
+        "base_low_confidence_pct": [df["base_low_confidence"].mean() * 100],
+        "instruct_low_confidence_pct": [df["instruct_low_confidence"].mean() * 100],
     })
     log.info(f"Plot saved: {path}")
+
+    # Plot 6b: Logprob margin histogram
+    fig2, ax2 = plt.subplots(figsize=(10, 6))
+    bins2 = np.linspace(0, 8, 50)
+    ax2.hist(df["base_logprob_margin"], bins=bins2, alpha=0.5, label="Base", color="#4C72B0")
+    ax2.hist(df["instruct_logprob_margin"], bins=bins2, alpha=0.5, label="Instruct", color="#DD8452")
+    ax2.axvline(0.5, color="red", linestyle="--", linewidth=1, label="Low-confidence threshold (0.5)")
+    ax2.set_xlabel("Logprob Margin (top1 - top2 among A/B/C/D)")
+    ax2.set_ylabel("Count")
+    ax2.set_title("Prediction Confidence Margin")
+    ax2.legend()
+    plt.tight_layout()
+    path2 = os.path.join(PLOT_DIR, "logprob_margin_distribution.png")
+    fig2.savefig(path2, dpi=150)
+    plt.close(fig2)
+    log.info(f"Plot saved: {path2}")
+
     return conf_df
 
 
@@ -591,6 +628,18 @@ def run_sanity_checks(df, tier_stats, config, log):
             all_pass = False
         else:
             log.info(f"[PASS] F8: No state >15% of suppression (max: {state_supp.index[0]} at {state_supp.iloc[0]*100:.1f}%)")
+
+    # F9: Low-confidence margin check
+    for model in ["base", "instruct"]:
+        low_conf = df[df[f"{model}_low_confidence"]]
+        n_low = len(low_conf)
+        pct_low = n_low / len(df) * 100
+        if n_low > 0:
+            correct_col = f"{model}_correct"
+            acc_low = low_conf[correct_col].mean() * 100
+            acc_high = df[~df[f"{model}_low_confidence"]][correct_col].mean() * 100
+            log.info(f"[INFO] F9: {model} low-confidence: {n_low} ({pct_low:.1f}%), "
+                     f"acc_low={acc_low:.1f}%, acc_high={acc_high:.1f}%")
 
     # F10/F11: Activation checks
     for model_type in ["base", "instruct"]:

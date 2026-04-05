@@ -236,7 +236,8 @@ def setup_hooks(model):
 
         def make_hook(n):
             def hook_fn(module, input, output):
-                cache[n] = output[0].detach().float().cpu()
+                hidden = output[0] if isinstance(output, (tuple, list)) else output
+                cache[n] = hidden.detach().float().cpu()
             return hook_fn
 
         hooks.append(
@@ -377,9 +378,10 @@ def run_evaluation(model_type, device, df, config, batch_size, debug, preempt_ev
     log.debug(f"Tokenizer: pad_token={tokenizer.pad_token}, "
               f"pad_token_id={tokenizer.pad_token_id}, padding_side=left")
 
-    # Get A/B/C/D token IDs
+    # Get A/B/C/D token IDs — space-prefixed because prompt ends with "Answer:"
+    # and the model predicts " A", " B", " C", " D" (with leading space)
     answer_token_ids = {
-        l: tokenizer.encode(l, add_special_tokens=False)[0] for l in "ABCD"
+        l: tokenizer.encode(f" {l}", add_special_tokens=False)[0] for l in "ABCD"
     }
     log.info(f"Answer token IDs: {answer_token_ids}")
 
@@ -492,6 +494,8 @@ def run_evaluation(model_type, device, df, config, batch_size, debug, preempt_ev
             prompts,
             return_tensors="pt",
             padding=True,
+            truncation=True,
+            max_length=1024,
             add_special_tokens=(model_type == "base"),
         ).to(device)
 
