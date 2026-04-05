@@ -18,10 +18,24 @@ Both models share identical architecture (32 layers, 4096 hidden dim, 8B params)
 | Step | What | Status |
 |------|------|--------|
 | EDA | Dataset exploration and validation | **Done** |
-| 1 | Behavioral Evaluation — run both models, assign suppression/enhancement/control labels | Planned |
-| 2 | Activation Extraction — extract hidden states at selected layers | Not started |
-| 3 | Probing & Analysis — linear probing, KL divergence, MDL probing | Not started |
-| 4 | Circuit Interpretation — identify specific circuits responsible | Not started |
+| 1 | Behavioral Evaluation + Activation Extraction — run both models on all 21,726 questions, assign suppression/enhancement/control labels, extract hidden states at 8 hook points | **In progress** |
+| 2 | Probing Analysis — train linear probes on activations to predict behavioral labels, find which layers encode cultural knowledge | Not started |
+| 3 | Circuit Identification — attention pattern analysis, causal tracing to identify suppression circuits | Not started |
+| 4 | Interpretation & Synthesis — coherent narrative of how RLHF affects cultural knowledge | Not started |
+
+## Step 1: Behavioral Evaluation
+
+Full documentation: [docs/step1_behavioral_evaluation.md](docs/step1_behavioral_evaluation.md)
+
+Step 1 runs both models on all 21,726 Sanskriti questions in a single forward pass per question. It extracts logit-based answer predictions (argmax over space-prefixed A/B/C/D token logprobs), assigns behavioral labels (suppression/enhancement/control), and captures hidden-state activations at 8 hook points (embedding + layers 4, 8, 14, 20, 26, 30, 31) using both mean-pool and last-token strategies. Both models run in parallel on separate GPUs via `torch.multiprocessing` with SLURM preemption-safe checkpointing.
+
+Key design choices:
+- **Logit-based evaluation** (not generation) — deterministic, single forward pass, full probability distribution preserved
+- **5-shot prompting for base**, chat template for instruct — matches MMLU protocol and Sanskriti paper methodology
+- **Three-tier analysis** — full dataset, without Country Prediction, hard questions only — to isolate suppression signal from noise floor
+- **11 sanity checks** in the merge pipeline to catch token ID bugs, prompt issues, and data artifacts
+
+Results pending completion of SLURM job with corrected token IDs.
 
 ## EDA Key Findings
 
@@ -64,14 +78,18 @@ Downloaded to `/data/user_data/anshulk/cultural-mi/dataset/`.
 ```
 /home/anshulk/cultural-mi/              # Code, plots, docs (NFS home)
 ├── scripts/
-│   └── eda_pipeline.py                 # Full EDA pipeline (8 sections, 2.7 min)
+│   ├── eda_pipeline.py                 # Full EDA pipeline (8 sections, 2.7 min)
+│   ├── eval_step1.py                   # Step 1: behavioral eval + activation extraction
+│   ├── merge_step1.py                  # Step 1: merge results, labels, stats, plots
+│   └── run_step1.sh                    # SLURM submission script for Step 1
 ├── plots/                              # 13 EDA plot PNGs
 ├── configs/
 │   ├── config.yaml                     # All paths and settings
 │   └── environment.yml                 # Conda env spec
 ├── docs/
-│   ├── step1_plan.md                   # Validated Step 1 plan
-│   └── eda_analysis.md                 # Complete EDA report with all numbers
+│   ├── eda_analysis.md                 # Complete EDA report with all numbers
+│   ├── step1_behavioral_evaluation.md  # Step 1 complete analysis doc
+│   └── plan.md                         # Project plan
 ├── logs/
 ├── notebooks/
 └── old_version/                        # Previous Qwen2-1.5B study
@@ -81,7 +99,7 @@ Downloaded to `/data/user_data/anshulk/cultural-mi/dataset/`.
 ├── dataset/                            # Sanskriti HF cache
 ├── analysis/                           # 52 EDA CSV files + embeddings (~183MB)
 ├── results/{step1..step4}/             # Result CSVs (Step 1 pending)
-├── activations/                        # Extracted hidden states (Step 2)
+├── activations/{base,instruct}/        # Hidden states: 32 .npy files (8 hooks × 2 pooling × 2 models, ~10.6 GB)
 └── checkpoints/                        # Inference checkpoints
 ```
 
@@ -100,4 +118,4 @@ Key packages: torch 2.10, transformers 5.3, datasets 4.8, accelerate 1.13, sente
 
 ## Cluster
 
-CMU Babel — SLURM with L40S (48GB), A100-80GB, A100-40GB, H200, and A6000 GPUs.
+CMU Babel — SLURM with L40S (48GB), A100-80GB, A100-40GB, H200, RTX PRO 6000 (96GB), and A6000 GPUs. Step 1 uses 2 × RTX PRO 6000 on the `preempt` partition (one GPU per model, parallel execution).
