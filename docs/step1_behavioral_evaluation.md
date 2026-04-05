@@ -15,27 +15,30 @@ will be validated against the actual output files once the run completes.
 
 ## Quick Reference: Key Numbers
 
-Results will be filled from the output CSVs after the re-run with corrected
-token IDs completes. Placeholders marked with `[TBD]`.
+All results validated against output CSVs from SLURM job 6959494
+(2026-04-05, A100-SXM4-40GB × 2).
 
 | Metric | Value | Source |
 |--------|-------|--------|
 | Total questions evaluated | 21,726 | `sanskriti_prepared.csv` |
 | Models evaluated | 2 (base + instruct) | `config.yaml` |
-| GPUs used | 2 × NVIDIA RTX PRO 6000 (96 GB each) | SLURM log |
-| Batch size | 64 | `run_step1.sh` |
-| Total batches per model | 340 | 21726 / 64 = 339.47 → 340 |
+| GPUs used | 2 × NVIDIA A100-SXM4-40GB (42.4 GB each) | SLURM log |
+| Batch size | 24 | `run_step1.sh` |
+| Total batches per model | 906 | ceil(21726 / 24) = 906 |
 | Hook points | 8 (embed + 7 layers) | `eval_step1.py` |
 | Activation files | 32 (8 hooks × 2 pooling × 2 models) | `activations/` |
-| Activation storage | ~9.4 GB total | `activations/` |
-| Base accuracy | [TBD] | `base_results.csv` |
-| Instruct accuracy | [TBD] | `instruct_results.csv` |
-| Suppression count | [TBD] | `sanskriti_behavioral_labels.csv` |
-| Enhancement count | [TBD] | `sanskriti_behavioral_labels.csv` |
-| Base forced-choice rate | [TBD] | `base_results.csv` |
-| Instruct forced-choice rate | [TBD] | `instruct_results.csv` |
-| Runtime (instruct) | ~6 min | SLURM log |
-| Runtime (base) | ~8 min | SLURM log |
+| Activation storage | 9.0 GB total | `activations/` |
+| **Base accuracy** | **87.61%** (19,035/21,726) | `base_results.csv` |
+| **Instruct accuracy** | **88.88%** (19,310/21,726) | `instruct_results.csv` |
+| **Suppression count** | **655** (3.0%) | `sanskriti_behavioral_labels.csv` |
+| **Enhancement count** | **930** (4.3%) | `sanskriti_behavioral_labels.csv` |
+| Control (both correct) | 18,380 (84.6%) | `sanskriti_behavioral_labels.csv` |
+| Control (both wrong) | 1,761 (8.1%) | `sanskriti_behavioral_labels.csv` |
+| Base forced-choice rate | 0.00% (0/21,726) | `base_results.csv` |
+| Instruct forced-choice rate | 0.00% (0/21,726) | `instruct_results.csv` |
+| Runtime (instruct) | 12.3 min (29.4 q/s) | SLURM log |
+| Runtime (base) | 15.3 min (23.7 q/s) | SLURM log |
+| Total runtime (parallel) | 16 min | SLURM log |
 
 ---
 
@@ -88,8 +91,11 @@ Range: (-∞, 0]
   -13  = probability ~2.2e-6 (essentially zero)
 
 In our evaluation:
-  We extract logprobs for 4 specific tokens: " A", " B", " C", " D"
-  (space-prefixed, matching the prompt format "Answer: X")
+  We extract logprobs for 4 answer tokens. The exact tokens differ by model:
+    Base model:     " A" (362), " B" (426), " C" (356), " D" (423)
+                    Space-prefixed, because the prompt ends with "Answer:"
+    Instruct model: "A" (32), "B" (33), "C" (34), "D" (35)
+                    Bare letters, because the chat template ends with "\n\n"
   The predicted answer = argmax over these 4 logprobs
 ```
 
@@ -127,8 +133,8 @@ The model predicts the next token after "Answer:". Its top-1 prediction
 might be " A" (an answer letter) or it might be "\n" (newline), "the",
 "India", or any other token.
 
-If top-1 ∈ {" A", " B", " C", " D"}: forced = False (natural choice)
-If top-1 ∉ {" A", " B", " C", " D"}: forced = True (forced choice)
+If top-1 is one of the model's answer tokens: forced = False (natural choice)
+If top-1 is NOT one of the answer tokens:    forced = True (forced choice)
 
 When forced = True, we still extract the answer by comparing the logprobs
 of ONLY the four answer tokens. The model didn't naturally output a letter,
@@ -191,13 +197,11 @@ so that mean pooling only covers the target question, not the examples.
 position. This is where the model concentrates its "answer" representation.
 
 ```
-Formula: h_last = h[last_non_pad_position]
-
-Where:
-  last_non_pad_position = attention_mask.sum() - 1
+Formula: h_last = h[-1]  (last position in the sequence dimension)
 
 For left-padded sequences (our configuration), this is always the
-rightmost position in the tensor. For right-padded sequences, it
+rightmost position in the tensor — the last real token. Padding is
+on the left, so real tokens occupy the rightmost positions. For right-padded sequences, it
 would be the last 1 in the attention mask.
 ```
 
@@ -612,12 +616,13 @@ capture different stages of that process.
 ### Tokenizer Configuration
 
 ```python
-# From eval_step1.py, lines 372-376
+# From eval_step1.py, lines 372-380
 tokenizer = AutoTokenizer.from_pretrained(
     config["models"][model_type]["local_dir"]
 )
 tokenizer.padding_side = "left"
-tokenizer.pad_token = tokenizer.eos_token
+tokenizer.pad_token_id = 128001   # <|end_of_text|>
+tokenizer.pad_token = tokenizer.convert_ids_to_tokens(128001)
 ```
 
 **`padding_side = "left"`:** Critical for decoder-only models. When batching
@@ -632,10 +637,15 @@ token of every sequence is a real token, not a pad token. This matters because:
 2. Activation extraction at the "last token" position works correctly — it
    always gets the final real token, not a padding artifact.
 
-**`pad_token = eos_token`:** LLaMA's tokenizer has no dedicated pad token. We
-reuse the EOS token (`<|end_of_text|>`, ID 128001) as the padding token. This
-is standard practice. Since padding is on the left and masked out by the
-attention mask, the model never attends to these tokens.
+**`pad_token_id = 128001`:** LLaMA's tokenizer has no dedicated pad token. We
+use `<|end_of_text|>` (ID 128001) as the padding token. We explicitly set the
+ID rather than using `tokenizer.eos_token` because the instruct tokenizer's
+`eos_token` is `<|eot_id|>` (ID 128009) — a semantically meaningful
+end-of-turn marker that would confuse the model if used as padding. The base
+tokenizer's `eos_token` is `<|end_of_text|>` (128001), so the distinction only
+matters for instruct, but we use the explicit ID for both to be safe. Since
+padding is on the left and masked out by the attention mask, the model never
+attends to these tokens.
 
 ### Model Paths
 
@@ -805,6 +815,14 @@ a single token (ID 362). The five-shot examples show `Answer: A` where the
 space is part of the ` A` token. By ending the prompt at `Answer:`, we let the
 model predict the full ` A` / ` B` / ` C` / ` D` token. This is critical for
 correct logprob extraction (see Section 8).
+
+**Base vs instruct token IDs:** The base model uses space-prefixed tokens
+(` A`=362, ` B`=426, ` C`=356, ` D`=423) because the prompt ends with
+`Answer:` and the expected completion starts with a space. The instruct model
+uses bare tokens (`A`=32, `B`=33, `C`=34, `D`=35) because the chat template
+ends with `\n\n` (the assistant turn header), and the model predicts a bare
+letter directly with no leading space. Getting these wrong produces
+near-random accuracy (see Section 8 and Section 26, Bug 3).
 
 **Five-shot prefix length:** 179 tokens (constant across all questions). This
 is logged at startup for verification.
@@ -1028,7 +1046,7 @@ Tokenizer processing:
 
 Batch padding (for a batch of 64):
   If this sequence is 235 tokens and the longest in the batch is 265:
-  Left-pad with 30 pad tokens (ID 128001, the EOS token reused as PAD)
+  Left-pad with 30 pad tokens (ID 128001, <|end_of_text|> reused as PAD)
 
   Padded: [128001, 128001, ..., 128001, 128000, 791, 2768, ...]
            |<---- 30 pad tokens ---->|  |<----- 235 real tokens ----->|
@@ -1106,16 +1124,27 @@ was being asked "how likely is token 32?" when it actually cared about token 362
 
 ### The Fix
 
+The fix is model-specific because the two prompt formats produce different
+token boundaries:
+
 ```python
-# FIXED CODE:
+# FIXED CODE — base model (prompt ends with "Answer:"):
 answer_token_ids = {
     l: tokenizer.encode(f" {l}", add_special_tokens=False)[0] for l in "ABCD"
 }
 # Produces: {'A': 362, 'B': 426, 'C': 356, 'D': 423}
+
+# FIXED CODE — instruct model (chat template ends with "\n\n"):
+answer_token_ids = {
+    l: tokenizer.encode(l, add_special_tokens=False)[0] for l in "ABCD"
+}
+# Produces: {'A': 32, 'B': 33, 'C': 34, 'D': 35}
 ```
 
-Adding the space prefix `f" {l}"` encodes ` A`, ` B`, ` C`, ` D` — the
-tokens the model actually predicts after `Answer:`.
+The base model predicts ` A` (space-prefixed) because `Answer:` is followed
+by a space in the 5-shot pattern. The instruct model predicts bare `A`
+because the chat template's generation prompt ends with `\n\n`, and the model
+outputs a letter directly with no leading space.
 
 ### Lesson
 
@@ -1183,25 +1212,23 @@ vocabulary (128,256 tokens).
 ```python
 # From eval_step1.py, lines 284-313
 def extract_from_logits(logits, attention_mask, answer_token_ids):
-    # Step 1: Find the last real token position for each sequence
-    seq_lengths = attention_mask.sum(dim=1) - 1
-    # Step 2: Extract logits at those positions
-    last_logits = logits[torch.arange(len(seq_lengths)), seq_lengths]  # (batch, vocab)
+    # Step 1: Extract logits at the last position (rightmost in the tensor)
+    last_logits = logits[:, -1, :]  # (batch, vocab)
 
-    # Step 3: Get logits for the 4 answer tokens
+    # Step 2: Get logits for the 4 answer tokens
     ids = torch.tensor([answer_token_ids[l] for l in "ABCD"], device=last_logits.device)
     answer_logits = last_logits[:, ids]  # (batch, 4)
 
-    # Step 4: Compute log-probabilities over FULL vocabulary, then slice
+    # Step 3: Compute log-probabilities over FULL vocabulary, then slice
     log_probs = torch.log_softmax(last_logits, dim=-1)
     answer_log_probs = log_probs[:, ids]  # (batch, 4)
 
-    # Step 5: Predict the answer letter (argmax over 4 answer logits)
+    # Step 4: Predict the answer letter (argmax over 4 answer logits)
     predicted_idx = answer_logits.argmax(dim=-1)
     letters = ["A", "B", "C", "D"]
     predicted_letters = [letters[i] for i in predicted_idx]
 
-    # Step 6: Check if the overall top-1 token is one of A/B/C/D
+    # Step 5: Check if the overall top-1 token is one of A/B/C/D
     top1_ids = last_logits.argmax(dim=-1)
     ids_set = set(ids.tolist())
     forced = [top1_ids[i].item() not in ids_set for i in range(len(top1_ids))]
@@ -1209,15 +1236,19 @@ def extract_from_logits(logits, attention_mask, answer_token_ids):
     return predicted_letters, answer_log_probs.cpu(), forced, top1_ids.cpu()
 ```
 
-**Step 1 — Finding last positions:** With left-padding, the last real token is
-at position `attention_mask.sum(dim=1) - 1`. For a sequence of 230 real tokens
-padded to 265, this is position 264 (0-indexed). The model's prediction at
-this position is "what comes after the last token?" — which is the answer.
+**Step 1 — Using position -1 for left-padded sequences:** With left-padding,
+every sequence in the batch has its last real token at the rightmost position
+(`max_seq_len - 1`). Padding goes on the left, so all real tokens are
+right-aligned. Using `logits[:, -1, :]` correctly extracts the logits at the
+answer position for every sequence, regardless of how much padding each has.
 
-**Step 2 — Advanced indexing:** `logits[torch.arange(B), seq_lengths]` uses
-PyTorch's advanced integer indexing. For batch element `i`, it selects
-`logits[i, seq_lengths[i], :]` — the full vocabulary logits at the last real
-position. This is vectorized (no Python loop over the batch).
+**Why NOT `attention_mask.sum(dim=1) - 1`:** This was an earlier bug
+(Section 26, Bug 4). `attention_mask.sum()` gives the count of real tokens,
+not the position of the last real token. For a 230-token sequence padded to
+265, the count is 230, giving index 229 — but the last real token is at
+position 264 (the rightmost position). Using the count-based index extracts
+logits from the MIDDLE of the sequence, producing near-random accuracy.
+See Section 26, Bug 4 for the full diagnosis.
 
 **Step 3 — Answer token extraction:** We index into the vocabulary dimension
 to get just the 4 logits we care about: tokens for ` A`, ` B`, ` C`, ` D`.
@@ -1469,15 +1500,15 @@ tokens (should never happen in practice, but defensive coding).
 ### Last-Token Pooling
 
 ```python
-# From eval_step1.py, lines 270-272
-last_pos = attention_mask.sum(dim=1) - 1
-h_last = hidden[torch.arange(hidden.size(0)), last_pos]
+# From eval_step1.py, lines 270-271
+h_last = hidden[:, -1, :]
 ```
 
-Extracts the hidden state at the final non-padding position. In a causal
-language model, this position contains the model's accumulated representation
-of the entire input — it is the position from which the model predicts the
-next token (the answer).
+Extracts the hidden state at the rightmost position. With left-padding, this
+is always the final real (non-padding) token for every sequence in the batch.
+In a causal language model, this position contains the model's accumulated
+representation of the entire input — it is the position from which the model
+predicts the next token (the answer).
 
 ### Why Both Strategies
 
@@ -2470,84 +2501,368 @@ models are well-calibrated. Strong deviations (e.g., base predicting A
 40% of the time) indicate position bias rather than knowledge.
 
 **Plots 6/6b (Confidence Distributions):**
-The instruct distribution should be shifted right of base (more confident).
-A large left peak (many low-confidence predictions) in the base model is
-expected — many questions are forced-choice for the base model.
+The confidence distribution (Plot 6) shows the instruct model's max logprob
+is sharply concentrated near 0 (most predictions have logprob > -0.1),
+while the base model's distribution is more spread out (peak near -0.1 but
+with a visible tail extending to -2). Neither model has forced-choice
+predictions (0% rate).
+
+The margin distribution (Plot 6b) shows a dramatic difference: the base
+model's margins are bell-shaped around 3-4 nats with a left tail touching
+the 0.5-nat threshold (8.3% low-confidence). The instruct model's margins
+are broadly distributed from 1-8+ nats, with very few predictions below the
+0.5-nat threshold (2.8%). The instruct model is far more decisive.
 
 ---
 
 ## 24. Results
 
-**Results pending re-run with corrected token IDs.** The following section will
-be populated from the output files after job 6956139 completes.
+Results from SLURM job 6959494 (2026-04-05), run on 2 × NVIDIA A100-SXM4-40GB.
+All numbers validated against output CSVs. See Appendix D for per-number
+validation log.
 
 ### Overall Accuracy
 
 | Model | Accuracy | Forced Choice Rate |
 |-------|----------|--------------------|
-| Base | [TBD] | [TBD] |
-| Instruct | [TBD] | [TBD] |
+| Base | 87.61% (19,035/21,726) | 0.00% |
+| Instruct | 88.88% (19,310/21,726) | 0.00% |
+
+**Interpretation:** Both models achieve high accuracy on this benchmark. The
+instruct model is 1.27 percentage points higher than base. Neither model ever
+produced a forced-choice prediction — both models always assigned highest
+probability to one of the four answer tokens (A/B/C/D), never to an out-of-
+vocabulary token. This 0% forced-choice rate confirms that the prompt format
+and token ID selection are correct for both models.
+
+**Why accuracy is high (~88%):** This is NOT evidence that the models have
+perfect cultural knowledge. The EDA established three factors that inflate
+accuracy on this benchmark:
+
+1. **Country Prediction (25.6% of dataset):** 98.9% of these are trivially
+   "India" — any model that knows the dataset topic gets these right.
+2. **State Prediction shortcut:** 99.98% solvable by string matching (the
+   state name appears in the question or options). The model does not need
+   cultural knowledge — just entity recognition.
+3. **No-question baseline from EDA:** 75.87% accuracy is achievable by
+   matching state names to options WITHOUT reading the question.
+
+Excluding Country Prediction (Tier 2), base drops to 83.72% and instruct
+to 85.46%. On the hardest subset (Association + General Awareness, Tier 3),
+which requires genuine cultural knowledge, base is 84.69% and instruct is
+86.39%. These numbers are still high relative to random chance (25%) but
+are consistent with the benchmark's known limitations.
 
 ### Behavioral Label Distribution (Tier 1: Full)
 
 | Label | Count | Percentage |
 |-------|-------|------------|
-| Suppression | [TBD] | [TBD] |
-| Enhancement | [TBD] | [TBD] |
-| Control (both correct) | [TBD] | [TBD] |
-| Control (both wrong) | [TBD] | [TBD] |
+| Suppression (base right → instruct wrong) | 655 | 3.0% |
+| Enhancement (base wrong → instruct right) | 930 | 4.3% |
+| Control (both correct) | 18,380 | 84.6% |
+| Control (both wrong) | 1,761 | 8.1% |
+
+**Key finding:** Enhancement exceeds suppression by 275 questions (930 vs 655),
+yielding a net accuracy gain of +1.27% from instruction tuning. Instruction
+tuning does NOT suppress cultural knowledge on net — it slightly improves it.
+
+**But this masks question-level suppression:** 655 questions that the base
+model answers correctly are WRONG after instruction tuning. These are the
+most interesting cases for mechanistic interpretability — they represent
+specific cultural knowledge that RLHF interfered with.
+
+**Both-wrong analysis:** Of the 1,761 questions both models get wrong, 78.5%
+(1,383) have the same wrong answer. This suggests shared knowledge gaps in
+the pretraining data rather than random errors. These are genuinely hard or
+ambiguous questions, not model-specific failures.
 
 ### Three-Tier Comparison
 
-| Tier | n | Base Acc | Inst Acc | Supp % | Enh % |
-|------|---|----------|----------|--------|-------|
-| Tier 1 (full) | 21,726 | [TBD] | [TBD] | [TBD] | [TBD] |
-| Tier 2 (no CP) | 16,163 | [TBD] | [TBD] | [TBD] | [TBD] |
-| Tier 3 (hard) | ~10,781 | [TBD] | [TBD] | [TBD] | [TBD] |
+| Tier | n | Base Acc | Inst Acc | Supp % | Enh % | Both Wrong % |
+|------|---|----------|----------|--------|-------|--------------|
+| Tier 1 (full) | 21,726 | 87.61% | 88.88% | 3.0% | 4.3% | 8.1% |
+| Tier 2 (no CP) | 16,163 | 83.72% | 85.46% | 3.9% | 5.6% | 10.7% |
+| Tier 3 (hard) | 10,781 | 84.69% | 86.39% | 4.0% | 5.7% | 9.6% |
+
+**Pattern:** Suppression rate increases as we remove easy questions:
+3.0% → 3.9% → 4.0%. This is expected — Country Prediction contributes
+almost no suppression (0.6%), so removing it concentrates the suppression
+signal. The Tier 2 → Tier 3 jump is small because State Prediction has
+only moderate suppression (3.5%).
+
+Enhancement shows the same pattern: 4.3% → 5.6% → 5.7%. The gap between
+enhancement and suppression remains ~1.7 percentage points across all tiers,
+suggesting the net benefit of instruction tuning is consistent regardless
+of question difficulty.
+
+Both-wrong rate increases from 8.1% to 10.7% when removing Country Prediction
+— these are questions where neither model has the knowledge, concentrated in
+the harder question types.
 
 ### Per Question Type
 
-| Question Type | n | Base Acc | Inst Acc | Supp % | Enh % |
-|---------------|---|----------|----------|--------|-------|
-| Association | 5,453 | [TBD] | [TBD] | [TBD] | [TBD] |
-| Country Prediction | 5,563 | [TBD] | [TBD] | [TBD] | [TBD] |
-| General Awareness | 5,328 | [TBD] | [TBD] | [TBD] | [TBD] |
-| State Prediction | 5,382 | [TBD] | [TBD] | [TBD] | [TBD] |
+| Question Type | n | Base Acc | Inst Acc | Supp % | Enh % | Supp Count | Enh Count |
+|---------------|---|----------|----------|--------|-------|------------|-----------|
+| Association | 5,453 | 84.3% | 87.1% | 2.9% | 5.6% | 156 | 307 |
+| Country Prediction | 5,563 | 98.9% | 98.8% | 0.6% | 0.4% | 32 | 25 |
+| General Awareness | 5,328 | 85.0% | 85.7% | **5.2%** | 5.9% | 279 | 312 |
+| State Prediction | 5,382 | 81.8% | 83.6% | 3.5% | 5.3% | 188 | 286 |
+
+**Critical observation — General Awareness has highest suppression (5.2%):**
+General Awareness questions ask about festivals, traditions, rituals, and
+cultural practices — exactly the kind of culturally sensitive content that
+RLHF might discourage. This is the most important finding for our research
+question: instruction tuning is most likely to suppress knowledge about
+cultural practices, even though it enhances slightly more than it suppresses
+in the same category (5.9% enhancement vs 5.2% suppression).
+
+**Country Prediction is near-ceiling:** Both models at ~99%, with only 32
+suppression and 25 enhancement cases. This confirms the EDA prediction that
+this question type is trivial. The 0.6% suppression rate (32 questions) is
+the lowest of any type, consistent with the fact that these questions test
+geographic knowledge ("Which country is X from?") rather than cultural
+knowledge that RLHF might affect.
+
+**State Prediction has lowest base accuracy (81.8%):** Despite being
+shortcut-vulnerable (string matching), the base model still misses 18.2%.
+This suggests the shortcut is not as reliable as the EDA's 99.98% string-
+matching rate implies — the model may not perfectly implement string matching,
+or the distractors are effective enough to confuse it.
+
+**Association has the largest net gain (+2.8%):** Base 84.3% → instruct 87.1%.
+The instruct model is substantially better at associating cultural entities
+with their correct regions, suggesting RLHF's conversational training
+improved this type of factual recall.
 
 ### Confidence Analysis
 
 | Metric | Base | Instruct |
 |--------|------|----------|
-| Mean logprob margin | [TBD] | [TBD] |
-| Median logprob margin | [TBD] | [TBD] |
-| Low-confidence (margin < 0.5) | [TBD] | [TBD] |
-| Accuracy on low-confidence | [TBD] | [TBD] |
-| Accuracy on high-confidence | [TBD] | [TBD] |
+| Max logprob mean | -0.197 | -0.056 |
+| Max logprob median | -0.070 | -0.000198 |
+| Mean logprob margin | 3.095 nats | 8.586 nats |
+| Median logprob margin | 3.256 nats | 8.875 nats |
+| Logprob range (all 4 options) | [-9.25, -0.001] | [-21.75, -0.00002] |
+| Low-confidence (margin < 0.5) | 1,814 (8.3%) | 605 (2.8%) |
+| Accuracy on low-confidence | 46.2% | 40.3% |
+| Accuracy on high-confidence | 91.4% | 90.3% |
+
+**The instruct model is far more decisive:** Its median margin (8.875 nats)
+is 2.7× the base model's (3.256 nats). In probability terms, the instruct
+model's top answer is e^8.875 ≈ 7,186× more likely than the second-best
+option, while the base model's ratio is e^3.256 ≈ 26×. Instruction tuning
+makes the model dramatically more confident in its predictions.
+
+**Low-confidence predictions are near-random:** Base model accuracy drops
+from 91.4% (high-confidence) to 46.2% (low-confidence) — barely above
+chance (25%). The instruct model shows an even sharper drop: 90.3% → 40.3%.
+This validates the 0.5-nat threshold as a meaningful confidence cutoff.
+
+**Suppression correlates with low confidence:** Among base model's 1,814
+low-confidence predictions, 13.1% are suppression cases. Among the 19,912
+high-confidence predictions, only 2.1% are suppression. This 6× ratio
+shows that suppression is concentrated in uncertain predictions — the model
+"almost knows" the answer but instruction tuning tips it to the wrong choice.
+This is a key insight for Step 2 probing: suppression may be detectable in
+the activation space as borderline representations that RLHF pushes past a
+decision boundary.
+
+**Three times fewer low-confidence predictions for instruct:** The base model
+has 1,814 uncertain predictions (8.3%) while instruct has only 605 (2.8%).
+Instruction tuning not only makes the model more accurate but also more
+decisive — it converts uncertain predictions into confident ones (usually
+correct, but sometimes wrong, producing the 655 suppression cases).
 
 ### Position Distribution
 
 | Letter | GT % | Base Pred % | Instruct Pred % |
 |--------|------|-------------|-----------------|
-| A | 27.1% | [TBD] | [TBD] |
-| B | 29.0% | [TBD] | [TBD] |
-| C | 23.1% | [TBD] | [TBD] |
-| D | 20.8% | [TBD] | [TBD] |
+| A | 27.1% | 28.0% | 29.1% |
+| B | 29.0% | 28.8% | 28.6% |
+| C | 23.1% | 23.6% | 22.3% |
+| D | 20.8% | 19.6% | 20.0% |
+
+**No severe position bias:** Both models' prediction distributions closely
+match the ground truth distribution. The instruct model shows a slight bias
+toward A (29.1% predicted vs 27.1% GT, a +2.0 pp difference) and away from
+C (22.3% vs 23.1%, -0.8 pp). The base model's largest deviation is -1.2 pp
+on D (19.6% vs 20.8%). These biases are small relative to the ground truth
+imbalance (B=29.0% vs D=20.8%, which is an 8.2 pp spread in the dataset
+itself).
+
+**Accuracy varies by ground truth position:**
+
+| GT Position | Base Acc | Instruct Acc |
+|-------------|----------|--------------|
+| A | 89.0% | 91.3% |
+| B | 88.2% | 89.2% |
+| C | 88.1% | 87.7% |
+| D | 84.6% | 86.5% |
+
+Both models are weakest on D (least common GT position = 20.8%). This
+could be a frequency effect (less training signal for D-answers) or a
+recency effect (D is the last option, furthest from the question).
+
+**Suppression is roughly uniform across positions:** A=2.5%, B=3.0%,
+C=3.7%, D=3.0%. The slight elevation at C (3.7%) is minor and not
+statistically tested. There is no evidence that suppression targets a
+specific answer position.
+
+### Suppression by Cultural Attribute
+
+| Attribute | n | Supp Rate | Supp Count | Base Acc | Inst Acc |
+|-----------|---|-----------|------------|----------|----------|
+| Cuisine | 1,671 | 4.19% | 70 | 83.4% | 84.2% |
+| Language | 900 | 3.89% | 35 | 89.3% | 89.8% |
+| Art | 2,066 | 3.53% | 73 | 85.8% | 87.5% |
+| Costume | 1,513 | 3.50% | 53 | 86.4% | 86.8% |
+| Dance_and_Music | 2,018 | 3.42% | 69 | 85.9% | 86.9% |
+| Festivals | 2,241 | 3.21% | 72 | 87.6% | 88.0% |
+| Personalities | 983 | 3.15% | 31 | 78.3% | 82.3% |
+| Religion | 482 | 2.70% | 13 | 87.1% | 90.2% |
+| Tourism | 3,801 | 2.55% | 97 | 90.6% | 91.9% |
+| History | 2,609 | 2.53% | 66 | 91.6% | 92.3% |
+| Rituals_and_Ceremonies | 1,000 | 2.30% | 23 | 87.3% | 88.5% |
+| Cultural_Common_Sense | 2,091 | 2.30% | 48 | 89.3% | 91.0% |
+| Medicine | 72 | 0.00% | 0 | 77.8% | 84.7% |
+
+*(Nightlife n=41, Sports n=162, Transport n=76 omitted due to small sample
+size — marked as low-confidence in the analysis output.)*
+
+**Cuisine has the highest suppression rate (4.19%):** Questions about regional
+cuisine — specific dishes, cooking traditions, and food culture — are most
+susceptible to instruction-tuning suppression. This is noteworthy because
+cuisine is not obviously "sensitive" content that RLHF would target. One
+hypothesis: cuisine questions involve highly specific regional knowledge
+(e.g., "Which state is Babru from?") that the model barely learned during
+pretraining, and RLHF's general-purpose optimization slightly degrades
+these marginal representations.
+
+**Medicine has 0% suppression (but n=72):** Too few questions to draw
+conclusions, but it's interesting that the instruct model improves
+substantially on medicine (+6.9 pp) with zero suppression. Medicine may
+benefit from RLHF's health-related instruction tuning.
+
+**Religion has low suppression (2.70%) despite being culturally sensitive:**
+One might expect RLHF to suppress religious knowledge, but it actually
+shows one of the lowest suppression rates AND the largest accuracy gain
+(+3.1 pp, from 87.1% to 90.2%). This suggests RLHF does not systematically
+suppress religious cultural knowledge in this benchmark.
+
+### Suppression by State (Top 10)
+
+| State | n | Supp Rate | Supp Count | Base Acc | Inst Acc |
+|-------|---|-----------|------------|----------|----------|
+| Ladakh | 278 | 7.55% | 21 | 86.7% | 84.5% |
+| Lakshadweep | 122 | 5.74% | 7 | 80.3% | 77.9% |
+| Himachal Pradesh | 822 | 4.74% | 39 | 83.6% | 82.5% |
+| Jharkhand | 759 | 4.35% | 33 | 82.7% | 82.9% |
+| Manipur | 648 | 4.32% | 28 | 85.8% | 85.8% |
+| Nagaland | 514 | 4.28% | 22 | 88.1% | 88.5% |
+| Uttar Pradesh | 504 | 4.17% | 21 | 92.1% | 89.7% |
+| Chhattisgarh | 631 | 4.12% | 26 | 78.0% | 79.6% |
+| Haryana | 888 | 4.05% | 36 | 84.2% | 83.1% |
+| Puducherry | 374 | 4.01% | 15 | 81.0% | 85.8% |
+
+**Ladakh has the highest suppression rate (7.55%) and is one of the few
+states where instruct accuracy is LOWER than base:** 86.7% → 84.5%, a
+2.2 pp drop. Ladakh is a Union Territory with a distinct Tibetan Buddhist
+culture that may be underrepresented in RLHF training data. Similarly,
+Lakshadweep (5.74% suppression, accuracy drop from 80.3% → 77.9%) is a
+small island territory with a unique cultural profile.
+
+**Geographic pattern:** The top-suppressed states tend to be smaller UTs
+and northeastern states (Ladakh, Lakshadweep, Manipur, Nagaland) that have
+less mainstream representation. Larger, well-known states like Tamil Nadu
+(0.81%), Maharashtra (1.41%), and Gujarat (1.27%) have much lower
+suppression. This suggests RLHF may preferentially degrade knowledge
+about less-represented cultural groups.
+
+**Caveat:** The small sample sizes for some states (Lakshadweep n=122,
+Ladakh n=278) mean that a few questions flipping could substantially
+change the rates. Statistical significance testing is needed before
+drawing strong conclusions (deferred to the paper writing phase).
+
+**F8 sanity check passed:** No single state accounts for more than 15% of
+total suppression. The most-suppressed state by absolute count is Tourism-
+heavy Karnataka (41 questions), which is only 6.3% of the 655 total.
+Suppression is distributed across states, not concentrated.
+
+### Entity-Level Analysis
+
+The merge pipeline assigns behavioral labels at the entity level (e.g.,
+"Haryana|Cuisine|Cuisine of Haryana" or "Jarawa body painting"):
+
+| Entity Label | Count | % of 7,834 entities |
+|--------------|-------|---------------------|
+| both_correct | 6,086 | 77.7% |
+| mixed (some suppressed, some not) | 1,422 | 18.1% |
+| both_wrong | 162 | 2.1% |
+| enhanced (all questions flipped to correct) | 87 | 1.1% |
+| suppressed (all questions flipped to wrong) | 77 | 1.0% |
+
+**Only 77 entities are purely suppressed** (every question about them flips
+from correct to wrong). Most suppression occurs in "mixed" entities — some
+questions are suppressed while others are enhanced or unchanged. This means
+suppression is question-specific, not entity-specific: RLHF does not
+systematically erase knowledge about a particular entity, but may interfere
+with specific formulations or distractor combinations.
+
+**Top suppressed entities (by rate, n≥5):**
+
+| Entity | Supp/Total | Base Acc | Inst Acc |
+|--------|------------|----------|----------|
+| Uttar_Pradesh\|Costume\|Uttar Pradesh | 3/6 (50%) | 66.7% | 16.7% |
+| Haryana\|Cuisine\|Cuisine of Haryana | 4/9 (44%) | 77.8% | 33.3% |
+| Kullui dialect | 2/5 (40%) | 100% | 60% |
+| Godna tattoo art | 2/5 (40%) | 80% | 40% |
+| Rogan Painting | 2/5 (40%) | 80% | 40% |
+| Sanjhi art | 2/5 (40%) | 80% | 40% |
+
+These are highly specific cultural entities (regional art forms, dialects,
+costumes) where the base model has fragile knowledge that instruction tuning
+degrades. The small sample sizes (n=5-9) mean individual entity rates are
+unreliable, but the PATTERN — regional folk arts and minor cultural
+practices — is consistent with the attribute-level finding that Cuisine
+and Art have the highest suppression rates.
 
 ### Sanity Check Summary
 
 | Check | Status | Value |
 |-------|--------|-------|
-| F1: Base accuracy (Tier 2) | [TBD] | [TBD] |
-| F2: Instruct > Base | [TBD] | [TBD] |
-| F3: Country Prediction ≥ 95% | [TBD] | [TBD] |
-| F4: Instruct forced < 5% | [TBD] | [TBD] |
-| F5: No severe position bias | [TBD] | [TBD] |
-| F6: Suppression rate | [TBD] | [TBD] |
-| F7: Enhancement rate | [TBD] | [TBD] |
-| F8: No state dominates | [TBD] | [TBD] |
-| F9: Confidence-accuracy correlation | [TBD] | [TBD] |
-| F10: Activation shapes | [TBD] | [TBD] |
-| F11: No NaN/Inf in activations | [TBD] | [TBD] |
+| F1: Base accuracy (Tier 2) | **WARN** | 83.7% (expected 40-70%) |
+| F2: Instruct > Base | PASS | 88.9% > 87.6% |
+| F3: Country Prediction ≥ 95% | PASS | base=98.9%, inst=98.8% |
+| F4: Forced choice < 5% | PASS | base=0.0%, inst=0.0% |
+| F6: Suppression rate 5-15% | INFO | 3.0% (below expected range) |
+| F7: Enhancement rate 4-12% | PASS | 4.3% |
+| F8: No state dominates suppression | PASS | max=Karnataka at 6.3% |
+| F9: Confidence-accuracy correlation | PASS | low-conf acc 46.2%/40.3% < high-conf 91.4%/90.3% |
+| F10: Activation shapes | PASS | all 32 files shape (21726, 4096) |
+| F11: No NaN/Inf in activations | PASS | all 32 files clean |
+
+**F1 WARN — why base accuracy exceeds the expected range:** The expected range
+(40-70%) was set before running the evaluation, based on typical LLM
+performance on cultural benchmarks. LLaMA 3.1 8B is a strong model, and
+this benchmark has significant shortcut vulnerability. The 83.7% accuracy
+(Tier 2, excluding Country Prediction) is plausible given:
+- 75.87% no-question baseline from EDA (just string matching)
+- State Prediction still shortcut-vulnerable in Tier 2
+- LLaMA 3.1 8B trained on ~15T tokens including substantial Indian web content
+
+The F1 threshold should be updated for future runs but does not indicate
+a problem with the evaluation.
+
+**F6 INFO — suppression rate below expected range (3.0% vs 5-15%):** The
+pre-run estimate assumed more behavioral divergence between base and
+instruct. The actual 3.0% means instruction tuning is LESS destructive to
+cultural knowledge than we hypothesized. This is a finding, not an error.
+For Step 2 probing, 655 suppression cases is still sufficient signal to
+train meaningful probes (compared to ~19,000 control cases).
+
+**Note on F5:** The position bias check (F5) was not explicitly reported in
+the merge output, but the position distribution table above confirms no
+severe bias — all model predictions are within ±2 pp of ground truth.
 
 ---
 
@@ -2579,27 +2894,27 @@ independent of the token ID bug — the forward pass and hooks were correct):
 
 | Hook | Mean Pool Norm | Last Token Norm |
 |------|---------------|-----------------|
-| embed | 0.14 | 0.48 |
-| layer_04 | 4.73 | 3.67 |
-| layer_08 | 5.09 | 6.08 |
-| layer_14 | 5.79 | 8.55 |
-| layer_20 | 7.65 | 15.22 |
-| layer_26 | 11.12 | 26.09 |
-| layer_30 | 16.95 | 40.92 |
-| layer_31 | 15.18 | 51.15 |
+| embed | 0.14 | 0.43 |
+| layer_04 | 4.73 | 3.04 |
+| layer_08 | 5.09 | 5.15 |
+| layer_14 | 5.79 | 8.22 |
+| layer_20 | 7.65 | 13.68 |
+| layer_26 | 11.13 | 25.03 |
+| layer_30 | 16.97 | 41.86 |
+| layer_31 | 15.18 | 50.60 |
 
 **Base model norms (mean_pool / last_token):**
 
 | Hook | Mean Pool Norm | Last Token Norm |
 |------|---------------|-----------------|
-| embed | 0.16 | 0.51 |
-| layer_04 | 1.97 | 3.82 |
-| layer_08 | 3.34 | 6.07 |
-| layer_14 | 5.37 | 9.08 |
-| layer_20 | 9.99 | 17.32 |
-| layer_26 | 19.70 | 30.55 |
-| layer_30 | 30.67 | 47.38 |
-| layer_31 | 35.40 | 62.39 |
+| embed | 0.16 | 0.37 |
+| layer_04 | 1.97 | 3.32 |
+| layer_08 | 3.34 | 5.67 |
+| layer_14 | 5.37 | 8.89 |
+| layer_20 | 9.99 | 15.61 |
+| layer_26 | 19.70 | 29.42 |
+| layer_30 | 30.67 | 49.36 |
+| layer_31 | 35.40 | 80.16 |
 
 **Observations:**
 
@@ -2631,14 +2946,14 @@ Norm ratio (base / instruct) at each layer:
 
 Hook       | Mean Pool Ratio | Last Token Ratio
 -----------|-----------------|-----------------
-embed      | 1.14×           | 1.06×    (nearly identical — same embedding matrix)
-layer_04   | 0.42×           | 1.04×    (base mean pool much lower)
-layer_08   | 0.66×           | 1.00×    (converging for last token)
-layer_14   | 0.93×           | 1.06×    (similar)
+embed      | 1.14×           | 0.86×    (nearly identical — same embedding matrix)
+layer_04   | 0.42×           | 1.09×    (base mean pool much lower)
+layer_08   | 0.66×           | 1.10×    (similar for last token)
+layer_14   | 0.93×           | 1.08×    (similar)
 layer_20   | 1.31×           | 1.14×    (base overtakes at late layers)
-layer_26   | 1.77×           | 1.17×    (base growing faster)
-layer_30   | 1.81×           | 1.16×    (base much higher)
-layer_31   | 2.33×           | 1.22×    (base 2.3× higher at final layer)
+layer_26   | 1.77×           | 1.18×    (base growing faster)
+layer_30   | 1.81×           | 1.18×    (base much higher)
+layer_31   | 2.33×           | 1.58×    (base 2.3× higher mean, 1.6× last token)
 
 Key observation: Base model norms grow MUCH faster in late layers than
 instruct, especially for mean pool. This suggests that:
@@ -2726,6 +3041,107 @@ single check:
 The combination of symptoms pointed to a fundamental logit extraction issue.
 Comparing `tokenizer.encode('A')` vs `tokenizer.encode(' A')` confirmed it.
 
+### Bug 3: Instruct Model Needs Bare Token IDs, Not Space-Prefixed
+
+**Symptom:** After fixing Bug 2 (space-prefixed tokens for both models), the
+instruct model still showed 98.9% forced-choice rate and ~30% accuracy.
+
+**Root cause:** Bug 2's fix applied space-prefixed tokens to BOTH models.
+But the instruct model's chat template ends with `\n\n` (after the assistant
+header), so the model predicts bare `A` (ID 32), not ` A` (ID 362). The base
+model's prompt ends with `Answer:`, so it correctly predicts ` A` with a
+leading space.
+
+**Fix:**
+```python
+# Base: space-prefixed (prompt ends with "Answer:")
+answer_token_ids = {l: tokenizer.encode(f" {l}", ...)[0] for l in "ABCD"}
+
+# Instruct: bare (chat template ends with "\n\n")
+answer_token_ids = {l: tokenizer.encode(l, ...)[0] for l in "ABCD"}
+```
+
+**Detection method:** The instruct forced-choice rate (98.9%) was the key
+signal. The model was rarely predicting space-prefixed letter tokens because
+the chat template doesn't set up that pattern. Checking the model's top-1
+predictions revealed bare `C` (ID 34) appearing as a natural prediction,
+confirming the model outputs bare letters.
+
+### Bug 4: Pad Token Using Semantically Meaningful `<|eot_id|>`
+
+**Symptom:** Instruct model showed confused outputs — top-1 predictions
+included `assistant`, `)`, and other unexpected tokens.
+
+**Root cause:** The code used `tokenizer.eos_token` as the pad token. For the
+instruct tokenizer, `eos_token` is `<|eot_id|>` (ID 128009), the end-of-turn
+marker. Padding the left side with end-of-turn tokens confuses the model — it
+sees many "end of turn" signals before the conversation even starts. The base
+tokenizer's `eos_token` is `<|end_of_text|>` (128001), which is benign.
+
+**Fix:**
+```python
+tokenizer.pad_token_id = 128001  # <|end_of_text|>, not eos_token
+```
+
+**Detection method:** Found by inspecting the instruct debug log, which showed
+`pad_token=<|eot_id|>` instead of the expected `<|end_of_text|>`.
+
+### Bug 5: Left-Padding Position Indexing Error
+
+**Symptom:** Both models showed ~30-33% accuracy (near random). Country
+Prediction at ~40% instead of ~100%. Logprobs in the -13 to -35 range
+(should be -0.01 to -6 for confident predictions). Different questions within
+the same batch produced identical logprobs.
+
+**Root cause:** The logit extraction code used:
+```python
+seq_lengths = attention_mask.sum(dim=1) - 1
+last_logits = logits[torch.arange(B), seq_lengths]
+```
+
+`attention_mask.sum()` returns the COUNT of real tokens, not the POSITION of
+the last real token. With left-padding, a 230-token sequence padded to 265
+has real tokens at positions 35-264. The code computed index 229 (count-1),
+which is in the MIDDLE of the sequence — not at the `Answer:` position (264).
+
+```
+Padded sequence (left padding):
+Position: 0  1  2 ... 34 35 36 ... 228 229 ... 263 264
+Token:    P  P  P ... P  B  T  ...  ?   ?   ... :   Answer:
+                          ^              ^              ^
+                      first real    Bug's index     Correct index
+                      token         (mid-question)  (end of prompt)
+
+Bug extracts logits at position 229 → mid-question token
+Should extract at position 264 → the "Answer:" position
+```
+
+The same bug affected `compute_pooled()` for last-token activation extraction,
+meaning the "last token" activations were also captured from wrong positions.
+
+**Fix:**
+```python
+last_logits = logits[:, -1, :]   # position -1 = rightmost = last real token
+h_last = hidden[:, -1, :]        # same fix for activation pooling
+```
+
+With left-padding, the last real token is ALWAYS at the rightmost position
+for every sequence in the batch.
+
+**Detection method:** Interactive testing of the model (single prompt, no
+padding) produced correct logprobs (` C` at -0.008 for a Country Prediction
+question), but the eval script produced -14 to -23 for the same question type.
+The divergence pointed to a batching/padding issue. Examining two different
+questions that produced identical logprobs confirmed the position was wrong —
+they happened to have the same padding offset, so the code extracted the same
+relative position in both.
+
+**Why this was hard to find:** The code `attention_mask.sum(dim=1) - 1`
+LOOKS correct — it seems to compute "the index of the last real token." And
+for RIGHT-padded sequences, it IS correct (real tokens are at positions 0
+through count-1). The subtle error is that left-padding shifts all real tokens
+rightward, making the count-based index point to the wrong absolute position.
+
 ---
 
 ## 27. Design Decisions: What We Chose and Why
@@ -2762,20 +3178,24 @@ for inference.
 vectors. Converting to FP32 for the activation arrays preserves precision for
 downstream probing.
 
-**Storage cost:** FP32 activations are 2× larger than BF16 (~10.6 GB vs ~5.3 GB).
-This is acceptable on the NVMe storage (127 GB free).
+**Storage cost:** FP32 activations are 2× larger than BF16 (~9.0 GB vs ~4.5 GB).
+This is acceptable on the NVMe storage.
 
-### Decision 4: Batch Size 64
+### Decision 4: Batch Size 24
 
-**Chose:** 64 (overriding the config default of 16)
+**Chose:** 24 (conservative for variable GPU allocation)
 
-**Why:** RTX PRO 6000 has 96 GB VRAM. Peak usage is ~22 GB (16 GB model + 6 GB
-activations/attention). Batch size 64 uses the GPU efficiently without OOM risk.
-Larger batches (128+) would marginally improve throughput but risk OOM on longer
-sequences.
+**Why:** The SLURM preempt partition assigns whatever GPUs are available. We
+cannot guarantee 96 GB GPUs (RTX PRO 6000) — the job may land on 40-48 GB
+GPUs (A100-40GB, L40S, A6000). Batch size 24 keeps peak VRAM at ~18.5 GB
+(16 GB model + ~2.5 GB activations/attention), safe for all GPU types. The
+actual run used A100-SXM4-40GB (42.4 GB each) and peaked at 18.5 GB.
 
-**Trade-off:** Larger batch = more padding waste for variable-length sequences.
-With max seq_len ~265 and mean ~240 for base, the padding overhead is ~10%.
+**Trade-off:** Smaller batch = more batches (906 vs 340 at BS=64), but the
+per-batch overhead is minimal. Throughput was 23.7-29.4 q/s, completing in
+~15 min total. Increasing to 64 would roughly halve batch count but not
+meaningfully change total runtime since the bottleneck is compute, not
+batch scheduling.
 
 ### Decision 5: Run All 21,726 Questions
 
@@ -2804,7 +3224,7 @@ per file, 5.3 GB per model. Writing everything at the end risks losing all
 progress on preemption. Memory-mapping writes incrementally.
 
 **Trade-off:** Memory-mapped I/O has overhead from filesystem operations on
-every batch. But each write is only 64 × 4096 × 4 = 1 MB, which is negligible.
+every batch. But each write is only 24 × 4096 × 4 = 384 KB, which is negligible.
 
 ### Decision 8: CSV Append, Not In-Memory Accumulation
 
@@ -2813,7 +3233,7 @@ every batch. But each write is only 64 × 4096 × 4 = 1 MB, which is negligible.
 **Why:** On preemption, only the current batch's results are lost. If we
 accumulated in memory and wrote at the end, we'd lose everything.
 
-**Trade-off:** CSV writes are I/O operations, but at 64 rows per batch on
+**Trade-off:** CSV writes are I/O operations, but at 24 rows per batch on
 NFS, the overhead is microseconds.
 
 ### Decision 9: No Gradient Checkpointing
@@ -2908,10 +3328,10 @@ below the 0.5-nat low-confidence threshold.
 
 | File | Location | Contents | Size |
 |------|----------|----------|------|
-| `base_results.csv` | `results/step1/` | Per-question results for base model | ~1.5 MB |
-| `instruct_results.csv` | `results/step1/` | Per-question results for instruct model | ~1.5 MB |
-| `sanskriti_behavioral_labels.csv` | `results/step1/` | Master merged CSV with labels | ~8 MB |
-| `sanskriti_prepared.csv` | `results/step1/` | Prepared dataset with entity_key | ~5 MB |
+| `base_results.csv` | `results/step1/` | Per-question results for base model (21,726 rows) | 649 KB |
+| `instruct_results.csv` | `results/step1/` | Per-question results for instruct model (21,726 rows) | 649 KB |
+| `sanskriti_behavioral_labels.csv` | `results/step1/` | Master merged CSV with labels (21,726 rows) | 3.6 MB |
+| `sanskriti_prepared.csv` | `results/step1/` | Prepared dataset with entity_key | 4.3 MB |
 | Activation arrays | `activations/{model}/{pool}/{hook}.npy` | (21726, 4096) FP32 | 340 MB each |
 
 ### Analysis Outputs
@@ -2954,15 +3374,20 @@ below the 0.5-nat low-confidence threshold.
 
 ## 30. Runtime and Reproducibility
 
-### Expected Runtime
+### Actual Runtime (SLURM job 6959494)
 
 | Phase | Duration | Notes |
 |-------|----------|-------|
-| Model loading (each) | 2-45s | Depends on page cache (cached: ~2s, cold: ~45s) |
-| Base evaluation | ~8 min | 340 batches × 64, ~40-45 q/s |
-| Instruct evaluation | ~6 min | 340 batches × 64, ~57-62 q/s |
-| Total (parallel) | ~8 min | Bounded by the slower model (base) |
-| Merge pipeline | ~15s | Merge, stats, plots, sanity checks |
+| Model loading (each) | 3-4s | Page-cached on NVMe |
+| Instruct evaluation | 12.3 min | 906 batches × 24, 29.4 q/s |
+| Base evaluation | 15.3 min | 906 batches × 24, 23.7 q/s |
+| Total (parallel) | 15.3 min | Bounded by the slower model (base) |
+| Merge pipeline | ~11s | Merge, stats, 7 plots, 9 sanity checks |
+| End-to-end | 16 min | Including setup, pre-flight, validation |
+
+**Why base is slower than instruct:** Base sequences are longer (~230-265
+tokens with 5-shot prefix) compared to instruct (~104-156 tokens with chat
+template). Longer sequences mean more attention computation per batch.
 
 ### Reproducibility
 
@@ -2970,7 +3395,7 @@ The evaluation is deterministic given:
 - Same model weights (local copies at fixed paths)
 - Same dataset (Sanskriti, loaded from local cache)
 - Same tokenizer (loaded with model)
-- Same batch size (64)
+- Same batch size (24)
 - Same device assignment (base=cuda:0, instruct=cuda:1)
 - `torch.no_grad()` (no stochastic operations in inference mode)
 
@@ -3040,15 +3465,19 @@ NVIDIA Driver 575.51.03
 # 1. Activate environment
 conda activate cultural
 
-# 2. Run evaluation (submits SLURM job)
+# 2. Run evaluation (submits SLURM job — merge runs automatically after eval)
 sbatch scripts/run_step1.sh
 
-# 3. After job completes, run merge
-python scripts/merge_step1.py
+# 3. After job completes, check sanity checks in SLURM output
+grep -E "PASS|FAIL|WARN" logs/step1_slurm_*.out
 
-# 4. Check results
+# 4. Or check the merge log directly
 cat logs/step1_merge_*.log | grep -E "PASS|FAIL|WARN"
 ```
+
+The SLURM script (`run_step1.sh`) runs `merge_step1.py` automatically after
+evaluation completes, followed by post-run validation. There is no need to
+run merge separately unless you want to re-analyze with different parameters.
 
 ---
 
@@ -3057,27 +3486,32 @@ cat logs/step1_merge_*.log | grep -E "PASS|FAIL|WARN"
 Complete token ID mapping for the four answer options:
 
 ```
-Bare characters (WRONG — used in initial buggy run):
-  'A' → token 32
-  'B' → token 33
-  'C' → token 34
-  'D' → token 35
-
-Space-prefixed (CORRECT — used in production run):
-  ' A' → token 362
+Base model — space-prefixed (prompt ends with "Answer:"):
+  ' A' → token 362   (CORRECT for base)
   ' B' → token 426
   ' C' → token 356
   ' D' → token 423
 
-Full answer sequence tokenization:
-  'Answer: A' → [16533, 25, 362]  (Answer, :, ·A)
-  'Answer: B' → [16533, 25, 426]  (Answer, :, ·B)
-  'Answer: C' → [16533, 25, 356]  (Answer, :, ·C)
-  'Answer: D' → [16533, 25, 423]  (Answer, :, ·D)
-```
+  Full answer sequence tokenization:
+    'Answer: A' → [16533, 25, 362]  (Answer, :, ·A)
+    'Answer: B' → [16533, 25, 426]  (Answer, :, ·B)
+    'Answer: C' → [16533, 25, 356]  (Answer, :, ·C)
+    'Answer: D' → [16533, 25, 423]  (Answer, :, ·D)
 
-The `·` represents the leading space that is part of the token, not a separate
-space token.
+  The `·` represents the leading space that is part of the token.
+
+Instruct model — bare characters (chat template ends with "\n\n"):
+  'A' → token 32   (CORRECT for instruct)
+  'B' → token 33
+  'C' → token 34
+  'D' → token 35
+
+  The model outputs a bare letter immediately after the assistant header.
+
+Buggy combinations encountered during development:
+  - Bare tokens for base model → ~28% accuracy (Bug 2)
+  - Space-prefixed tokens for instruct model → 98.9% forced-choice (Bug 3)
+```
 
 ---
 
@@ -3091,7 +3525,7 @@ space token.
 | ground_truth_letter | str | A/B/C/D — correct answer |
 | predicted_letter | str | A/B/C/D — model's prediction |
 | correct | int | 1 if predicted == ground_truth, 0 otherwise |
-| logprob_A | float | Log-probability of token " A" at last position |
+| logprob_A | float | Log-probability of the A answer token at last position (space-prefixed for base, bare for instruct) |
 | logprob_B | float | Log-probability of token " B" |
 | logprob_C | float | Log-probability of token " C" |
 | logprob_D | float | Log-probability of token " D" |
@@ -3143,7 +3577,7 @@ activations/
     └── last_token/
         └── ...
 
-Total: 32 files × 340 MB = ~10.6 GB
+Total: 32 files × 340 MB = 9.0 GB (actual, per du -sh)
 ```
 
 Each file can be loaded with:
@@ -3157,41 +3591,66 @@ batch = arr[0:64]                   # load a batch
 
 ## Appendix D: Numbers Validation Log
 
-**To be completed after the re-run with corrected token IDs.**
-
-Every number in this report will be checked against the CSV output files.
-This appendix will document the validation for key claims.
+Every number in this report has been checked against the CSV output files
+from SLURM job 6959494 (2026-04-05). This appendix documents the validation.
 
 ### Pre-Run Validations (Independent of Token IDs)
 
 | Claim | Source | Check |
 |-------|--------|-------|
 | 21,726 usable rows | `sanskriti_prepared.csv` | wc -l minus header = 21,726 ✓ |
-| 340 total batches | 21726 / 64 = 339.47 → ceil = 340 | ✓ |
+| 906 total batches | 21726 / 24 = 905.25 → ceil = 906 | ✓ |
 | 179 five-shot prefix tokens | Log: "Five-shot prefix: 179 tokens" | ✓ |
 | 8 hooks registered | Log: "Registered 8 hooks" | ✓ |
 | 32 activation files | 8 hooks × 2 pooling × 2 models = 32 | ✓ |
 | Each file 340 MB | 21726 × 4096 × 4 bytes = 356,106,240 ≈ 340 MB | ✓ |
-| Token " A" = 362 | tokenizer.encode(" A") = [362] | ✓ |
-| Token " B" = 426 | tokenizer.encode(" B") = [426] | ✓ |
-| Token " C" = 356 | tokenizer.encode(" C") = [356] | ✓ |
-| Token " D" = 423 | tokenizer.encode(" D") = [423] | ✓ |
+| Base token " A" = 362 | tokenizer.encode(" A") = [362] | ✓ |
+| Base token " B" = 426 | tokenizer.encode(" B") = [426] | ✓ |
+| Base token " C" = 356 | tokenizer.encode(" C") = [356] | ✓ |
+| Base token " D" = 423 | tokenizer.encode(" D") = [423] | ✓ |
+| Instruct token "A" = 32 | tokenizer.encode("A") = [32] | ✓ |
+| Instruct token "B" = 33 | tokenizer.encode("B") = [33] | ✓ |
+| Instruct token "C" = 34 | tokenizer.encode("C") = [34] | ✓ |
+| Instruct token "D" = 35 | tokenizer.encode("D") = [35] | ✓ |
 
-### Post-Run Validations
+### Post-Run Validations (SLURM job 6959494, 2026-04-05)
 
 | Claim | Check |
 |-------|-------|
-| base_results.csv has 21,726 rows | [TBD] |
-| instruct_results.csv has 21,726 rows | [TBD] |
-| All activation files shape (21726, 4096) | [TBD] |
-| No NaN/Inf in activations | [TBD] |
-| Country Prediction accuracy ≥ 95% | [TBD] |
-| Instruct accuracy > Base accuracy | [TBD] |
-| Low-confidence accuracy < high-confidence accuracy | [TBD] |
+| base_results.csv has 21,726 rows | ✓ (wc -l = 21727 with header) |
+| instruct_results.csv has 21,726 rows | ✓ (wc -l = 21727 with header) |
+| sanskriti_behavioral_labels.csv has 21,726 rows | ✓ (21840 with header; 21726 data rows + multiline CSV fields account for extra line count) |
+| All 32 activation files shape (21726, 4096) | ✓ (verified via np.load for all 32 files) |
+| No NaN/Inf in any activation file | ✓ (np.isnan/isinf checks all False) |
+| Country Prediction base accuracy ≥ 95% | ✓ (98.94%) |
+| Country Prediction instruct accuracy ≥ 95% | ✓ (98.81%) |
+| Instruct accuracy > Base accuracy | ✓ (88.88% > 87.61%) |
+| Low-confidence accuracy < high-confidence accuracy (base) | ✓ (46.2% < 91.4%) |
+| Low-confidence accuracy < high-confidence accuracy (instruct) | ✓ (40.3% < 90.3%) |
+| Forced-choice rate = 0% for both models | ✓ (0/21,726 for both) |
+| Activation storage total ≈ 9 GB | ✓ (9.0 GB per du -sh) |
+| 7 plots generated | ✓ (7 PNG files in plots/step1/) |
+| 8 analysis CSV/JSON files generated | ✓ (all present in results/step1/) |
+| Base token IDs match expected | ✓ (A=362, B=426, C=356, D=423 in SLURM log) |
+| Instruct token IDs match expected | ✓ (A=32, B=33, C=34, D=35 in SLURM log) |
+| Tier 1 suppression + enhancement + both_correct + both_wrong = 21,726 | ✓ (655 + 930 + 18380 + 1761 = 21,726) |
+| Tier 2 n = 21,726 - 5,563 (CP count) = 16,163 | ✓ |
+| Tier 3 n = 5,453 (Association) + 5,328 (General Awareness) = 10,781 | ✓ |
+| Sum of per-type suppression = total suppression | ✓ (156 + 32 + 279 + 188 = 655) |
+| Sum of per-type counts = 21,726 | ✓ (5453 + 5563 + 5328 + 5382 = 21,726) |
+
+### Cross-Validation: Numbers in This Document vs Output Files
+
+Every number in Section 24 was cross-checked against the raw CSV files using
+pandas. The aggregate statistics in `step1_aggregate_stats.json` match the
+per-row computations in `sanskriti_behavioral_labels.csv`. The SLURM log
+reports the same final accuracy as the CSV files (87.61% base, 88.88%
+instruct). No discrepancies found.
 
 ---
 
-*End of document. Results sections marked [TBD] will be populated from the
-output files of SLURM job 6956139 (submitted 2026-04-05 with corrected
-token IDs). All code references are to `scripts/eval_step1.py` and
+*End of document. All results from SLURM job 6959494 (2026-04-05, corrected
+token IDs, corrected left-padding indexing). Run on 2 × NVIDIA A100-SXM4-40GB
+on CMU Babel cluster, node babel-y9-16. Total runtime 16 minutes (eval
+parallel + merge). All code references are to `scripts/eval_step1.py` and
 `scripts/merge_step1.py` as of the same date.*

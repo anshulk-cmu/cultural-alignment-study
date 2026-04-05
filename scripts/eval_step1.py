@@ -268,9 +268,8 @@ def compute_pooled(cache, attention_mask, target_start_tokens=None):
         mask_3d = mask.unsqueeze(-1)  # (batch, seq, 1)
         h_mean = (hidden * mask_3d).sum(dim=1) / mask.sum(dim=1, keepdim=True).clamp(min=1)
 
-        # Last non-padding token
-        last_pos = attention_mask.sum(dim=1) - 1
-        h_last = hidden[torch.arange(hidden.size(0)), last_pos]
+        # Last non-padding token — with left-padding, always at position -1
+        h_last = hidden[:, -1, :]
 
         results[name] = {"mean_pool": h_mean, "last_token": h_last}
 
@@ -290,8 +289,11 @@ def extract_from_logits(logits, attention_mask, answer_token_ids):
         forced_flags: list[bool]
         top1_ids: (batch,) tensor
     """
-    seq_lengths = attention_mask.sum(dim=1) - 1
-    last_logits = logits[torch.arange(len(seq_lengths)), seq_lengths]  # (batch, vocab)
+    # With left-padding, the last REAL token is always at position max_len - 1
+    # for every sequence in the batch (padding is on the left, real tokens on the right).
+    # NOTE: attention_mask.sum()-1 gives the count-based index, NOT the position —
+    # that would index into the middle of the sequence, not the end.
+    last_logits = logits[:, -1, :]  # (batch, vocab)
 
     ids = torch.tensor(
         [answer_token_ids[l] for l in "ABCD"], device=last_logits.device
@@ -374,15 +376,24 @@ def run_evaluation(model_type, device, df, config, batch_size, debug, preempt_ev
         config["models"][model_type]["local_dir"]
     )
     tokenizer.padding_side = "left"
-    tokenizer.pad_token = tokenizer.eos_token
+    # Use <|end_of_text|> (128001) as pad token — NOT eos_token, which is
+    # <|eot_id|> (128009) for instruct and is semantically meaningful.
+    tokenizer.pad_token_id = 128001
+    tokenizer.pad_token = tokenizer.convert_ids_to_tokens(128001)
     log.debug(f"Tokenizer: pad_token={tokenizer.pad_token}, "
               f"pad_token_id={tokenizer.pad_token_id}, padding_side=left")
 
-    # Get A/B/C/D token IDs — space-prefixed because prompt ends with "Answer:"
-    # and the model predicts " A", " B", " C", " D" (with leading space)
-    answer_token_ids = {
-        l: tokenizer.encode(f" {l}", add_special_tokens=False)[0] for l in "ABCD"
-    }
+    # Get A/B/C/D token IDs — depends on prompt format:
+    #   Base: prompt ends with "Answer:", model predicts " A" (space-prefixed, ID 362)
+    #   Instruct: chat template ends with "\n\n", model predicts bare "A" (ID 32)
+    if model_type == "base":
+        answer_token_ids = {
+            l: tokenizer.encode(f" {l}", add_special_tokens=False)[0] for l in "ABCD"
+        }
+    else:
+        answer_token_ids = {
+            l: tokenizer.encode(l, add_special_tokens=False)[0] for l in "ABCD"
+        }
     log.info(f"Answer token IDs: {answer_token_ids}")
 
     # Five-shot prefix token length (constant)
