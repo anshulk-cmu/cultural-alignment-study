@@ -1,0 +1,185 @@
+2026-04-05 08:56:44 | INFO    | Logging to /home/anshulk/cultural-mi/logs/step1_base_20260405_085644.log
+2026-04-05 08:56:44 | INFO    | Loading model from /data/user_data/anshulk/cultural-mi/models/base
+2026-04-05 08:56:44 | INFO    | Device: cuda:0, dtype: bfloat16
+2026-04-05 08:56:47 | INFO    | Model loaded in 3.3s
+2026-04-05 08:56:47 | DEBUG   | Model config: 32 layers, hidden=4096, vocab=128256
+2026-04-05 08:56:48 | DEBUG   | Tokenizer: pad_token=<|end_of_text|>, pad_token_id=128001, padding_side=left
+2026-04-05 08:56:48 | INFO    | Answer token IDs: {'A': 362, 'B': 426, 'C': 356, 'D': 423}
+2026-04-05 08:56:48 | INFO    | Five-shot prefix: 179 tokens
+2026-04-05 08:56:48 | INFO    | Questions to process: 21726 (debug=False)
+2026-04-05 08:56:48 | DEBUG   | Sample prompt (229 tokens):
+The following are multiple choice questions about Indian culture.
+
+Question: What is the national animal of India?
+A) Tiger
+B) Lion
+C) Elephant
+D) Peacock
+Answer: A
+
+Question: Which city is the capital of India?
+A) Mumbai
+B) Kolkata
+C) New Delhi
+D) Chennai
+Answer: C
+
+Question: What is the most widely spoken language in India?
+A) Tamil
+B) Hindi
+C) Telugu
+D) Bengali
+Answer: B
+
+Question: Which festival is known as the festival of lights in India?
+A) Holi
+B) Eid
+C) Diwali
+D) Pongal
+Answer: C
+
+Questi
+2026-04-05 08:56:48 | INFO    | Registered 8 hooks: ['embed', 'layer_04', 'layer_08', 'layer_14', 'layer_20', 'layer_26', 'layer_30', 'layer_31']
+2026-04-05 08:56:48 | INFO    | Activation arrays: 16 new, 0 resumed (16 total, 21726x4096 float32 each)
+2026-04-05 08:56:48 | INFO    | Activation dir: /data/user_data/anshulk/cultural-mi/activations/base
+2026-04-05 08:56:48 | DEBUG   | CSV output: /data/user_data/anshulk/cultural-mi/checkpoints/step1_base_results_partial.csv (header=written)
+2026-04-05 08:56:48 | INFO    | Starting fresh (no checkpoint found)
+2026-04-05 08:56:48 | INFO    | Batch size: 24, total batches: 906
+2026-04-05 08:56:48 | INFO    | GPU: NVIDIA A100-SXM4-40GB, 42.4GB total, 16.1GB allocated after model load
+2026-04-05 08:56:48 | DEBUG   | First batch: input_ids shape=torch.Size([24, 263]), seq_len=263
+2026-04-05 08:56:48 | DEBUG   | First prompt tokens (first 20): [128001, 128001, 128001, 128001, 128001, 128001, 128001, 128001, 128001, 128001, 128001, 128001, 128001, 128001, 128001, 128001, 128001, 128001, 128001, 128001]
+2026-04-05 08:56:48 | DEBUG   | Attention mask sum (first example): 229
+2026-04-05 08:56:50 | DEBUG   | Hook 'embed': shape=torch.Size([24, 263, 4096]), dtype=torch.float32, norm=0.48
+2026-04-05 08:56:50 | DEBUG   | Hook 'layer_04': shape=torch.Size([24, 263, 4096]), dtype=torch.float32, norm=5.59
+2026-04-05 08:56:50 | DEBUG   | Hook 'layer_08': shape=torch.Size([24, 263, 4096]), dtype=torch.float32, norm=7.84
+2026-04-05 08:56:50 | DEBUG   | Hook 'layer_14': shape=torch.Size([24, 263, 4096]), dtype=torch.float32, norm=11.11
+2026-04-05 08:56:50 | DEBUG   | Hook 'layer_20': shape=torch.Size([24, 263, 4096]), dtype=torch.float32, norm=19.14
+2026-04-05 08:56:50 | DEBUG   | Hook 'layer_26': shape=torch.Size([24, 263, 4096]), dtype=torch.float32, norm=32.17
+2026-04-05 08:56:50 | DEBUG   | Hook 'layer_30': shape=torch.Size([24, 263, 4096]), dtype=torch.float32, norm=48.34
+2026-04-05 08:56:50 | DEBUG   | Hook 'layer_31': shape=torch.Size([24, 263, 4096]), dtype=torch.float32, norm=62.54
+2026-04-05 08:56:50 | DEBUG   | Base model target_starts (first 3): [214, 209, 197]
+2026-04-05 08:56:50 | DEBUG   | Pooling mask tokens per example (first 3): [49, 54, 66]
+2026-04-05 08:56:50 | INFO    | 24/21726 (0.1%) | 2s | 10.8 q/s | ETA 2007s | acc: 83.3% | forced: 0/24 | GPU mem: 18.5GB | seq_len: 263
+2026-04-05 08:57:00 | INFO    | 264/21726 (1.2%) | 12s | 22.0 q/s | ETA 974s | acc: 84.8% | forced: 0/264 | GPU mem: 18.2GB | seq_len: 231
+2026-04-05 08:57:12 | INFO    | 504/21726 (2.3%) | 24s | 21.3 q/s | ETA 998s | acc: 80.4% | forced: 0/504 | GPU mem: 18.5GB | seq_len: 261
+2026-04-05 08:57:24 | INFO    | 744/21726 (3.4%) | 36s | 20.8 q/s | ETA 1010s | acc: 78.6% | forced: 0/744 | GPU mem: 18.3GB | seq_len: 243
+2026-04-05 08:57:36 | INFO    | 984/21726 (4.5%) | 48s | 20.5 q/s | ETA 1012s | acc: 80.1% | forced: 0/984 | GPU mem: 18.4GB | seq_len: 245
+2026-04-05 08:57:48 | INFO    | 1224/21726 (5.6%) | 60s | 20.5 q/s | ETA 1001s | acc: 79.9% | forced: 0/1224 | GPU mem: 18.4GB | seq_len: 250
+2026-04-05 08:58:00 | INFO    | 1464/21726 (6.7%) | 72s | 20.4 q/s | ETA 994s | acc: 79.6% | forced: 0/1464 | GPU mem: 18.6GB | seq_len: 268
+2026-04-05 08:58:12 | INFO    | 1704/21726 (7.8%) | 84s | 20.3 q/s | ETA 985s | acc: 79.8% | forced: 0/1704 | GPU mem: 18.5GB | seq_len: 256
+2026-04-05 08:58:24 | INFO    | 1944/21726 (8.9%) | 96s | 20.3 q/s | ETA 973s | acc: 81.2% | forced: 0/1944 | GPU mem: 18.3GB | seq_len: 243
+2026-04-05 08:58:36 | INFO    | 2184/21726 (10.1%) | 107s | 20.3 q/s | ETA 962s | acc: 81.1% | forced: 0/2184 | GPU mem: 18.5GB | seq_len: 258
+2026-04-05 08:58:46 | INFO    | Checkpoint saved at batch 100/906
+2026-04-05 08:58:47 | INFO    | 2424/21726 (11.2%) | 119s | 20.4 q/s | ETA 946s | acc: 81.1% | forced: 0/2424 | GPU mem: 18.4GB | seq_len: 248
+2026-04-05 08:58:59 | INFO    | 2664/21726 (12.3%) | 131s | 20.4 q/s | ETA 934s | acc: 81.5% | forced: 0/2664 | GPU mem: 18.5GB | seq_len: 263
+2026-04-05 08:59:10 | INFO    | 2904/21726 (13.4%) | 142s | 20.5 q/s | ETA 919s | acc: 81.9% | forced: 0/2904 | GPU mem: 18.4GB | seq_len: 251
+2026-04-05 08:59:21 | INFO    | 3144/21726 (14.5%) | 153s | 20.6 q/s | ETA 903s | acc: 82.4% | forced: 0/3144 | GPU mem: 18.4GB | seq_len: 251
+2026-04-05 08:59:33 | INFO    | 3384/21726 (15.6%) | 165s | 20.6 q/s | ETA 893s | acc: 82.9% | forced: 0/3384 | GPU mem: 18.4GB | seq_len: 251
+2026-04-05 08:59:45 | INFO    | 3624/21726 (16.7%) | 177s | 20.5 q/s | ETA 883s | acc: 83.3% | forced: 0/3624 | GPU mem: 18.4GB | seq_len: 254
+2026-04-05 08:59:56 | INFO    | 3864/21726 (17.8%) | 188s | 20.6 q/s | ETA 869s | acc: 83.5% | forced: 0/3864 | GPU mem: 18.3GB | seq_len: 244
+2026-04-05 09:00:07 | INFO    | 4104/21726 (18.9%) | 199s | 20.6 q/s | ETA 854s | acc: 83.5% | forced: 0/4104 | GPU mem: 18.4GB | seq_len: 248
+2026-04-05 09:00:19 | INFO    | 4344/21726 (20.0%) | 211s | 20.6 q/s | ETA 844s | acc: 83.9% | forced: 0/4344 | GPU mem: 18.5GB | seq_len: 256
+2026-04-05 09:00:30 | INFO    | 4584/21726 (21.1%) | 222s | 20.7 q/s | ETA 830s | acc: 84.1% | forced: 0/4584 | GPU mem: 18.4GB | seq_len: 248
+2026-04-05 09:00:41 | INFO    | Checkpoint saved at batch 200/906
+2026-04-05 09:00:42 | INFO    | 4824/21726 (22.2%) | 234s | 20.6 q/s | ETA 819s | acc: 84.2% | forced: 0/4824 | GPU mem: 18.4GB | seq_len: 252
+2026-04-05 09:00:54 | INFO    | 5064/21726 (23.3%) | 246s | 20.6 q/s | ETA 808s | acc: 84.2% | forced: 0/5064 | GPU mem: 18.4GB | seq_len: 246
+2026-04-05 09:01:05 | INFO    | 5304/21726 (24.4%) | 257s | 20.6 q/s | ETA 796s | acc: 84.3% | forced: 0/5304 | GPU mem: 18.3GB | seq_len: 244
+2026-04-05 09:01:17 | INFO    | 5544/21726 (25.5%) | 269s | 20.6 q/s | ETA 785s | acc: 84.5% | forced: 0/5544 | GPU mem: 18.1GB | seq_len: 217
+2026-04-05 09:01:28 | INFO    | 5784/21726 (26.6%) | 280s | 20.7 q/s | ETA 771s | acc: 85.1% | forced: 0/5784 | GPU mem: 18.1GB | seq_len: 215
+2026-04-05 09:01:39 | INFO    | 6024/21726 (27.7%) | 291s | 20.7 q/s | ETA 758s | acc: 85.6% | forced: 0/6024 | GPU mem: 18.0GB | seq_len: 211
+2026-04-05 09:01:50 | INFO    | 6264/21726 (28.8%) | 301s | 20.8 q/s | ETA 744s | acc: 86.1% | forced: 0/6264 | GPU mem: 18.1GB | seq_len: 216
+2026-04-05 09:02:01 | INFO    | 6504/21726 (29.9%) | 313s | 20.8 q/s | ETA 732s | acc: 86.6% | forced: 0/6504 | GPU mem: 18.1GB | seq_len: 214
+2026-04-05 09:02:12 | INFO    | 6744/21726 (31.0%) | 324s | 20.8 q/s | ETA 719s | acc: 87.0% | forced: 0/6744 | GPU mem: 18.1GB | seq_len: 217
+2026-04-05 09:02:23 | INFO    | 6984/21726 (32.1%) | 335s | 20.9 q/s | ETA 707s | acc: 87.3% | forced: 0/6984 | GPU mem: 18.1GB | seq_len: 220
+2026-04-05 09:02:33 | INFO    | Checkpoint saved at batch 300/906
+2026-04-05 09:02:34 | INFO    | 7224/21726 (33.3%) | 346s | 20.9 q/s | ETA 694s | acc: 87.7% | forced: 0/7224 | GPU mem: 18.1GB | seq_len: 214
+2026-04-05 09:02:45 | INFO    | 7464/21726 (34.4%) | 357s | 20.9 q/s | ETA 682s | acc: 88.1% | forced: 0/7464 | GPU mem: 18.1GB | seq_len: 214
+2026-04-05 09:02:56 | INFO    | 7704/21726 (35.5%) | 368s | 20.9 q/s | ETA 669s | acc: 88.5% | forced: 0/7704 | GPU mem: 18.1GB | seq_len: 213
+2026-04-05 09:03:07 | INFO    | 7944/21726 (36.6%) | 379s | 21.0 q/s | ETA 657s | acc: 88.8% | forced: 0/7944 | GPU mem: 18.1GB | seq_len: 216
+2026-04-05 09:03:17 | INFO    | 8184/21726 (37.7%) | 389s | 21.0 q/s | ETA 644s | acc: 89.1% | forced: 0/8184 | GPU mem: 18.1GB | seq_len: 217
+2026-04-05 09:03:28 | INFO    | 8424/21726 (38.8%) | 399s | 21.1 q/s | ETA 631s | acc: 89.4% | forced: 0/8424 | GPU mem: 18.2GB | seq_len: 230
+2026-04-05 09:03:39 | INFO    | 8664/21726 (39.9%) | 411s | 21.1 q/s | ETA 619s | acc: 89.7% | forced: 0/8664 | GPU mem: 18.2GB | seq_len: 224
+2026-04-05 09:03:50 | INFO    | 8904/21726 (41.0%) | 422s | 21.1 q/s | ETA 607s | acc: 89.9% | forced: 0/8904 | GPU mem: 18.1GB | seq_len: 214
+2026-04-05 09:04:01 | INFO    | 9144/21726 (42.1%) | 433s | 21.1 q/s | ETA 595s | acc: 90.2% | forced: 0/9144 | GPU mem: 18.2GB | seq_len: 232
+2026-04-05 09:04:12 | INFO    | 9384/21726 (43.2%) | 443s | 21.2 q/s | ETA 583s | acc: 90.3% | forced: 0/9384 | GPU mem: 18.1GB | seq_len: 215
+2026-04-05 09:04:22 | INFO    | Checkpoint saved at batch 400/906
+2026-04-05 09:04:23 | INFO    | 9624/21726 (44.3%) | 455s | 21.2 q/s | ETA 572s | acc: 90.6% | forced: 0/9624 | GPU mem: 18.2GB | seq_len: 228
+2026-04-05 09:04:33 | INFO    | 9864/21726 (45.4%) | 465s | 21.2 q/s | ETA 559s | acc: 90.8% | forced: 0/9864 | GPU mem: 18.1GB | seq_len: 216
+2026-04-05 09:04:44 | INFO    | 10104/21726 (46.5%) | 476s | 21.2 q/s | ETA 547s | acc: 91.0% | forced: 0/10104 | GPU mem: 18.1GB | seq_len: 218
+2026-04-05 09:04:54 | INFO    | 10344/21726 (47.6%) | 486s | 21.3 q/s | ETA 535s | acc: 91.2% | forced: 0/10344 | GPU mem: 18.1GB | seq_len: 221
+2026-04-05 09:05:05 | INFO    | 10584/21726 (48.7%) | 497s | 21.3 q/s | ETA 523s | acc: 91.4% | forced: 0/10584 | GPU mem: 18.1GB | seq_len: 219
+2026-04-05 09:05:16 | INFO    | 10824/21726 (49.8%) | 507s | 21.3 q/s | ETA 511s | acc: 91.6% | forced: 0/10824 | GPU mem: 18.1GB | seq_len: 214
+2026-04-05 09:05:27 | INFO    | 11064/21726 (50.9%) | 518s | 21.3 q/s | ETA 500s | acc: 91.6% | forced: 0/11064 | GPU mem: 18.4GB | seq_len: 250
+2026-04-05 09:05:38 | INFO    | 11304/21726 (52.0%) | 530s | 21.3 q/s | ETA 488s | acc: 91.5% | forced: 0/11304 | GPU mem: 18.4GB | seq_len: 247
+2026-04-05 09:05:50 | INFO    | 11544/21726 (53.1%) | 541s | 21.3 q/s | ETA 478s | acc: 91.5% | forced: 0/11544 | GPU mem: 18.4GB | seq_len: 253
+2026-04-05 09:06:01 | INFO    | 11784/21726 (54.2%) | 553s | 21.3 q/s | ETA 467s | acc: 91.4% | forced: 0/11784 | GPU mem: 18.4GB | seq_len: 251
+2026-04-05 09:06:12 | INFO    | Checkpoint saved at batch 500/906
+2026-04-05 09:06:13 | INFO    | 12024/21726 (55.3%) | 565s | 21.3 q/s | ETA 456s | acc: 91.4% | forced: 0/12024 | GPU mem: 18.3GB | seq_len: 245
+2026-04-05 09:06:25 | INFO    | 12264/21726 (56.4%) | 577s | 21.3 q/s | ETA 445s | acc: 91.2% | forced: 0/12264 | GPU mem: 18.5GB | seq_len: 257
+2026-04-05 09:06:37 | INFO    | 12504/21726 (57.6%) | 589s | 21.2 q/s | ETA 434s | acc: 90.9% | forced: 0/12504 | GPU mem: 18.4GB | seq_len: 252
+2026-04-05 09:06:48 | INFO    | 12744/21726 (58.7%) | 600s | 21.2 q/s | ETA 423s | acc: 90.8% | forced: 0/12744 | GPU mem: 18.3GB | seq_len: 240
+2026-04-05 09:07:00 | INFO    | 12984/21726 (59.8%) | 612s | 21.2 q/s | ETA 412s | acc: 90.7% | forced: 0/12984 | GPU mem: 18.3GB | seq_len: 239
+2026-04-05 09:07:12 | INFO    | 13224/21726 (60.9%) | 624s | 21.2 q/s | ETA 401s | acc: 90.6% | forced: 0/13224 | GPU mem: 18.4GB | seq_len: 248
+2026-04-05 09:07:24 | INFO    | 13464/21726 (62.0%) | 636s | 21.2 q/s | ETA 390s | acc: 90.4% | forced: 0/13464 | GPU mem: 18.3GB | seq_len: 244
+2026-04-05 09:07:36 | INFO    | 13704/21726 (63.1%) | 647s | 21.2 q/s | ETA 379s | acc: 90.4% | forced: 0/13704 | GPU mem: 18.4GB | seq_len: 246
+2026-04-05 09:07:47 | INFO    | 13944/21726 (64.2%) | 659s | 21.2 q/s | ETA 368s | acc: 90.4% | forced: 0/13944 | GPU mem: 18.3GB | seq_len: 241
+2026-04-05 09:07:58 | INFO    | 14184/21726 (65.3%) | 670s | 21.2 q/s | ETA 356s | acc: 90.4% | forced: 0/14184 | GPU mem: 18.3GB | seq_len: 244
+2026-04-05 09:08:10 | INFO    | Checkpoint saved at batch 600/906
+2026-04-05 09:08:11 | INFO    | 14424/21726 (66.4%) | 683s | 21.1 q/s | ETA 346s | acc: 90.1% | forced: 0/14424 | GPU mem: 18.3GB | seq_len: 237
+2026-04-05 09:08:22 | INFO    | 14664/21726 (67.5%) | 694s | 21.1 q/s | ETA 334s | acc: 90.1% | forced: 0/14664 | GPU mem: 18.3GB | seq_len: 240
+2026-04-05 09:08:33 | INFO    | 14904/21726 (68.6%) | 705s | 21.1 q/s | ETA 323s | acc: 90.0% | forced: 0/14904 | GPU mem: 18.3GB | seq_len: 241
+2026-04-05 09:08:45 | INFO    | 15144/21726 (69.7%) | 717s | 21.1 q/s | ETA 312s | acc: 89.9% | forced: 0/15144 | GPU mem: 18.4GB | seq_len: 246
+2026-04-05 09:08:57 | INFO    | 15384/21726 (70.8%) | 729s | 21.1 q/s | ETA 300s | acc: 89.9% | forced: 0/15384 | GPU mem: 18.4GB | seq_len: 246
+2026-04-05 09:09:09 | INFO    | 15624/21726 (71.9%) | 740s | 21.1 q/s | ETA 289s | acc: 89.8% | forced: 0/15624 | GPU mem: 18.3GB | seq_len: 243
+2026-04-05 09:09:19 | INFO    | 15864/21726 (73.0%) | 751s | 21.1 q/s | ETA 277s | acc: 89.7% | forced: 0/15864 | GPU mem: 18.3GB | seq_len: 244
+2026-04-05 09:09:27 | INFO    | 16104/21726 (74.1%) | 758s | 21.2 q/s | ETA 265s | acc: 89.7% | forced: 0/16104 | GPU mem: 18.6GB | seq_len: 274
+2026-04-05 09:09:33 | INFO    | 16344/21726 (75.2%) | 765s | 21.4 q/s | ETA 252s | acc: 89.5% | forced: 0/16344 | GPU mem: 18.3GB | seq_len: 243
+2026-04-05 09:09:40 | INFO    | 16584/21726 (76.3%) | 772s | 21.5 q/s | ETA 239s | acc: 89.4% | forced: 0/16584 | GPU mem: 18.3GB | seq_len: 239
+2026-04-05 09:09:46 | INFO    | Checkpoint saved at batch 700/906
+2026-04-05 09:09:47 | INFO    | 16824/21726 (77.4%) | 779s | 21.6 q/s | ETA 227s | acc: 89.4% | forced: 0/16824 | GPU mem: 18.3GB | seq_len: 238
+2026-04-05 09:09:54 | INFO    | 17064/21726 (78.5%) | 786s | 21.7 q/s | ETA 215s | acc: 89.2% | forced: 0/17064 | GPU mem: 18.3GB | seq_len: 235
+2026-04-05 09:10:01 | INFO    | 17304/21726 (79.6%) | 793s | 21.8 q/s | ETA 203s | acc: 88.9% | forced: 0/17304 | GPU mem: 18.3GB | seq_len: 242
+2026-04-05 09:10:08 | INFO    | 17544/21726 (80.8%) | 800s | 21.9 q/s | ETA 191s | acc: 88.6% | forced: 0/17544 | GPU mem: 18.2GB | seq_len: 234
+2026-04-05 09:10:15 | INFO    | 17784/21726 (81.9%) | 807s | 22.0 q/s | ETA 179s | acc: 88.5% | forced: 0/17784 | GPU mem: 18.2GB | seq_len: 233
+2026-04-05 09:10:22 | INFO    | 18024/21726 (83.0%) | 814s | 22.2 q/s | ETA 167s | acc: 88.4% | forced: 0/18024 | GPU mem: 18.2GB | seq_len: 230
+2026-04-05 09:10:29 | INFO    | 18264/21726 (84.1%) | 821s | 22.2 q/s | ETA 156s | acc: 88.2% | forced: 0/18264 | GPU mem: 18.3GB | seq_len: 240
+2026-04-05 09:10:36 | INFO    | 18504/21726 (85.2%) | 827s | 22.4 q/s | ETA 144s | acc: 87.9% | forced: 0/18504 | GPU mem: 18.2GB | seq_len: 232
+2026-04-05 09:10:42 | INFO    | 18744/21726 (86.3%) | 834s | 22.5 q/s | ETA 133s | acc: 88.0% | forced: 0/18744 | GPU mem: 18.2GB | seq_len: 228
+2026-04-05 09:10:49 | INFO    | 18984/21726 (87.4%) | 840s | 22.6 q/s | ETA 121s | acc: 88.1% | forced: 0/18984 | GPU mem: 18.2GB | seq_len: 233
+2026-04-05 09:10:55 | INFO    | Checkpoint saved at batch 800/906
+2026-04-05 09:10:56 | INFO    | 19224/21726 (88.5%) | 848s | 22.7 q/s | ETA 110s | acc: 88.1% | forced: 0/19224 | GPU mem: 18.4GB | seq_len: 246
+2026-04-05 09:11:03 | INFO    | 19464/21726 (89.6%) | 855s | 22.8 q/s | ETA 99s | acc: 88.1% | forced: 0/19464 | GPU mem: 18.2GB | seq_len: 231
+2026-04-05 09:11:09 | INFO    | 19704/21726 (90.7%) | 861s | 22.9 q/s | ETA 88s | acc: 88.2% | forced: 0/19704 | GPU mem: 18.3GB | seq_len: 237
+2026-04-05 09:11:16 | INFO    | 19944/21726 (91.8%) | 868s | 23.0 q/s | ETA 78s | acc: 88.2% | forced: 0/19944 | GPU mem: 18.3GB | seq_len: 236
+2026-04-05 09:11:23 | INFO    | 20184/21726 (92.9%) | 874s | 23.1 q/s | ETA 67s | acc: 88.1% | forced: 0/20184 | GPU mem: 18.3GB | seq_len: 242
+2026-04-05 09:11:29 | INFO    | 20424/21726 (94.0%) | 881s | 23.2 q/s | ETA 56s | acc: 88.0% | forced: 0/20424 | GPU mem: 18.3GB | seq_len: 238
+2026-04-05 09:11:36 | INFO    | 20664/21726 (95.1%) | 887s | 23.3 q/s | ETA 46s | acc: 88.1% | forced: 0/20664 | GPU mem: 18.3GB | seq_len: 238
+2026-04-05 09:11:42 | INFO    | 20904/21726 (96.2%) | 894s | 23.4 q/s | ETA 35s | acc: 88.1% | forced: 0/20904 | GPU mem: 18.3GB | seq_len: 241
+2026-04-05 09:11:49 | INFO    | 21144/21726 (97.3%) | 901s | 23.5 q/s | ETA 25s | acc: 88.0% | forced: 0/21144 | GPU mem: 18.3GB | seq_len: 236
+2026-04-05 09:11:56 | INFO    | 21384/21726 (98.4%) | 908s | 23.6 q/s | ETA 15s | acc: 87.7% | forced: 0/21384 | GPU mem: 18.3GB | seq_len: 237
+2026-04-05 09:12:02 | INFO    | Checkpoint saved at batch 900/906
+2026-04-05 09:12:03 | INFO    | 21624/21726 (99.5%) | 914s | 23.6 q/s | ETA 4s | acc: 87.6% | forced: 0/21624 | GPU mem: 18.2GB | seq_len: 230
+2026-04-05 09:12:05 | INFO    | ============================================================
+2026-04-05 09:12:05 | INFO    | COMPLETED: 21726 questions in 917s (15.3min)
+2026-04-05 09:12:05 | INFO    | Accuracy: 19035/21726 (87.61%)
+2026-04-05 09:12:05 | INFO    | Forced choice: 0/21726 (0.00%)
+2026-04-05 09:12:05 | INFO    | Throughput: 23.7 questions/sec
+2026-04-05 09:12:05 | INFO    | ============================================================
+2026-04-05 09:12:06 | DEBUG   | Activation OK: embed/mean_pool shape=(21726, 4096), mean_norm=0.16
+2026-04-05 09:12:06 | DEBUG   | Activation OK: embed/last_token shape=(21726, 4096), mean_norm=0.37
+2026-04-05 09:12:06 | DEBUG   | Activation OK: layer_04/mean_pool shape=(21726, 4096), mean_norm=1.97
+2026-04-05 09:12:06 | DEBUG   | Activation OK: layer_04/last_token shape=(21726, 4096), mean_norm=3.32
+2026-04-05 09:12:06 | DEBUG   | Activation OK: layer_08/mean_pool shape=(21726, 4096), mean_norm=3.34
+2026-04-05 09:12:06 | DEBUG   | Activation OK: layer_08/last_token shape=(21726, 4096), mean_norm=5.67
+2026-04-05 09:12:06 | DEBUG   | Activation OK: layer_14/mean_pool shape=(21726, 4096), mean_norm=5.37
+2026-04-05 09:12:07 | DEBUG   | Activation OK: layer_14/last_token shape=(21726, 4096), mean_norm=8.89
+2026-04-05 09:12:07 | DEBUG   | Activation OK: layer_20/mean_pool shape=(21726, 4096), mean_norm=9.99
+2026-04-05 09:12:07 | DEBUG   | Activation OK: layer_20/last_token shape=(21726, 4096), mean_norm=15.61
+2026-04-05 09:12:07 | DEBUG   | Activation OK: layer_26/mean_pool shape=(21726, 4096), mean_norm=19.70
+2026-04-05 09:12:07 | DEBUG   | Activation OK: layer_26/last_token shape=(21726, 4096), mean_norm=29.42
+2026-04-05 09:12:07 | DEBUG   | Activation OK: layer_30/mean_pool shape=(21726, 4096), mean_norm=30.67
+2026-04-05 09:12:07 | DEBUG   | Activation OK: layer_30/last_token shape=(21726, 4096), mean_norm=49.36
+2026-04-05 09:12:08 | DEBUG   | Activation OK: layer_31/mean_pool shape=(21726, 4096), mean_norm=35.40
+2026-04-05 09:12:08 | DEBUG   | Activation OK: layer_31/last_token shape=(21726, 4096), mean_norm=80.16
+2026-04-05 09:12:08 | INFO    | Results saved to /data/user_data/anshulk/cultural-mi/results/step1/base_results.csv
+2026-04-05 09:12:08 | INFO    | Model unloaded, GPU cache cleared.

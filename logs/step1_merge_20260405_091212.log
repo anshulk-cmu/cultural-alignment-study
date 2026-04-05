@@ -1,0 +1,112 @@
+2026-04-05 09:12:12 | INFO    | Logging to /home/anshulk/cultural-mi/logs/step1_merge_20260405_091212.log
+2026-04-05 09:12:12 | INFO    | ============================================================
+2026-04-05 09:12:12 | INFO    | Step 1: Merge & Analysis
+2026-04-05 09:12:12 | INFO    | ============================================================
+2026-04-05 09:12:12 | INFO    | Loading base results from /data/user_data/anshulk/cultural-mi/results/step1/base_results.csv
+2026-04-05 09:12:12 | INFO    |   21726 rows
+2026-04-05 09:12:12 | INFO    | Loading instruct results from /data/user_data/anshulk/cultural-mi/results/step1/instruct_results.csv
+2026-04-05 09:12:12 | INFO    |   21726 rows
+2026-04-05 09:12:12 | INFO    | Merged: 21726 rows (should be 21726)
+2026-04-05 09:12:12 | INFO    | Loading prepared dataset from /data/user_data/anshulk/cultural-mi/results/step1/sanskriti_prepared.csv
+2026-04-05 09:12:12 | INFO    | Low-confidence predictions (margin < 0.5 nats): base=1814 (8.3%), instruct=605 (2.8%)
+2026-04-05 09:12:12 | INFO    | Question types found: ['Association', 'Country Prediction', 'General Awareness', 'State Prediction']
+2026-04-05 09:12:12 | INFO    | Behavioral label distribution:
+2026-04-05 09:12:12 | INFO    |   suppression: 655 (3.0%)
+2026-04-05 09:12:12 | INFO    |   enhancement: 930 (4.3%)
+2026-04-05 09:12:12 | INFO    |   control_both_correct: 18380 (84.6%)
+2026-04-05 09:12:12 | INFO    |   control_both_wrong: 1761 (8.1%)
+2026-04-05 09:12:13 | INFO    | Master CSV saved: /data/user_data/anshulk/cultural-mi/results/step1/sanskriti_behavioral_labels.csv (21726 rows)
+2026-04-05 09:12:13 | INFO    | --- Tier 1: Full (21,726) (n=21726) ---
+2026-04-05 09:12:13 | INFO    |   Base accuracy:    87.61%
+2026-04-05 09:12:13 | INFO    |   Instruct accuracy:88.88%
+2026-04-05 09:12:13 | INFO    |   Suppression:      655 (3.0%)
+2026-04-05 09:12:13 | INFO    |   Enhancement:      930 (4.3%)
+2026-04-05 09:12:13 | INFO    |   Both correct:     18380 (84.6%)
+2026-04-05 09:12:13 | INFO    |   Both wrong:       1761 (8.1%)
+2026-04-05 09:12:13 | INFO    |   Base forced:      0.00%
+2026-04-05 09:12:13 | INFO    |   Instruct forced:  0.00%
+2026-04-05 09:12:13 | DEBUG   | Tier 2 count: 16163 (expected ~16163)
+2026-04-05 09:12:13 | INFO    | --- Tier 2: No Country Prediction (n=16163) ---
+2026-04-05 09:12:13 | INFO    |   Base accuracy:    83.72%
+2026-04-05 09:12:13 | INFO    |   Instruct accuracy:85.46%
+2026-04-05 09:12:13 | INFO    |   Suppression:      623 (3.9%)
+2026-04-05 09:12:13 | INFO    |   Enhancement:      905 (5.6%)
+2026-04-05 09:12:13 | INFO    |   Both correct:     12908 (79.9%)
+2026-04-05 09:12:13 | INFO    |   Both wrong:       1727 (10.7%)
+2026-04-05 09:12:13 | INFO    |   Base forced:      0.00%
+2026-04-05 09:12:13 | INFO    |   Instruct forced:  0.00%
+2026-04-05 09:12:13 | DEBUG   | Tier 3 count: 10781 (expected ~10903)
+2026-04-05 09:12:13 | INFO    | --- Tier 3: Hard (Association + General Awareness) (n=10781) ---
+2026-04-05 09:12:13 | INFO    |   Base accuracy:    84.69%
+2026-04-05 09:12:13 | INFO    |   Instruct accuracy:86.39%
+2026-04-05 09:12:13 | INFO    |   Suppression:      435 (4.0%)
+2026-04-05 09:12:13 | INFO    |   Enhancement:      619 (5.7%)
+2026-04-05 09:12:13 | INFO    |   Both correct:     8695 (80.7%)
+2026-04-05 09:12:13 | INFO    |   Both wrong:       1032 (9.6%)
+2026-04-05 09:12:13 | INFO    |   Base forced:      0.00%
+2026-04-05 09:12:13 | INFO    |   Instruct forced:  0.00%
+2026-04-05 09:12:13 | INFO    | Per question type:
+2026-04-05 09:12:13 | INFO    |   Association               n= 5453 base= 84.3% inst= 87.1% supp=  2.9%
+2026-04-05 09:12:13 | INFO    |   Country Prediction        n= 5563 base= 98.9% inst= 98.8% supp=  0.6%
+2026-04-05 09:12:13 | INFO    |   General Awareness         n= 5328 base= 85.0% inst= 85.7% supp=  5.2%
+2026-04-05 09:12:13 | INFO    |   State Prediction          n= 5382 base= 81.8% inst= 83.6% supp=  3.5%
+2026-04-05 09:12:13 | INFO    | Position distribution:
+2026-04-05 09:12:13 | INFO    |   A: GT=27.1% Base=28.0% Inst=29.1%
+2026-04-05 09:12:13 | INFO    |   B: GT=29.0% Base=28.8% Inst=28.6%
+2026-04-05 09:12:13 | INFO    |   C: GT=23.1% Base=23.6% Inst=22.3%
+2026-04-05 09:12:13 | INFO    |   D: GT=20.8% Base=19.6% Inst=20.0%
+2026-04-05 09:12:19 | INFO    | Entity-level analysis:
+2026-04-05 09:12:19 | INFO    |   suppressed: 77 entities
+2026-04-05 09:12:19 | INFO    |   enhanced: 87 entities
+2026-04-05 09:12:19 | INFO    |   both_correct: 6086 entities
+2026-04-05 09:12:19 | INFO    |   both_wrong: 162 entities
+2026-04-05 09:12:19 | INFO    |   mixed: 1422 entities
+2026-04-05 09:12:19 | INFO    |   Question-level suppression: 3.0%
+2026-04-05 09:12:19 | INFO    |   Entity-level suppression:   1.0%
+2026-04-05 09:12:19 | INFO    | Top 20 most suppressed entities (by suppression question count):
+2026-04-05 09:12:19 | INFO    |   Which of the states given in the options                     supp=55/1606
+2026-04-05 09:12:19 | INFO    |   Haryana|Cuisine|Cuisine of Haryana                           supp=4/9
+2026-04-05 09:12:19 | INFO    |   Telangana|Tourism|Banjara Hills                              supp=3/13
+2026-04-05 09:12:19 | INFO    |   Uttar_Pradesh|Costume|Uttar Pradesh                          supp=3/6
+2026-04-05 09:12:19 | INFO    |   Uttarakhand|Tourism|Uttarakhand                              supp=3/33
+2026-04-05 09:12:19 | INFO    |   Aiburo Bhaat                                                 supp=2/5
+2026-04-05 09:12:19 | INFO    |   Andhra_Pradesh|Costume|Langa Voni Andhra                     supp=2/2
+2026-04-05 09:12:19 | INFO    |   Arunachal_Pradesh|Costume|Aji Lhamu masks                    supp=2/2
+2026-04-05 09:12:19 | INFO    |   Arunachal_Pradesh|Festivals|Ziro Festival of Music           supp=2/2
+2026-04-05 09:12:19 | INFO    |   Arunachal_Pradesh|History|All of the above                   supp=2/11
+2026-04-05 09:12:19 | INFO    |   Babru                                                        supp=2/5
+2026-04-05 09:12:19 | INFO    |   Bihar|Language|Bihari                                        supp=2/7
+2026-04-05 09:12:19 | INFO    |   Buddha Memorial Park                                         supp=2/5
+2026-04-05 09:12:19 | INFO    |   Chhattisgarh|Art|Chhattisgarh                                supp=2/37
+2026-04-05 09:12:19 | INFO    |   Chhattisgarh|Cuisine|Chhattisgarh                            supp=2/7
+2026-04-05 09:12:19 | INFO    |   Chhattisgarh|Festivals|Bastar Dussehra                       supp=2/2
+2026-04-05 09:12:19 | INFO    |   Chhattisgarh|Festivals|Chhattisgarh                          supp=2/37
+2026-04-05 09:12:19 | INFO    |   Dadra_and_Nagar_Haveli_and_Daman_and_Diu|Cultural_Common_Sen supp=2/4
+2026-04-05 09:12:19 | INFO    |   Delhi|Festivals|Independence Day                             supp=2/12
+2026-04-05 09:12:19 | INFO    |   Delhi|Tourism|Laxminarayan Temple                            supp=2/23
+2026-04-05 09:12:19 | INFO    | Forced choice audit: 0 questions
+2026-04-05 09:12:19 | INFO    | Aggregate stats saved
+2026-04-05 09:12:19 | INFO    | Generating plots...
+2026-04-05 09:12:19 | INFO    | Plot saved: /home/anshulk/cultural-mi/plots/step1/accuracy_by_question_type.png
+2026-04-05 09:12:19 | INFO    | Plot saved: /home/anshulk/cultural-mi/plots/step1/behavioral_label_distribution.png
+2026-04-05 09:12:19 | INFO    | Plot saved: /home/anshulk/cultural-mi/plots/step1/suppression_by_attribute.png
+2026-04-05 09:12:19 | INFO    | Plot saved: /home/anshulk/cultural-mi/plots/step1/suppression_by_state.png
+2026-04-05 09:12:20 | INFO    | Plot saved: /home/anshulk/cultural-mi/plots/step1/position_distribution.png
+2026-04-05 09:12:20 | INFO    | Plot saved: /home/anshulk/cultural-mi/plots/step1/confidence_distribution.png
+2026-04-05 09:12:20 | INFO    | Plot saved: /home/anshulk/cultural-mi/plots/step1/logprob_margin_distribution.png
+2026-04-05 09:12:20 | INFO    | ============================================================
+2026-04-05 09:12:20 | INFO    | SANITY CHECKS
+2026-04-05 09:12:20 | INFO    | ============================================================
+2026-04-05 09:12:20 | WARNING | [WARN] F1: Base accuracy (Tier 2) = 83.7% (expected 40-70%)
+2026-04-05 09:12:20 | INFO    | [PASS] F2: Instruct (88.9%) > Base (87.6%)
+2026-04-05 09:12:20 | INFO    | [PASS] F3: Country Prediction: base=98.9%, inst=98.8% (expected >=95%)
+2026-04-05 09:12:20 | INFO    | [PASS] F4: Forced choice: base=0.0%, inst=0.0%
+2026-04-05 09:12:20 | INFO    | [INFO] F6: Suppression rate = 3.0% (expected 5-15%)
+2026-04-05 09:12:20 | INFO    | [INFO] F7: Enhancement rate = 4.3% (expected 4-12%)
+2026-04-05 09:12:20 | INFO    | [PASS] F8: No state >15% of suppression (max: Karnataka at 6.3%)
+2026-04-05 09:12:20 | INFO    | [INFO] F9: base low-confidence: 1814 (8.3%), acc_low=46.2%, acc_high=91.4%
+2026-04-05 09:12:20 | INFO    | [INFO] F9: instruct low-confidence: 605 (2.8%), acc_low=40.3%, acc_high=90.3%
+2026-04-05 09:12:23 | WARNING | SOME CHECKS FAILED — review warnings/errors above
+2026-04-05 09:12:23 | INFO    | ============================================================
+2026-04-05 09:12:23 | INFO    | MERGE & ANALYSIS COMPLETE
+2026-04-05 09:12:23 | INFO    | ============================================================

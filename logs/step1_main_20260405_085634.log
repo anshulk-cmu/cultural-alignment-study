@@ -1,0 +1,19 @@
+2026-04-05 08:56:34 | INFO    | Logging to /home/anshulk/cultural-mi/logs/step1_main_20260405_085634.log
+2026-04-05 08:56:34 | INFO    | ============================================================
+2026-04-05 08:56:34 | INFO    | Step 1: Behavioral Evaluation + Activation Extraction
+2026-04-05 08:56:34 | INFO    | ============================================================
+2026-04-05 08:56:34 | INFO    | Config loaded from /home/anshulk/cultural-mi/configs/config.yaml
+2026-04-05 08:56:34 | INFO    | SLURM_JOB_ID: 6959494
+2026-04-05 08:56:34 | INFO    | SLURM_NODELIST: babel-y9-16
+2026-04-05 08:56:35 | INFO    | CUDA devices: 2
+2026-04-05 08:56:36 | INFO    |   cuda:0 = NVIDIA A100-SXM4-40GB, 42.4GB
+2026-04-05 08:56:36 | INFO    |   cuda:1 = NVIDIA A100-SXM4-40GB, 42.4GB
+2026-04-05 08:56:36 | INFO    | PyTorch: 2.10.0+cu128
+2026-04-05 08:56:36 | INFO    | Args: model=None, batch_size=24, debug=False
+2026-04-05 08:56:39 | INFO    | Dataset loaded: 21726 usable questions
+2026-04-05 08:56:39 | INFO    | Entity keys: attached (21726 matched)
+2026-04-05 08:56:39 | INFO    | Prepared dataset saved: /data/user_data/anshulk/cultural-mi/results/step1/sanskriti_prepared.csv
+2026-04-05 08:56:39 | INFO    | Dual model mode: spawning base (cuda:0) and instruct (cuda:1)
+2026-04-05 08:56:49 | INFO    | Processes started: base pid=3745224, instruct pid=3745307
+2026-04-05 09:12:09 | INFO    | Processes finished: base exit=0, instruct exit=0
+2026-04-05 09:12:09 | INFO    | Both models completed successfully.

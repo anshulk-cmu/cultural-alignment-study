@@ -1,0 +1,467 @@
+============================================================
+Step 1 — Behavioral Evaluation + Activation Extraction
+============================================================
+Job ID: 6959494
+Node: babel-y9-16
+GPUs: 0,1
+Start time: Sun Apr  5 08:56:21 EDT 2026
+============================================================
+Activating conda environment...
+
+Running pre-flight checks...
+  Checking Python packages...
+  All packages available
+  Checking config...
+  Checking model weights...
+  Base model: OK
+  Instruct model: OK
+  Checking dataset...
+  Dataset dir: OK
+  Checking GPUs...
+  GPUs visible: 2
+NVIDIA A100-SXM4-40GB, 40960 MiB
+NVIDIA A100-SXM4-40GB, 40960 MiB
+
+  Checking for existing checkpoints...
+  No checkpoint: base — starting fresh
+  No checkpoint: instruct — starting fresh
+  Creating output directories...
+  Output directories ready
+
+Pre-flight checks passed!
+
+============================================================
+Running Step 1 — Evaluation
+  Models: base (cuda:0) + instruct (cuda:1)
+  Questions: 21,726
+  Batch size: 24 (safe for 48GB GPUs; increase to 64 for 96GB)
+  Hooks: embed + layers [4, 8, 14, 20, 26, 30, 31]
+  Expected: ~906 batches/model, ~15 min total (parallel)
+============================================================
+
+08:56:34 | Logging to /home/anshulk/cultural-mi/logs/step1_main_20260405_085634.log
+08:56:34 | ============================================================
+08:56:34 | Step 1: Behavioral Evaluation + Activation Extraction
+08:56:34 | ============================================================
+08:56:34 | Config loaded from /home/anshulk/cultural-mi/configs/config.yaml
+08:56:34 | SLURM_JOB_ID: 6959494
+08:56:34 | SLURM_NODELIST: babel-y9-16
+08:56:35 | CUDA devices: 2
+08:56:36 |   cuda:0 = NVIDIA A100-SXM4-40GB, 42.4GB
+08:56:36 |   cuda:1 = NVIDIA A100-SXM4-40GB, 42.4GB
+08:56:36 | PyTorch: 2.10.0+cu128
+08:56:36 | Args: model=None, batch_size=24, debug=False
+08:56:39 | Dataset loaded: 21726 usable questions
+08:56:39 | Entity keys: attached (21726 matched)
+08:56:39 | Prepared dataset saved: /data/user_data/anshulk/cultural-mi/results/step1/sanskriti_prepared.csv
+08:56:39 | Dual model mode: spawning base (cuda:0) and instruct (cuda:1)
+08:56:44 | Logging to /home/anshulk/cultural-mi/logs/step1_base_20260405_085644.log
+08:56:44 | Loading model from /data/user_data/anshulk/cultural-mi/models/base
+08:56:44 | Device: cuda:0, dtype: bfloat16
+08:56:47 | Model loaded in 3.3s
+08:56:48 | Answer token IDs: {'A': 362, 'B': 426, 'C': 356, 'D': 423}
+08:56:48 | Five-shot prefix: 179 tokens
+08:56:48 | Questions to process: 21726 (debug=False)
+08:56:48 | Registered 8 hooks: ['embed', 'layer_04', 'layer_08', 'layer_14', 'layer_20', 'layer_26', 'layer_30', 'layer_31']
+08:56:48 | Activation arrays: 16 new, 0 resumed (16 total, 21726x4096 float32 each)
+08:56:48 | Activation dir: /data/user_data/anshulk/cultural-mi/activations/base
+08:56:48 | Starting fresh (no checkpoint found)
+08:56:48 | Batch size: 24, total batches: 906
+08:56:48 | GPU: NVIDIA A100-SXM4-40GB, 42.4GB total, 16.1GB allocated after model load
+08:56:49 | Processes started: base pid=3745224, instruct pid=3745307
+08:56:49 | Logging to /home/anshulk/cultural-mi/logs/step1_instruct_20260405_085649.log
+08:56:49 | Loading model from /data/user_data/anshulk/cultural-mi/models/instruct
+08:56:49 | Device: cuda:1, dtype: bfloat16
+08:56:50 | 24/21726 (0.1%) | 2s | 10.8 q/s | ETA 2007s | acc: 83.3% | forced: 0/24 | GPU mem: 18.5GB | seq_len: 263
+08:56:53 | Model loaded in 4.0s
+08:56:54 | Answer token IDs: {'A': 32, 'B': 33, 'C': 34, 'D': 35}
+08:56:54 | Five-shot prefix: 179 tokens
+08:56:54 | Questions to process: 21726 (debug=False)
+08:56:54 | Registered 8 hooks: ['embed', 'layer_04', 'layer_08', 'layer_14', 'layer_20', 'layer_26', 'layer_30', 'layer_31']
+08:56:54 | Activation arrays: 16 new, 0 resumed (16 total, 21726x4096 float32 each)
+08:56:54 | Activation dir: /data/user_data/anshulk/cultural-mi/activations/instruct
+08:56:54 | Starting fresh (no checkpoint found)
+08:56:54 | Batch size: 24, total batches: 906
+08:56:54 | GPU: NVIDIA A100-SXM4-40GB, 42.4GB total, 16.1GB allocated after model load
+08:56:56 | 24/21726 (0.1%) | 2s | 10.4 q/s | ETA 2094s | acc: 79.2% | forced: 0/24 | GPU mem: 17.5GB | seq_len: 156
+08:57:00 | 264/21726 (1.2%) | 12s | 22.0 q/s | ETA 974s | acc: 84.8% | forced: 0/264 | GPU mem: 18.2GB | seq_len: 231
+08:57:05 | 264/21726 (1.2%) | 11s | 23.9 q/s | ETA 897s | acc: 85.2% | forced: 0/264 | GPU mem: 17.2GB | seq_len: 124
+08:57:12 | 504/21726 (2.3%) | 24s | 21.3 q/s | ETA 998s | acc: 80.4% | forced: 0/504 | GPU mem: 18.5GB | seq_len: 261
+08:57:13 | 504/21726 (2.3%) | 20s | 25.8 q/s | ETA 823s | acc: 84.3% | forced: 0/504 | GPU mem: 17.5GB | seq_len: 154
+08:57:22 | 744/21726 (3.4%) | 28s | 26.4 q/s | ETA 795s | acc: 82.5% | forced: 0/744 | GPU mem: 17.3GB | seq_len: 136
+08:57:24 | 744/21726 (3.4%) | 36s | 20.8 q/s | ETA 1010s | acc: 78.6% | forced: 0/744 | GPU mem: 18.3GB | seq_len: 243
+08:57:30 | 984/21726 (4.5%) | 37s | 26.9 q/s | ETA 770s | acc: 84.1% | forced: 0/984 | GPU mem: 17.4GB | seq_len: 138
+08:57:36 | 984/21726 (4.5%) | 48s | 20.5 q/s | ETA 1012s | acc: 80.1% | forced: 0/984 | GPU mem: 18.4GB | seq_len: 245
+08:57:38 | 1224/21726 (5.6%) | 45s | 27.3 q/s | ETA 750s | acc: 83.7% | forced: 0/1224 | GPU mem: 17.4GB | seq_len: 143
+08:57:47 | 1464/21726 (6.7%) | 53s | 27.4 q/s | ETA 739s | acc: 83.5% | forced: 0/1464 | GPU mem: 17.6GB | seq_len: 161
+08:57:48 | 1224/21726 (5.6%) | 60s | 20.5 q/s | ETA 1001s | acc: 79.9% | forced: 0/1224 | GPU mem: 18.4GB | seq_len: 250
+08:57:55 | 1704/21726 (7.8%) | 62s | 27.7 q/s | ETA 724s | acc: 84.0% | forced: 0/1704 | GPU mem: 17.5GB | seq_len: 149
+08:58:00 | 1464/21726 (6.7%) | 72s | 20.4 q/s | ETA 994s | acc: 79.6% | forced: 0/1464 | GPU mem: 18.6GB | seq_len: 268
+08:58:04 | 1944/21726 (8.9%) | 70s | 27.7 q/s | ETA 714s | acc: 84.9% | forced: 0/1944 | GPU mem: 17.3GB | seq_len: 136
+08:58:12 | 1704/21726 (7.8%) | 84s | 20.3 q/s | ETA 985s | acc: 79.8% | forced: 0/1704 | GPU mem: 18.5GB | seq_len: 256
+08:58:12 | 2184/21726 (10.1%) | 79s | 27.8 q/s | ETA 704s | acc: 84.5% | forced: 0/2184 | GPU mem: 17.5GB | seq_len: 151
+08:58:20 | Checkpoint saved at batch 100/906
+08:58:21 | 2424/21726 (11.2%) | 87s | 27.9 q/s | ETA 692s | acc: 84.2% | forced: 0/2424 | GPU mem: 17.4GB | seq_len: 141
+08:58:24 | 1944/21726 (8.9%) | 96s | 20.3 q/s | ETA 973s | acc: 81.2% | forced: 0/1944 | GPU mem: 18.3GB | seq_len: 243
+08:58:29 | 2664/21726 (12.3%) | 95s | 28.0 q/s | ETA 680s | acc: 84.6% | forced: 0/2664 | GPU mem: 17.5GB | seq_len: 156
+08:58:36 | 2184/21726 (10.1%) | 107s | 20.3 q/s | ETA 962s | acc: 81.1% | forced: 0/2184 | GPU mem: 18.5GB | seq_len: 258
+08:58:37 | 2904/21726 (13.4%) | 104s | 28.0 q/s | ETA 671s | acc: 85.1% | forced: 0/2904 | GPU mem: 17.4GB | seq_len: 144
+08:58:46 | Checkpoint saved at batch 100/906
+08:58:47 | 3144/21726 (14.5%) | 113s | 27.8 q/s | ETA 667s | acc: 85.7% | forced: 0/3144 | GPU mem: 17.4GB | seq_len: 144
+08:58:47 | 2424/21726 (11.2%) | 119s | 20.4 q/s | ETA 946s | acc: 81.1% | forced: 0/2424 | GPU mem: 18.4GB | seq_len: 248
+08:58:56 | 3384/21726 (15.6%) | 122s | 27.7 q/s | ETA 663s | acc: 86.0% | forced: 0/3384 | GPU mem: 17.4GB | seq_len: 144
+08:58:59 | 2664/21726 (12.3%) | 131s | 20.4 q/s | ETA 934s | acc: 81.5% | forced: 0/2664 | GPU mem: 18.5GB | seq_len: 263
+08:59:05 | 3624/21726 (16.7%) | 131s | 27.7 q/s | ETA 654s | acc: 86.4% | forced: 0/3624 | GPU mem: 17.4GB | seq_len: 147
+08:59:10 | 2904/21726 (13.4%) | 142s | 20.5 q/s | ETA 919s | acc: 81.9% | forced: 0/2904 | GPU mem: 18.4GB | seq_len: 251
+08:59:13 | 3864/21726 (17.8%) | 139s | 27.8 q/s | ETA 644s | acc: 86.5% | forced: 0/3864 | GPU mem: 17.3GB | seq_len: 137
+08:59:21 | 3144/21726 (14.5%) | 153s | 20.6 q/s | ETA 903s | acc: 82.4% | forced: 0/3144 | GPU mem: 18.4GB | seq_len: 251
+08:59:21 | 4104/21726 (18.9%) | 148s | 27.8 q/s | ETA 634s | acc: 86.7% | forced: 0/4104 | GPU mem: 17.4GB | seq_len: 141
+08:59:30 | 4344/21726 (20.0%) | 156s | 27.8 q/s | ETA 626s | acc: 87.2% | forced: 0/4344 | GPU mem: 17.5GB | seq_len: 149
+08:59:33 | 3384/21726 (15.6%) | 165s | 20.6 q/s | ETA 893s | acc: 82.9% | forced: 0/3384 | GPU mem: 18.4GB | seq_len: 251
+08:59:39 | 4584/21726 (21.1%) | 165s | 27.7 q/s | ETA 619s | acc: 87.3% | forced: 0/4584 | GPU mem: 17.4GB | seq_len: 141
+08:59:45 | 3624/21726 (16.7%) | 177s | 20.5 q/s | ETA 883s | acc: 83.3% | forced: 0/3624 | GPU mem: 18.4GB | seq_len: 254
+08:59:47 | Checkpoint saved at batch 200/906
+08:59:48 | 4824/21726 (22.2%) | 174s | 27.7 q/s | ETA 611s | acc: 87.4% | forced: 0/4824 | GPU mem: 17.4GB | seq_len: 145
+08:59:56 | 3864/21726 (17.8%) | 188s | 20.6 q/s | ETA 869s | acc: 83.5% | forced: 0/3864 | GPU mem: 18.3GB | seq_len: 244
+08:59:57 | 5064/21726 (23.3%) | 183s | 27.7 q/s | ETA 602s | acc: 87.3% | forced: 0/5064 | GPU mem: 17.4GB | seq_len: 139
+09:00:05 | 5304/21726 (24.4%) | 191s | 27.7 q/s | ETA 592s | acc: 87.1% | forced: 0/5304 | GPU mem: 17.3GB | seq_len: 137
+09:00:07 | 4104/21726 (18.9%) | 199s | 20.6 q/s | ETA 854s | acc: 83.5% | forced: 0/4104 | GPU mem: 18.4GB | seq_len: 248
+09:00:13 | 5544/21726 (25.5%) | 199s | 27.8 q/s | ETA 581s | acc: 87.2% | forced: 0/5544 | GPU mem: 17.1GB | seq_len: 110
+09:00:19 | 4344/21726 (20.0%) | 211s | 20.6 q/s | ETA 844s | acc: 83.9% | forced: 0/4344 | GPU mem: 18.5GB | seq_len: 256
+09:00:20 | 5784/21726 (26.6%) | 206s | 28.1 q/s | ETA 568s | acc: 87.8% | forced: 0/5784 | GPU mem: 17.1GB | seq_len: 108
+09:00:27 | 6024/21726 (27.7%) | 213s | 28.3 q/s | ETA 555s | acc: 88.2% | forced: 0/6024 | GPU mem: 17.0GB | seq_len: 104
+09:00:30 | 4584/21726 (21.1%) | 222s | 20.7 q/s | ETA 830s | acc: 84.1% | forced: 0/4584 | GPU mem: 18.4GB | seq_len: 248
+09:00:34 | 6264/21726 (28.8%) | 221s | 28.4 q/s | ETA 545s | acc: 88.5% | forced: 0/6264 | GPU mem: 17.1GB | seq_len: 109
+09:00:41 | Checkpoint saved at batch 200/906
+09:00:42 | 6504/21726 (29.9%) | 228s | 28.5 q/s | ETA 534s | acc: 88.9% | forced: 0/6504 | GPU mem: 17.1GB | seq_len: 107
+09:00:42 | 4824/21726 (22.2%) | 234s | 20.6 q/s | ETA 819s | acc: 84.2% | forced: 0/4824 | GPU mem: 18.4GB | seq_len: 252
+09:00:49 | 6744/21726 (31.0%) | 236s | 28.6 q/s | ETA 524s | acc: 89.2% | forced: 0/6744 | GPU mem: 17.1GB | seq_len: 110
+09:00:54 | 5064/21726 (23.3%) | 246s | 20.6 q/s | ETA 808s | acc: 84.2% | forced: 0/5064 | GPU mem: 18.4GB | seq_len: 246
+09:00:57 | 6984/21726 (32.1%) | 243s | 28.7 q/s | ETA 513s | acc: 89.4% | forced: 0/6984 | GPU mem: 17.1GB | seq_len: 113
+09:01:04 | Checkpoint saved at batch 300/906
+09:01:05 | 7224/21726 (33.3%) | 251s | 28.8 q/s | ETA 504s | acc: 89.8% | forced: 0/7224 | GPU mem: 17.1GB | seq_len: 107
+09:01:05 | 5304/21726 (24.4%) | 257s | 20.6 q/s | ETA 796s | acc: 84.3% | forced: 0/5304 | GPU mem: 18.3GB | seq_len: 244
+09:01:11 | 7464/21726 (34.4%) | 258s | 29.0 q/s | ETA 492s | acc: 90.1% | forced: 0/7464 | GPU mem: 17.1GB | seq_len: 107
+09:01:17 | 5544/21726 (25.5%) | 269s | 20.6 q/s | ETA 785s | acc: 84.5% | forced: 0/5544 | GPU mem: 18.1GB | seq_len: 217
+09:01:18 | 7704/21726 (35.5%) | 264s | 29.2 q/s | ETA 481s | acc: 90.3% | forced: 0/7704 | GPU mem: 17.1GB | seq_len: 106
+09:01:26 | 7944/21726 (36.6%) | 273s | 29.1 q/s | ETA 473s | acc: 90.6% | forced: 0/7944 | GPU mem: 17.1GB | seq_len: 109
+09:01:28 | 5784/21726 (26.6%) | 280s | 20.7 q/s | ETA 771s | acc: 85.1% | forced: 0/5784 | GPU mem: 18.1GB | seq_len: 215
+09:01:34 | 8184/21726 (37.7%) | 280s | 29.2 q/s | ETA 463s | acc: 90.9% | forced: 0/8184 | GPU mem: 17.1GB | seq_len: 110
+09:01:39 | 6024/21726 (27.7%) | 291s | 20.7 q/s | ETA 758s | acc: 85.6% | forced: 0/6024 | GPU mem: 18.0GB | seq_len: 211
+09:01:41 | 8424/21726 (38.8%) | 287s | 29.3 q/s | ETA 454s | acc: 91.1% | forced: 0/8424 | GPU mem: 17.2GB | seq_len: 123
+09:01:48 | 8664/21726 (39.9%) | 295s | 29.4 q/s | ETA 444s | acc: 91.4% | forced: 0/8664 | GPU mem: 17.2GB | seq_len: 117
+09:01:50 | 6264/21726 (28.8%) | 301s | 20.8 q/s | ETA 744s | acc: 86.1% | forced: 0/6264 | GPU mem: 18.1GB | seq_len: 216
+09:01:56 | 8904/21726 (41.0%) | 303s | 29.4 q/s | ETA 436s | acc: 91.6% | forced: 0/8904 | GPU mem: 17.1GB | seq_len: 107
+09:02:01 | 6504/21726 (29.9%) | 313s | 20.8 q/s | ETA 732s | acc: 86.6% | forced: 0/6504 | GPU mem: 18.1GB | seq_len: 214
+09:02:04 | 9144/21726 (42.1%) | 311s | 29.4 q/s | ETA 427s | acc: 91.7% | forced: 0/9144 | GPU mem: 17.2GB | seq_len: 125
+09:02:12 | 6744/21726 (31.0%) | 324s | 20.8 q/s | ETA 719s | acc: 87.0% | forced: 0/6744 | GPU mem: 18.1GB | seq_len: 217
+09:02:13 | 9384/21726 (43.2%) | 319s | 29.4 q/s | ETA 420s | acc: 91.9% | forced: 0/9384 | GPU mem: 17.1GB | seq_len: 108
+09:02:19 | Checkpoint saved at batch 400/906
+09:02:20 | 9624/21726 (44.3%) | 326s | 29.5 q/s | ETA 410s | acc: 92.1% | forced: 0/9624 | GPU mem: 17.2GB | seq_len: 121
+09:02:23 | 6984/21726 (32.1%) | 335s | 20.9 q/s | ETA 707s | acc: 87.3% | forced: 0/6984 | GPU mem: 18.1GB | seq_len: 220
+09:02:28 | 9864/21726 (45.4%) | 335s | 29.5 q/s | ETA 402s | acc: 92.3% | forced: 0/9864 | GPU mem: 17.1GB | seq_len: 109
+09:02:33 | Checkpoint saved at batch 300/906
+09:02:34 | 7224/21726 (33.3%) | 346s | 20.9 q/s | ETA 694s | acc: 87.7% | forced: 0/7224 | GPU mem: 18.1GB | seq_len: 214
+09:02:36 | 10104/21726 (46.5%) | 342s | 29.5 q/s | ETA 394s | acc: 92.4% | forced: 0/10104 | GPU mem: 17.1GB | seq_len: 111
+09:02:44 | 10344/21726 (47.6%) | 350s | 29.5 q/s | ETA 385s | acc: 92.6% | forced: 0/10344 | GPU mem: 17.1GB | seq_len: 114
+09:02:45 | 7464/21726 (34.4%) | 357s | 20.9 q/s | ETA 682s | acc: 88.1% | forced: 0/7464 | GPU mem: 18.1GB | seq_len: 214
+09:02:51 | 10584/21726 (48.7%) | 357s | 29.6 q/s | ETA 376s | acc: 92.8% | forced: 0/10584 | GPU mem: 17.1GB | seq_len: 112
+09:02:56 | 7704/21726 (35.5%) | 368s | 20.9 q/s | ETA 669s | acc: 88.5% | forced: 0/7704 | GPU mem: 18.1GB | seq_len: 213
+09:02:58 | 10824/21726 (49.8%) | 365s | 29.7 q/s | ETA 367s | acc: 92.9% | forced: 0/10824 | GPU mem: 17.1GB | seq_len: 107
+09:03:07 | 11064/21726 (50.9%) | 373s | 29.7 q/s | ETA 359s | acc: 93.0% | forced: 0/11064 | GPU mem: 17.4GB | seq_len: 144
+09:03:07 | 7944/21726 (36.6%) | 379s | 21.0 q/s | ETA 657s | acc: 88.8% | forced: 0/7944 | GPU mem: 18.1GB | seq_len: 216
+09:03:15 | 11304/21726 (52.0%) | 381s | 29.7 q/s | ETA 351s | acc: 92.9% | forced: 0/11304 | GPU mem: 17.4GB | seq_len: 140
+09:03:17 | 8184/21726 (37.7%) | 389s | 21.0 q/s | ETA 644s | acc: 89.1% | forced: 0/8184 | GPU mem: 18.1GB | seq_len: 217
+09:03:23 | 11544/21726 (53.1%) | 389s | 29.6 q/s | ETA 343s | acc: 92.8% | forced: 0/11544 | GPU mem: 17.4GB | seq_len: 146
+09:03:28 | 8424/21726 (38.8%) | 399s | 21.1 q/s | ETA 631s | acc: 89.4% | forced: 0/8424 | GPU mem: 18.2GB | seq_len: 230
+09:03:32 | 11784/21726 (54.2%) | 398s | 29.6 q/s | ETA 336s | acc: 92.6% | forced: 0/11784 | GPU mem: 17.4GB | seq_len: 144
+09:03:39 | 8664/21726 (39.9%) | 411s | 21.1 q/s | ETA 619s | acc: 89.7% | forced: 0/8664 | GPU mem: 18.2GB | seq_len: 224
+09:03:39 | Checkpoint saved at batch 500/906
+09:03:40 | 12024/21726 (55.3%) | 407s | 29.6 q/s | ETA 328s | acc: 92.6% | forced: 0/12024 | GPU mem: 17.4GB | seq_len: 139
+09:03:49 | 12264/21726 (56.4%) | 416s | 29.5 q/s | ETA 321s | acc: 92.4% | forced: 0/12264 | GPU mem: 17.5GB | seq_len: 150
+09:03:50 | 8904/21726 (41.0%) | 422s | 21.1 q/s | ETA 607s | acc: 89.9% | forced: 0/8904 | GPU mem: 18.1GB | seq_len: 214
+09:03:58 | 12504/21726 (57.6%) | 424s | 29.5 q/s | ETA 313s | acc: 92.1% | forced: 0/12504 | GPU mem: 17.4GB | seq_len: 145
+09:04:01 | 9144/21726 (42.1%) | 433s | 21.1 q/s | ETA 595s | acc: 90.2% | forced: 0/9144 | GPU mem: 18.2GB | seq_len: 232
+09:04:06 | 12744/21726 (58.7%) | 432s | 29.5 q/s | ETA 305s | acc: 92.1% | forced: 0/12744 | GPU mem: 17.3GB | seq_len: 134
+09:04:12 | 9384/21726 (43.2%) | 443s | 21.2 q/s | ETA 583s | acc: 90.3% | forced: 0/9384 | GPU mem: 18.1GB | seq_len: 215
+09:04:15 | 12984/21726 (59.8%) | 441s | 29.5 q/s | ETA 297s | acc: 91.9% | forced: 0/12984 | GPU mem: 17.3GB | seq_len: 132
+09:04:22 | Checkpoint saved at batch 400/906
+09:04:23 | 13224/21726 (60.9%) | 449s | 29.4 q/s | ETA 289s | acc: 91.8% | forced: 0/13224 | GPU mem: 17.4GB | seq_len: 141
+09:04:23 | 9624/21726 (44.3%) | 455s | 21.2 q/s | ETA 572s | acc: 90.6% | forced: 0/9624 | GPU mem: 18.2GB | seq_len: 228
+09:04:31 | 13464/21726 (62.0%) | 457s | 29.5 q/s | ETA 280s | acc: 91.6% | forced: 0/13464 | GPU mem: 17.3GB | seq_len: 137
+09:04:33 | 9864/21726 (45.4%) | 465s | 21.2 q/s | ETA 559s | acc: 90.8% | forced: 0/9864 | GPU mem: 18.1GB | seq_len: 216
+09:04:39 | 13704/21726 (63.1%) | 466s | 29.4 q/s | ETA 273s | acc: 91.5% | forced: 0/13704 | GPU mem: 17.4GB | seq_len: 139
+09:04:44 | 10104/21726 (46.5%) | 476s | 21.2 q/s | ETA 547s | acc: 91.0% | forced: 0/10104 | GPU mem: 18.1GB | seq_len: 218
+09:04:48 | 13944/21726 (64.2%) | 474s | 29.4 q/s | ETA 265s | acc: 91.5% | forced: 0/13944 | GPU mem: 17.3GB | seq_len: 134
+09:04:54 | 10344/21726 (47.6%) | 486s | 21.3 q/s | ETA 535s | acc: 91.2% | forced: 0/10344 | GPU mem: 18.1GB | seq_len: 221
+09:04:56 | 14184/21726 (65.3%) | 482s | 29.4 q/s | ETA 257s | acc: 91.3% | forced: 0/14184 | GPU mem: 17.3GB | seq_len: 137
+09:05:04 | Checkpoint saved at batch 600/906
+09:05:05 | 14424/21726 (66.4%) | 491s | 29.4 q/s | ETA 249s | acc: 91.1% | forced: 0/14424 | GPU mem: 17.3GB | seq_len: 130
+09:05:05 | 10584/21726 (48.7%) | 497s | 21.3 q/s | ETA 523s | acc: 91.4% | forced: 0/10584 | GPU mem: 18.1GB | seq_len: 219
+09:05:13 | 14664/21726 (67.5%) | 499s | 29.4 q/s | ETA 240s | acc: 91.0% | forced: 0/14664 | GPU mem: 17.3GB | seq_len: 133
+09:05:16 | 10824/21726 (49.8%) | 507s | 21.3 q/s | ETA 511s | acc: 91.6% | forced: 0/10824 | GPU mem: 18.1GB | seq_len: 214
+09:05:21 | 14904/21726 (68.6%) | 507s | 29.4 q/s | ETA 232s | acc: 91.0% | forced: 0/14904 | GPU mem: 17.3GB | seq_len: 134
+09:05:27 | 11064/21726 (50.9%) | 518s | 21.3 q/s | ETA 500s | acc: 91.6% | forced: 0/11064 | GPU mem: 18.4GB | seq_len: 250
+09:05:29 | 15144/21726 (69.7%) | 515s | 29.4 q/s | ETA 224s | acc: 90.8% | forced: 0/15144 | GPU mem: 17.4GB | seq_len: 139
+09:05:37 | 15384/21726 (70.8%) | 524s | 29.4 q/s | ETA 216s | acc: 90.9% | forced: 0/15384 | GPU mem: 17.4GB | seq_len: 140
+09:05:38 | 11304/21726 (52.0%) | 530s | 21.3 q/s | ETA 488s | acc: 91.5% | forced: 0/11304 | GPU mem: 18.4GB | seq_len: 247
+09:05:46 | 15624/21726 (71.9%) | 532s | 29.4 q/s | ETA 208s | acc: 90.7% | forced: 0/15624 | GPU mem: 17.3GB | seq_len: 136
+09:05:50 | 11544/21726 (53.1%) | 541s | 21.3 q/s | ETA 478s | acc: 91.5% | forced: 0/11544 | GPU mem: 18.4GB | seq_len: 253
+09:05:53 | 15864/21726 (73.0%) | 540s | 29.4 q/s | ETA 199s | acc: 90.7% | forced: 0/15864 | GPU mem: 17.3GB | seq_len: 137
+09:06:01 | 11784/21726 (54.2%) | 553s | 21.3 q/s | ETA 467s | acc: 91.4% | forced: 0/11784 | GPU mem: 18.4GB | seq_len: 251
+09:06:02 | 16104/21726 (74.1%) | 548s | 29.4 q/s | ETA 191s | acc: 90.7% | forced: 0/16104 | GPU mem: 17.6GB | seq_len: 167
+09:06:10 | 16344/21726 (75.2%) | 556s | 29.4 q/s | ETA 183s | acc: 90.6% | forced: 0/16344 | GPU mem: 17.3GB | seq_len: 136
+09:06:12 | Checkpoint saved at batch 500/906
+09:06:13 | 12024/21726 (55.3%) | 565s | 21.3 q/s | ETA 456s | acc: 91.4% | forced: 0/12024 | GPU mem: 18.3GB | seq_len: 245
+09:06:18 | 16584/21726 (76.3%) | 564s | 29.4 q/s | ETA 175s | acc: 90.6% | forced: 0/16584 | GPU mem: 17.3GB | seq_len: 132
+09:06:25 | 12264/21726 (56.4%) | 577s | 21.3 q/s | ETA 445s | acc: 91.2% | forced: 0/12264 | GPU mem: 18.5GB | seq_len: 257
+09:06:26 | Checkpoint saved at batch 700/906
+09:06:27 | 16824/21726 (77.4%) | 573s | 29.4 q/s | ETA 167s | acc: 90.6% | forced: 0/16824 | GPU mem: 17.3GB | seq_len: 131
+09:06:35 | 17064/21726 (78.5%) | 581s | 29.4 q/s | ETA 159s | acc: 90.4% | forced: 0/17064 | GPU mem: 17.3GB | seq_len: 128
+09:06:37 | 12504/21726 (57.6%) | 589s | 21.2 q/s | ETA 434s | acc: 90.9% | forced: 0/12504 | GPU mem: 18.4GB | seq_len: 252
+09:06:43 | 17304/21726 (79.6%) | 589s | 29.4 q/s | ETA 151s | acc: 90.2% | forced: 0/17304 | GPU mem: 17.3GB | seq_len: 135
+09:06:48 | 12744/21726 (58.7%) | 600s | 21.2 q/s | ETA 423s | acc: 90.8% | forced: 0/12744 | GPU mem: 18.3GB | seq_len: 240
+09:06:52 | 17544/21726 (80.8%) | 598s | 29.3 q/s | ETA 143s | acc: 90.0% | forced: 0/17544 | GPU mem: 17.3GB | seq_len: 127
+09:07:00 | 17784/21726 (81.9%) | 606s | 29.3 q/s | ETA 134s | acc: 89.9% | forced: 0/17784 | GPU mem: 17.2GB | seq_len: 126
+09:07:00 | 12984/21726 (59.8%) | 612s | 21.2 q/s | ETA 412s | acc: 90.7% | forced: 0/12984 | GPU mem: 18.3GB | seq_len: 239
+09:07:06 | 18024/21726 (83.0%) | 613s | 29.4 q/s | ETA 126s | acc: 89.8% | forced: 0/18024 | GPU mem: 17.2GB | seq_len: 123
+09:07:12 | 13224/21726 (60.9%) | 624s | 21.2 q/s | ETA 401s | acc: 90.6% | forced: 0/13224 | GPU mem: 18.4GB | seq_len: 248
+09:07:15 | 18264/21726 (84.1%) | 621s | 29.4 q/s | ETA 118s | acc: 89.5% | forced: 0/18264 | GPU mem: 17.3GB | seq_len: 133
+09:07:23 | 18504/21726 (85.2%) | 629s | 29.4 q/s | ETA 110s | acc: 89.2% | forced: 0/18504 | GPU mem: 17.2GB | seq_len: 125
+09:07:24 | 13464/21726 (62.0%) | 636s | 21.2 q/s | ETA 390s | acc: 90.4% | forced: 0/13464 | GPU mem: 18.3GB | seq_len: 244
+09:07:30 | 18744/21726 (86.3%) | 636s | 29.4 q/s | ETA 101s | acc: 89.3% | forced: 0/18744 | GPU mem: 17.2GB | seq_len: 121
+09:07:36 | 13704/21726 (63.1%) | 647s | 21.2 q/s | ETA 379s | acc: 90.4% | forced: 0/13704 | GPU mem: 18.4GB | seq_len: 246
+09:07:39 | 18984/21726 (87.4%) | 645s | 29.4 q/s | ETA 93s | acc: 89.3% | forced: 0/18984 | GPU mem: 17.2GB | seq_len: 126
+09:07:47 | Checkpoint saved at batch 800/906
+09:07:47 | 13944/21726 (64.2%) | 659s | 21.2 q/s | ETA 368s | acc: 90.4% | forced: 0/13944 | GPU mem: 18.3GB | seq_len: 241
+09:07:48 | 19224/21726 (88.5%) | 654s | 29.4 q/s | ETA 85s | acc: 89.3% | forced: 0/19224 | GPU mem: 17.4GB | seq_len: 139
+09:07:56 | 19464/21726 (89.6%) | 662s | 29.4 q/s | ETA 77s | acc: 89.2% | forced: 0/19464 | GPU mem: 17.2GB | seq_len: 124
+09:07:58 | 14184/21726 (65.3%) | 670s | 21.2 q/s | ETA 356s | acc: 90.4% | forced: 0/14184 | GPU mem: 18.3GB | seq_len: 244
+09:08:04 | 19704/21726 (90.7%) | 670s | 29.4 q/s | ETA 69s | acc: 89.2% | forced: 0/19704 | GPU mem: 17.3GB | seq_len: 130
+09:08:10 | Checkpoint saved at batch 600/906
+09:08:11 | 14424/21726 (66.4%) | 683s | 21.1 q/s | ETA 346s | acc: 90.1% | forced: 0/14424 | GPU mem: 18.3GB | seq_len: 237
+09:08:12 | 19944/21726 (91.8%) | 678s | 29.4 q/s | ETA 61s | acc: 89.2% | forced: 0/19944 | GPU mem: 17.3GB | seq_len: 129
+09:08:20 | 20184/21726 (92.9%) | 686s | 29.4 q/s | ETA 52s | acc: 89.2% | forced: 0/20184 | GPU mem: 17.3GB | seq_len: 135
+09:08:22 | 14664/21726 (67.5%) | 694s | 21.1 q/s | ETA 334s | acc: 90.1% | forced: 0/14664 | GPU mem: 18.3GB | seq_len: 240
+09:08:29 | 20424/21726 (94.0%) | 695s | 29.4 q/s | ETA 44s | acc: 89.2% | forced: 0/20424 | GPU mem: 17.3GB | seq_len: 131
+09:08:33 | 14904/21726 (68.6%) | 705s | 21.1 q/s | ETA 323s | acc: 90.0% | forced: 0/14904 | GPU mem: 18.3GB | seq_len: 241
+09:08:37 | 20664/21726 (95.1%) | 703s | 29.4 q/s | ETA 36s | acc: 89.2% | forced: 0/20664 | GPU mem: 17.3GB | seq_len: 131
+09:08:45 | 15144/21726 (69.7%) | 717s | 21.1 q/s | ETA 312s | acc: 89.9% | forced: 0/15144 | GPU mem: 18.4GB | seq_len: 246
+09:08:45 | 20904/21726 (96.2%) | 712s | 29.4 q/s | ETA 28s | acc: 89.2% | forced: 0/20904 | GPU mem: 17.3GB | seq_len: 134
+09:08:54 | 21144/21726 (97.3%) | 720s | 29.4 q/s | ETA 20s | acc: 89.1% | forced: 0/21144 | GPU mem: 17.3GB | seq_len: 129
+09:08:57 | 15384/21726 (70.8%) | 729s | 21.1 q/s | ETA 300s | acc: 89.9% | forced: 0/15384 | GPU mem: 18.4GB | seq_len: 246
+09:09:01 | 21384/21726 (98.4%) | 727s | 29.4 q/s | ETA 12s | acc: 89.0% | forced: 0/21384 | GPU mem: 17.3GB | seq_len: 130
+09:09:08 | Checkpoint saved at batch 900/906
+09:09:09 | 15624/21726 (71.9%) | 740s | 21.1 q/s | ETA 289s | acc: 89.8% | forced: 0/15624 | GPU mem: 18.3GB | seq_len: 243
+09:09:09 | 21624/21726 (99.5%) | 735s | 29.4 q/s | ETA 3s | acc: 88.9% | forced: 0/21624 | GPU mem: 17.2GB | seq_len: 123
+09:09:13 | ============================================================
+09:09:13 | COMPLETED: 21726 questions in 739s (12.3min)
+09:09:13 | Accuracy: 19310/21726 (88.88%)
+09:09:13 | Forced choice: 0/21726 (0.00%)
+09:09:13 | Throughput: 29.4 questions/sec
+09:09:13 | ============================================================
+09:09:15 | Results saved to /data/user_data/anshulk/cultural-mi/results/step1/instruct_results.csv
+09:09:15 | Model unloaded, GPU cache cleared.
+09:09:19 | 15864/21726 (73.0%) | 751s | 21.1 q/s | ETA 277s | acc: 89.7% | forced: 0/15864 | GPU mem: 18.3GB | seq_len: 244
+09:09:27 | 16104/21726 (74.1%) | 758s | 21.2 q/s | ETA 265s | acc: 89.7% | forced: 0/16104 | GPU mem: 18.6GB | seq_len: 274
+09:09:33 | 16344/21726 (75.2%) | 765s | 21.4 q/s | ETA 252s | acc: 89.5% | forced: 0/16344 | GPU mem: 18.3GB | seq_len: 243
+09:09:40 | 16584/21726 (76.3%) | 772s | 21.5 q/s | ETA 239s | acc: 89.4% | forced: 0/16584 | GPU mem: 18.3GB | seq_len: 239
+09:09:46 | Checkpoint saved at batch 700/906
+09:09:47 | 16824/21726 (77.4%) | 779s | 21.6 q/s | ETA 227s | acc: 89.4% | forced: 0/16824 | GPU mem: 18.3GB | seq_len: 238
+09:09:54 | 17064/21726 (78.5%) | 786s | 21.7 q/s | ETA 215s | acc: 89.2% | forced: 0/17064 | GPU mem: 18.3GB | seq_len: 235
+09:10:01 | 17304/21726 (79.6%) | 793s | 21.8 q/s | ETA 203s | acc: 88.9% | forced: 0/17304 | GPU mem: 18.3GB | seq_len: 242
+09:10:08 | 17544/21726 (80.8%) | 800s | 21.9 q/s | ETA 191s | acc: 88.6% | forced: 0/17544 | GPU mem: 18.2GB | seq_len: 234
+09:10:15 | 17784/21726 (81.9%) | 807s | 22.0 q/s | ETA 179s | acc: 88.5% | forced: 0/17784 | GPU mem: 18.2GB | seq_len: 233
+09:10:22 | 18024/21726 (83.0%) | 814s | 22.2 q/s | ETA 167s | acc: 88.4% | forced: 0/18024 | GPU mem: 18.2GB | seq_len: 230
+09:10:29 | 18264/21726 (84.1%) | 821s | 22.2 q/s | ETA 156s | acc: 88.2% | forced: 0/18264 | GPU mem: 18.3GB | seq_len: 240
+09:10:36 | 18504/21726 (85.2%) | 827s | 22.4 q/s | ETA 144s | acc: 87.9% | forced: 0/18504 | GPU mem: 18.2GB | seq_len: 232
+09:10:42 | 18744/21726 (86.3%) | 834s | 22.5 q/s | ETA 133s | acc: 88.0% | forced: 0/18744 | GPU mem: 18.2GB | seq_len: 228
+09:10:49 | 18984/21726 (87.4%) | 840s | 22.6 q/s | ETA 121s | acc: 88.1% | forced: 0/18984 | GPU mem: 18.2GB | seq_len: 233
+09:10:55 | Checkpoint saved at batch 800/906
+09:10:56 | 19224/21726 (88.5%) | 848s | 22.7 q/s | ETA 110s | acc: 88.1% | forced: 0/19224 | GPU mem: 18.4GB | seq_len: 246
+09:11:03 | 19464/21726 (89.6%) | 855s | 22.8 q/s | ETA 99s | acc: 88.1% | forced: 0/19464 | GPU mem: 18.2GB | seq_len: 231
+09:11:09 | 19704/21726 (90.7%) | 861s | 22.9 q/s | ETA 88s | acc: 88.2% | forced: 0/19704 | GPU mem: 18.3GB | seq_len: 237
+09:11:16 | 19944/21726 (91.8%) | 868s | 23.0 q/s | ETA 78s | acc: 88.2% | forced: 0/19944 | GPU mem: 18.3GB | seq_len: 236
+09:11:23 | 20184/21726 (92.9%) | 874s | 23.1 q/s | ETA 67s | acc: 88.1% | forced: 0/20184 | GPU mem: 18.3GB | seq_len: 242
+09:11:29 | 20424/21726 (94.0%) | 881s | 23.2 q/s | ETA 56s | acc: 88.0% | forced: 0/20424 | GPU mem: 18.3GB | seq_len: 238
+09:11:36 | 20664/21726 (95.1%) | 887s | 23.3 q/s | ETA 46s | acc: 88.1% | forced: 0/20664 | GPU mem: 18.3GB | seq_len: 238
+09:11:42 | 20904/21726 (96.2%) | 894s | 23.4 q/s | ETA 35s | acc: 88.1% | forced: 0/20904 | GPU mem: 18.3GB | seq_len: 241
+09:11:49 | 21144/21726 (97.3%) | 901s | 23.5 q/s | ETA 25s | acc: 88.0% | forced: 0/21144 | GPU mem: 18.3GB | seq_len: 236
+09:11:56 | 21384/21726 (98.4%) | 908s | 23.6 q/s | ETA 15s | acc: 87.7% | forced: 0/21384 | GPU mem: 18.3GB | seq_len: 237
+09:12:02 | Checkpoint saved at batch 900/906
+09:12:03 | 21624/21726 (99.5%) | 914s | 23.6 q/s | ETA 4s | acc: 87.6% | forced: 0/21624 | GPU mem: 18.2GB | seq_len: 230
+09:12:05 | ============================================================
+09:12:05 | COMPLETED: 21726 questions in 917s (15.3min)
+09:12:05 | Accuracy: 19035/21726 (87.61%)
+09:12:05 | Forced choice: 0/21726 (0.00%)
+09:12:05 | Throughput: 23.7 questions/sec
+09:12:05 | ============================================================
+09:12:08 | Results saved to /data/user_data/anshulk/cultural-mi/results/step1/base_results.csv
+09:12:08 | Model unloaded, GPU cache cleared.
+09:12:09 | Processes finished: base exit=0, instruct exit=0
+09:12:09 | Both models completed successfully.
+
+============================================================
+Running Step 1 — Merge & Analysis
+============================================================
+
+09:12:12 | Logging to /home/anshulk/cultural-mi/logs/step1_merge_20260405_091212.log
+09:12:12 | ============================================================
+09:12:12 | Step 1: Merge & Analysis
+09:12:12 | ============================================================
+09:12:12 | Loading base results from /data/user_data/anshulk/cultural-mi/results/step1/base_results.csv
+09:12:12 |   21726 rows
+09:12:12 | Loading instruct results from /data/user_data/anshulk/cultural-mi/results/step1/instruct_results.csv
+09:12:12 |   21726 rows
+09:12:12 | Merged: 21726 rows (should be 21726)
+09:12:12 | Loading prepared dataset from /data/user_data/anshulk/cultural-mi/results/step1/sanskriti_prepared.csv
+09:12:12 | Low-confidence predictions (margin < 0.5 nats): base=1814 (8.3%), instruct=605 (2.8%)
+09:12:12 | Question types found: ['Association', 'Country Prediction', 'General Awareness', 'State Prediction']
+09:12:12 | Behavioral label distribution:
+09:12:12 |   suppression: 655 (3.0%)
+09:12:12 |   enhancement: 930 (4.3%)
+09:12:12 |   control_both_correct: 18380 (84.6%)
+09:12:12 |   control_both_wrong: 1761 (8.1%)
+09:12:13 | Master CSV saved: /data/user_data/anshulk/cultural-mi/results/step1/sanskriti_behavioral_labels.csv (21726 rows)
+09:12:13 | --- Tier 1: Full (21,726) (n=21726) ---
+09:12:13 |   Base accuracy:    87.61%
+09:12:13 |   Instruct accuracy:88.88%
+09:12:13 |   Suppression:      655 (3.0%)
+09:12:13 |   Enhancement:      930 (4.3%)
+09:12:13 |   Both correct:     18380 (84.6%)
+09:12:13 |   Both wrong:       1761 (8.1%)
+09:12:13 |   Base forced:      0.00%
+09:12:13 |   Instruct forced:  0.00%
+09:12:13 | --- Tier 2: No Country Prediction (n=16163) ---
+09:12:13 |   Base accuracy:    83.72%
+09:12:13 |   Instruct accuracy:85.46%
+09:12:13 |   Suppression:      623 (3.9%)
+09:12:13 |   Enhancement:      905 (5.6%)
+09:12:13 |   Both correct:     12908 (79.9%)
+09:12:13 |   Both wrong:       1727 (10.7%)
+09:12:13 |   Base forced:      0.00%
+09:12:13 |   Instruct forced:  0.00%
+09:12:13 | --- Tier 3: Hard (Association + General Awareness) (n=10781) ---
+09:12:13 |   Base accuracy:    84.69%
+09:12:13 |   Instruct accuracy:86.39%
+09:12:13 |   Suppression:      435 (4.0%)
+09:12:13 |   Enhancement:      619 (5.7%)
+09:12:13 |   Both correct:     8695 (80.7%)
+09:12:13 |   Both wrong:       1032 (9.6%)
+09:12:13 |   Base forced:      0.00%
+09:12:13 |   Instruct forced:  0.00%
+09:12:13 | Per question type:
+09:12:13 |   Association               n= 5453 base= 84.3% inst= 87.1% supp=  2.9%
+09:12:13 |   Country Prediction        n= 5563 base= 98.9% inst= 98.8% supp=  0.6%
+09:12:13 |   General Awareness         n= 5328 base= 85.0% inst= 85.7% supp=  5.2%
+09:12:13 |   State Prediction          n= 5382 base= 81.8% inst= 83.6% supp=  3.5%
+09:12:13 | Position distribution:
+09:12:13 |   A: GT=27.1% Base=28.0% Inst=29.1%
+09:12:13 |   B: GT=29.0% Base=28.8% Inst=28.6%
+09:12:13 |   C: GT=23.1% Base=23.6% Inst=22.3%
+09:12:13 |   D: GT=20.8% Base=19.6% Inst=20.0%
+09:12:19 | Entity-level analysis:
+09:12:19 |   suppressed: 77 entities
+09:12:19 |   enhanced: 87 entities
+09:12:19 |   both_correct: 6086 entities
+09:12:19 |   both_wrong: 162 entities
+09:12:19 |   mixed: 1422 entities
+09:12:19 |   Question-level suppression: 3.0%
+09:12:19 |   Entity-level suppression:   1.0%
+09:12:19 | Top 20 most suppressed entities (by suppression question count):
+09:12:19 |   Which of the states given in the options                     supp=55/1606
+09:12:19 |   Haryana|Cuisine|Cuisine of Haryana                           supp=4/9
+09:12:19 |   Telangana|Tourism|Banjara Hills                              supp=3/13
+09:12:19 |   Uttar_Pradesh|Costume|Uttar Pradesh                          supp=3/6
+09:12:19 |   Uttarakhand|Tourism|Uttarakhand                              supp=3/33
+09:12:19 |   Aiburo Bhaat                                                 supp=2/5
+09:12:19 |   Andhra_Pradesh|Costume|Langa Voni Andhra                     supp=2/2
+09:12:19 |   Arunachal_Pradesh|Costume|Aji Lhamu masks                    supp=2/2
+09:12:19 |   Arunachal_Pradesh|Festivals|Ziro Festival of Music           supp=2/2
+09:12:19 |   Arunachal_Pradesh|History|All of the above                   supp=2/11
+09:12:19 |   Babru                                                        supp=2/5
+09:12:19 |   Bihar|Language|Bihari                                        supp=2/7
+09:12:19 |   Buddha Memorial Park                                         supp=2/5
+09:12:19 |   Chhattisgarh|Art|Chhattisgarh                                supp=2/37
+09:12:19 |   Chhattisgarh|Cuisine|Chhattisgarh                            supp=2/7
+09:12:19 |   Chhattisgarh|Festivals|Bastar Dussehra                       supp=2/2
+09:12:19 |   Chhattisgarh|Festivals|Chhattisgarh                          supp=2/37
+09:12:19 |   Dadra_and_Nagar_Haveli_and_Daman_and_Diu|Cultural_Common_Sen supp=2/4
+09:12:19 |   Delhi|Festivals|Independence Day                             supp=2/12
+09:12:19 |   Delhi|Tourism|Laxminarayan Temple                            supp=2/23
+09:12:19 | Forced choice audit: 0 questions
+09:12:19 | Aggregate stats saved
+09:12:19 | Generating plots...
+09:12:19 | Plot saved: /home/anshulk/cultural-mi/plots/step1/accuracy_by_question_type.png
+09:12:19 | Plot saved: /home/anshulk/cultural-mi/plots/step1/behavioral_label_distribution.png
+09:12:19 | Plot saved: /home/anshulk/cultural-mi/plots/step1/suppression_by_attribute.png
+09:12:19 | Plot saved: /home/anshulk/cultural-mi/plots/step1/suppression_by_state.png
+09:12:20 | Plot saved: /home/anshulk/cultural-mi/plots/step1/position_distribution.png
+09:12:20 | Plot saved: /home/anshulk/cultural-mi/plots/step1/confidence_distribution.png
+09:12:20 | Plot saved: /home/anshulk/cultural-mi/plots/step1/logprob_margin_distribution.png
+09:12:20 | ============================================================
+09:12:20 | SANITY CHECKS
+09:12:20 | ============================================================
+09:12:20 | [WARN] F1: Base accuracy (Tier 2) = 83.7% (expected 40-70%)
+09:12:20 | [PASS] F2: Instruct (88.9%) > Base (87.6%)
+09:12:20 | [PASS] F3: Country Prediction: base=98.9%, inst=98.8% (expected >=95%)
+09:12:20 | [PASS] F4: Forced choice: base=0.0%, inst=0.0%
+09:12:20 | [INFO] F6: Suppression rate = 3.0% (expected 5-15%)
+09:12:20 | [INFO] F7: Enhancement rate = 4.3% (expected 4-12%)
+09:12:20 | [PASS] F8: No state >15% of suppression (max: Karnataka at 6.3%)
+09:12:20 | [INFO] F9: base low-confidence: 1814 (8.3%), acc_low=46.2%, acc_high=91.4%
+09:12:20 | [INFO] F9: instruct low-confidence: 605 (2.8%), acc_low=40.3%, acc_high=90.3%
+09:12:23 | SOME CHECKS FAILED — review warnings/errors above
+09:12:23 | ============================================================
+09:12:23 | MERGE & ANALYSIS COMPLETE
+09:12:23 | ============================================================
+
+============================================================
+Post-Run Validation
+============================================================
+--- Result CSVs ---
+  base_results.csv: 21726 rows, 649K
+  instruct_results.csv: 21726 rows, 649K
+  sanskriti_behavioral_labels.csv: 21840 rows, 3.6M
+  sanskriti_prepared.csv: 58102 rows, 4.3M
+
+--- Analysis outputs ---
+  step1_aggregate_stats.json: OK
+  accuracy_by_question_type.csv: OK
+  suppression_by_attribute.csv: OK
+  suppression_by_state.csv: OK
+  position_distribution.csv: OK
+  behavioral_label_counts.csv: OK
+  entity_behavioral_labels.csv: OK
+  confidence_distribution.csv: OK
+
+--- Activation files ---
+  base/mean_pool: 8 / 8 files
+  base/last_token: 8 / 8 files
+  instruct/mean_pool: 8 / 8 files
+  instruct/last_token: 8 / 8 files
+  Total: 32 / 32 files, 9.0G
+
+--- Plots ---
+  Plots generated: 0
+
+--- Sanity check summary ---
+2026-04-05 09:12:20 | WARNING | [WARN] F1: Base accuracy (Tier 2) = 83.7% (expected 40-70%)
+2026-04-05 09:12:20 | INFO    | [PASS] F2: Instruct (88.9%) > Base (87.6%)
+2026-04-05 09:12:20 | INFO    | [PASS] F3: Country Prediction: base=98.9%, inst=98.8% (expected >=95%)
+2026-04-05 09:12:20 | INFO    | [PASS] F4: Forced choice: base=0.0%, inst=0.0%
+2026-04-05 09:12:20 | INFO    | [INFO] F6: Suppression rate = 3.0% (expected 5-15%)
+2026-04-05 09:12:20 | INFO    | [INFO] F7: Enhancement rate = 4.3% (expected 4-12%)
+2026-04-05 09:12:20 | INFO    | [PASS] F8: No state >15% of suppression (max: Karnataka at 6.3%)
+2026-04-05 09:12:20 | INFO    | [INFO] F9: base low-confidence: 1814 (8.3%), acc_low=46.2%, acc_high=91.4%
+2026-04-05 09:12:20 | INFO    | [INFO] F9: instruct low-confidence: 605 (2.8%), acc_low=40.3%, acc_high=90.3%
+
+============================================================
+Job Complete
+============================================================
+End time: Sun Apr  5 09:12:23 EDT 2026
+Eval exit code: 0
+Merge exit code: 0
+Total runtime: 962 seconds (16 minutes)
+
+Step 1 completed successfully
